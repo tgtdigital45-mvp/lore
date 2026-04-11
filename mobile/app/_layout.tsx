@@ -8,7 +8,10 @@ import { useColorScheme } from "react-native";
 import "react-native-reanimated";
 
 import { AuthProvider } from "@/src/auth/AuthContext";
+import { queryClient } from "@/src/lib/queryClient";
+import { PatientProvider } from "@/src/patient/PatientContext";
 import { darkTheme, lightTheme } from "@/src/theme/theme";
+import { QueryClientProvider } from "@tanstack/react-query";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
 export { ErrorBoundary } from "expo-router";
@@ -33,9 +36,13 @@ export default function RootLayout() {
 
   return (
     <SafeAreaProvider>
-      <AuthProvider>
-        <RootLayoutNav />
-      </AuthProvider>
+      <QueryClientProvider client={queryClient}>
+        <AuthProvider>
+          <PatientProvider>
+            <RootLayoutNav />
+          </PatientProvider>
+        </AuthProvider>
+      </QueryClientProvider>
     </SafeAreaProvider>
   );
 }

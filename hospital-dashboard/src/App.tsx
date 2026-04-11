@@ -1,110 +1,53 @@
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { useLocation, useNavigate } from "react-router-dom";
+import {
+  AUDIT_ACTION_PT,
+  CANCER_EMOJI,
+  CANCER_PT,
+  CARE_TIPS,
+  CYCLE_STATUS_PT,
+  DOCUMENT_TYPE_PT,
+  MODAL_TAB_LABEL,
+  OUTBOUND_STATUS_PT,
+  SEVERITY_PT,
+  SEVERITY_RANK,
+} from "./constants/dashboardLabels";
+import { MainNavigation } from "./components/MainNavigation";
+import {
+  IconActivity,
+  IconHamburger,
+  IconLogout,
+  IconSend,
+  IconUserCircle,
+} from "./components/DashboardIcons";
+import {
+  buildRiskRow,
+  DEFAULT_ALERT_RULES,
+  mergeAlertRulesFromAssignments,
+  patientClinicalAlert,
+} from "./lib/triage";
 import { DASHBOARD_TABS, pathnameToTab, tabToPath } from "./nav";
 import { supabase } from "./lib/supabase";
 import { formatAuthError } from "./authErrors";
 import { ensureStaffIfPending, setPendingStaffRole } from "./staffLink";
+import type {
+  AuditLogRow,
+  BiomarkerModalRow,
+  HospitalMetaRow,
+  MedicalDocModalRow,
+  MessageFeedRow,
+  ModalTabId,
+  OutboundMessageRow,
+  PatientRow,
+  RiskRow,
+  SymptomLogDetail,
+  SymptomLogTriage,
+  TreatmentCycleRow,
+  WaProfileSnap,
+  MergedAlertRules,
+} from "./types/dashboard";
 import "./App.css";
-
-const CANCER_PT: Record<string, string> = {
-  breast: "Mama",
-  lung: "Pulmão",
-  prostate: "Próstata",
-  leukemia: "Leucemia",
-  colorectal: "Colorretal",
-  other: "Outro",
-};
-
-const CANCER_EMOJI: Record<string, string> = {
-  breast: "🎀",
-  lung: "🫁",
-  prostate: "🔬",
-  leukemia: "🩸",
-  colorectal: "🩺",
-  other: "📋",
-};
-
-const SEVERITY_RANK: Record<string, number> = {
-  mild: 1,
-  moderate: 2,
-  severe: 3,
-  life_threatening: 4,
-};
-
-const SEVERITY_PT: Record<string, string> = {
-  mild: "Leve",
-  moderate: "Moderado",
-  severe: "Grave",
-  life_threatening: "Ameaça à vida",
-};
-
-const CYCLE_STATUS_PT: Record<string, string> = {
-  active: "Em curso",
-  completed: "Concluído",
-  suspended: "Suspenso",
-};
-
-type PatientRow = {
-  id: string;
-  primary_cancer_type: string;
-  current_stage: string | null;
-  is_in_nadir: boolean;
-  profiles:
-    | { full_name: string; date_of_birth?: string | null }
-    | { full_name: string; date_of_birth?: string | null }[]
-    | null;
-};
-
-type TreatmentCycleRow = {
-  id: string;
-  protocol_name: string;
-  start_date: string;
-  end_date: string | null;
-  status: string;
-};
-
-type SymptomLogDetail = {
-  id: string;
-  symptom_category: string;
-  severity: string;
-  body_temperature: number | null;
-  logged_at: string;
-  notes: string | null;
-};
-
-type OutboundMessageRow = {
-  id: string;
-  body: string | null;
-  status: string;
-  created_at: string;
-  error_detail: string | null;
-};
-
-type WaProfileSnap = {
-  phone_e164: string | null;
-  optIn: boolean;
-};
-
-type BiomarkerModalRow = {
-  id: string;
-  medical_document_id: string | null;
-  name: string;
-  value_numeric: number | null;
-  value_text: string | null;
-  unit: string | null;
-  is_abnormal: boolean;
-  reference_alert: string | null;
-  logged_at: string;
-};
-
-type MedicalDocModalRow = {
-  id: string;
-  document_type: string;
-  uploaded_at: string;
-  storage_path: string;
-  mime_type: string | null;
-};
 
 /** URL pública do onco-backend; lida em build-time. */
 const BACKEND_URL_STORAGE_KEY = "aura_hospital_backend_url";
@@ -112,13 +55,6 @@ const BACKEND_URL_STORAGE_KEY = "aura_hospital_backend_url";
 function readEnvBackendUrl(): string {
   return (import.meta.env.VITE_BACKEND_URL as string | undefined)?.replace(/\/$/, "").trim() ?? "";
 }
-
-const DOCUMENT_TYPE_PT: Record<string, string> = {
-  blood_test: "Laboratorial",
-  biopsy: "Biópsia / anatomia",
-  scan: "Imagem",
-  administrative: "Guia / convênio / adm.",
-};
 
 function formatBiomarkerValue(r: BiomarkerModalRow): string {
   if (r.value_numeric != null && Number.isFinite(r.value_numeric)) return String(r.value_numeric);
@@ -134,116 +70,6 @@ function waProfileFromPatientsJoin(profiles: unknown): WaProfileSnap {
   const hasIn = o.whatsapp_opt_in_at != null;
   const hasRev = o.whatsapp_opt_in_revoked_at != null;
   return { phone_e164: phone, optIn: hasIn && !hasRev };
-}
-
-type SymptomLogTriage = {
-  patient_id: string;
-  severity: string;
-  symptom_category: string;
-  body_temperature: number | null;
-  logged_at: string;
-};
-
-type MergedAlertRules = {
-  fever_celsius_min: number;
-  alert_window_hours: number;
-};
-
-type HospitalEmbed = { name?: string; alert_rules?: unknown } | null;
-
-const DEFAULT_ALERT_RULES: MergedAlertRules = {
-  fever_celsius_min: 38,
-  alert_window_hours: 72,
-};
-
-function mergeAlertRulesFromAssignments(
-  assigns: { hospitals?: HospitalEmbed | HospitalEmbed[] | null }[]
-): MergedAlertRules {
-  let feverMin = Infinity;
-  let windowH = 0;
-  for (const row of assigns) {
-    const h = row.hospitals;
-    const list = !h ? [] : Array.isArray(h) ? h : [h];
-    for (const hosp of list) {
-      const raw = hosp?.alert_rules;
-      const r = typeof raw === "object" && raw !== null ? (raw as Record<string, unknown>) : {};
-      const f = r.fever_celsius_min;
-      const w = r.alert_window_hours;
-      if (typeof f === "number" && Number.isFinite(f)) feverMin = Math.min(feverMin, f);
-      if (typeof w === "number" && w > 0) windowH = Math.max(windowH, w);
-    }
-  }
-  if (!Number.isFinite(feverMin)) feverMin = DEFAULT_ALERT_RULES.fever_celsius_min;
-  if (windowH <= 0) windowH = DEFAULT_ALERT_RULES.alert_window_hours;
-  return { fever_celsius_min: feverMin, alert_window_hours: windowH };
-}
-
-function patientClinicalAlert(
-  logs: SymptomLogTriage[],
-  patientId: string,
-  rules: MergedAlertRules,
-  nowMs: number
-): { hasAlert: boolean; reasons: string[] } {
-  const cutoff = nowMs - rules.alert_window_hours * 3600 * 1000;
-  const reasons: string[] = [];
-  let hasFeverReason = false;
-  let hasSeverityReason = false;
-
-  for (const l of logs) {
-    if (l.patient_id !== patientId) continue;
-    if (new Date(l.logged_at).getTime() < cutoff) continue;
-
-    const sev = l.severity as string;
-    if (sev === "severe" || sev === "life_threatening") {
-      if (!hasSeverityReason) {
-        hasSeverityReason = true;
-        reasons.push(sev === "life_threatening" ? "Gravidade crítica" : "Gravidade alta");
-      }
-    }
-
-    if (l.symptom_category === "fever" && l.body_temperature != null && Number.isFinite(Number(l.body_temperature))) {
-      const temp = Number(l.body_temperature);
-      if (temp >= rules.fever_celsius_min && !hasFeverReason) {
-        hasFeverReason = true;
-        reasons.push(`Febre ≥ ${rules.fever_celsius_min} °C (${temp.toFixed(1)} °C)`);
-      }
-    }
-  }
-
-  return { hasAlert: reasons.length > 0, reasons };
-}
-
-function buildRiskRow(
-  p: PatientRow,
-  logRows: SymptomLogTriage[],
-  rules: MergedAlertRules,
-  nowMs: number
-): RiskRow {
-  const sinceRiskMs = nowMs - 168 * 3600 * 1000;
-  let maxRank = 0;
-  let lastAt: string | null = null;
-  for (const l of logRows) {
-    if (l.patient_id !== p.id) continue;
-    if (new Date(l.logged_at).getTime() < sinceRiskMs) continue;
-    const r = SEVERITY_RANK[l.severity as string] ?? 0;
-    if (r > maxRank) maxRank = r;
-    const la = l.logged_at as string;
-    if (!lastAt || new Date(la) > new Date(lastAt)) lastAt = la;
-  }
-  const { label, cls } = riskFromRank(maxRank, p.is_in_nadir);
-  const { hasAlert, reasons } = patientClinicalAlert(logRows, p.id, rules, nowMs);
-  const rules24h: MergedAlertRules = { fever_celsius_min: rules.fever_celsius_min, alert_window_hours: 24 };
-  const { hasAlert: hasAlert24h } = patientClinicalAlert(logRows, p.id, rules24h, nowMs);
-  return {
-    ...p,
-    risk: maxRank,
-    riskLabel: label,
-    riskClass: cls,
-    lastSymptomAt: lastAt,
-    hasClinicalAlert: hasAlert,
-    alertReasons: reasons,
-    hasAlert24h,
-  };
 }
 
 function profileName(p: PatientRow["profiles"]): string {
@@ -667,10 +493,16 @@ export default function App() {
     })();
   }, [session]);
 
+  const allowBackendUrlOverride = import.meta.env.DEV;
   const envBackendUrl = useMemo(() => readEnvBackendUrl(), []);
   const [backendUrlSession, setBackendUrlSession] = useState<string | null>(null);
   const [backendUrlInput, setBackendUrlInput] = useState("");
   useEffect(() => {
+    if (!allowBackendUrlOverride) {
+      setBackendUrlInput(envBackendUrl);
+      setBackendUrlSession(null);
+      return;
+    }
     try {
       const s = sessionStorage.getItem(BACKEND_URL_STORAGE_KEY)?.trim().replace(/\/$/, "");
       if (s) {
@@ -682,10 +514,13 @@ export default function App() {
       /* ignore */
     }
     setBackendUrlInput(envBackendUrl);
-  }, [envBackendUrl]);
+  }, [allowBackendUrlOverride, envBackendUrl]);
 
-  const backendUrl = (backendUrlSession ?? envBackendUrl).replace(/\/$/, "").trim();
+  const backendUrl = (allowBackendUrlOverride ? (backendUrlSession ?? envBackendUrl) : envBackendUrl)
+    .replace(/\/$/, "")
+    .trim();
   const applyBackendUrlFromInput = useCallback(() => {
+    if (!allowBackendUrlOverride) return;
     const t = backendUrlInput.trim().replace(/\/$/, "");
     if (t) {
       try {
@@ -703,7 +538,7 @@ export default function App() {
       setBackendUrlSession(null);
       setBackendUrlInput(envBackendUrl);
     }
-  }, [backendUrlInput, envBackendUrl]);
+  }, [allowBackendUrlOverride, backendUrlInput, envBackendUrl]);
 
   const loadTriage = useCallback(async () => {
     setLoadError(null);
@@ -1723,7 +1558,7 @@ export default function App() {
           type="button"
           className={`nav-item ${navActive === "configuracoes" ? "active" : ""}`}
           onClick={() => {
-            setNavActive("configuracoes");
+            navigate(tabToPath("configuracoes"));
             setModalPatient(null);
             window.scrollTo({ top: 0, behavior: "smooth" });
             const first = hospitalsMeta[0];

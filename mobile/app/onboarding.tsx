@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Alert, Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import { useRouter } from "expo-router";
+import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/src/lib/supabase";
 import { useAuth } from "@/src/auth/AuthContext";
 import { useAppTheme } from "@/src/hooks/useAppTheme";
@@ -12,6 +13,7 @@ const CANCER_TYPES = ["breast", "lung", "prostate", "leukemia", "colorectal", "o
 
 export default function OnboardingScreen() {
   const { session } = useAuth();
+  const queryClient = useQueryClient();
   const { theme } = useAppTheme();
   const router = useRouter();
   const [stage, setStage] = useState("");
@@ -34,6 +36,7 @@ export default function OnboardingScreen() {
       Alert.alert("Cadastro", error.message);
       return;
     }
+    await queryClient.invalidateQueries({ queryKey: ["patient", session.user.id] });
     router.replace("/(tabs)");
   }
 

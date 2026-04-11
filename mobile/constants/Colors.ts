@@ -1,19 +1,24 @@
-const tintColorLight = '#2f95dc';
-const tintColorDark = '#fff';
+/**
+ * Compatível com componentes legados (Themed). Fonte única: `src/theme/theme.ts`.
+ */
+import { darkTheme, lightTheme } from "@/src/theme/theme";
+
+const tintLight = lightTheme.colors.semantic.respiratory;
+const tintDark = "#FFFFFF";
 
 export default {
   light: {
-    text: '#000',
-    background: '#fff',
-    tint: tintColorLight,
-    tabIconDefault: '#ccc',
-    tabIconSelected: tintColorLight,
+    text: lightTheme.colors.text.primary,
+    background: lightTheme.colors.background.primary,
+    tint: tintLight,
+    tabIconDefault: "#CCCCCC",
+    tabIconSelected: tintLight,
   },
   dark: {
-    text: '#fff',
-    background: '#000',
-    tint: tintColorDark,
-    tabIconDefault: '#ccc',
-    tabIconSelected: tintColorDark,
+    text: darkTheme.colors.text.primary,
+    background: darkTheme.colors.background.primary,
+    tint: tintDark,
+    tabIconDefault: "#CCCCCC",
+    tabIconSelected: tintDark,
   },
 };
