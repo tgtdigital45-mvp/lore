@@ -1,0 +1,28 @@
+@import 'tailwindcss';
+
+@theme {
+  --font-sans: system-ui, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --color-onco-bg: #f2f2f7;
+  --color-onco-primary: #007aff;
+  --color-onco-mint: #34c759;
+  --color-onco-alert: #ff9500;
+  --color-onco-danger: #ff3b30;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: 16px;
+  line-height: 1.5;
+  color: #1c1c1e;
+  background: var(--color-onco-bg);
+  -webkit-font-smoothing: antialiased;
+}
+
+#root {
+  min-height: 100svh;
+}

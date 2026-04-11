@@ -38,11 +38,46 @@ export const CYCLE_STATUS_PT: Record<string, string> = {
   suspended: "Suspenso",
 };
 
+export const TREATMENT_KIND_PT: Record<string, string> = {
+  chemotherapy: "Quimioterapia",
+  radiotherapy: "Radioterapia",
+  hormone: "Hormonioterapia",
+  immunotherapy: "Imunoterapia",
+  other: "Outro",
+};
+
 export const DOCUMENT_TYPE_PT: Record<string, string> = {
   blood_test: "Laboratorial",
   biopsy: "Biópsia / anatomia",
   scan: "Imagem",
   administrative: "Guia / convênio / adm.",
+};
+
+/** Categorias do diário de sintomas (legado) — alinhado à app móvel. */
+export const SYMPTOM_CATEGORY_PT: Record<string, string> = {
+  nausea: "Náuseas",
+  fever: "Febre",
+  fatigue: "Fadiga",
+  diarrhea: "Diarreia",
+  pain: "Dor",
+  hydration: "Hidratação",
+};
+
+export const NUTRITION_LOG_TYPE_PT: Record<string, string> = {
+  water: "Água",
+  coffee: "Café",
+  meal: "Refeição",
+  calories: "Calorias",
+  appetite: "Apetite",
+};
+
+export const VITAL_TYPE_PT: Record<string, string> = {
+  temperature: "Temperatura",
+  heart_rate: "Frequência cardíaca",
+  blood_pressure: "Pressão arterial",
+  spo2: "SpO₂",
+  weight: "Peso",
+  glucose: "Glicemia",
 };
 
 export const AUDIT_ACTION_PT: Record<string, string> = {
@@ -66,7 +101,6 @@ export const MODAL_TAB_LABEL: Record<ModalTabId, string> = {
   resumo: "Resumo",
   exames: "Exames",
   mensagens: "Mensagens",
-  diario: "Diário",
 };
 
 export const CARE_TIPS = [

@@ -29,8 +29,17 @@ module.exports = ({ config }) => {
     "";
   const apiUrl = process.env.EXPO_PUBLIC_API_URL?.trim() || "";
 
+  const plugins = Array.isArray(config.plugins) ? [...config.plugins] : [];
+  if (!plugins.some((p) => p === "@react-native-community/datetimepicker" || (Array.isArray(p) && p[0] === "@react-native-community/datetimepicker"))) {
+    plugins.push("@react-native-community/datetimepicker");
+  }
+  if (!plugins.some((p) => p === "expo-apple-authentication" || (Array.isArray(p) && p[0] === "expo-apple-authentication"))) {
+    plugins.push("expo-apple-authentication");
+  }
+
   return {
     ...config,
+    plugins,
     extra: {
       ...(config.extra ?? {}),
       supabaseUrl,

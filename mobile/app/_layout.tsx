@@ -8,8 +8,11 @@ import { useColorScheme } from "react-native";
 import "react-native-reanimated";
 
 import { AuthProvider } from "@/src/auth/AuthContext";
+import { AppErrorBoundary } from "@/src/components/AppErrorBoundary";
 import { queryClient } from "@/src/lib/queryClient";
+import { usePushTokenRegistration } from "@/src/hooks/usePushToken";
 import { PatientProvider } from "@/src/patient/PatientContext";
+import { usePatientLinkNotificationRoutes } from "@/src/hooks/usePatientLinkNotificationRoutes";
 import { darkTheme, lightTheme } from "@/src/theme/theme";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { SafeAreaProvider } from "react-native-safe-area-context";
@@ -36,18 +39,27 @@ export default function RootLayout() {
 
   return (
     <SafeAreaProvider>
-      <QueryClientProvider client={queryClient}>
-        <AuthProvider>
-          <PatientProvider>
-            <RootLayoutNav />
-          </PatientProvider>
-        </AuthProvider>
-      </QueryClientProvider>
+      <AppErrorBoundary>
+        <QueryClientProvider client={queryClient}>
+          <AuthProvider>
+            <PatientProvider>
+              <PushTokenBridge />
+              <RootLayoutNav />
+            </PatientProvider>
+          </AuthProvider>
+        </QueryClientProvider>
+      </AppErrorBoundary>
     </SafeAreaProvider>
   );
 }
 
+function PushTokenBridge() {
+  usePushTokenRegistration();
+  return null;
+}
+
 function RootLayoutNav() {
+  usePatientLinkNotificationRoutes();
   const colorScheme = useColorScheme();
   const t = colorScheme === "dark" ? darkTheme : lightTheme;
   const navTheme = colorScheme === "dark" ? DarkTheme : DefaultTheme;
@@ -66,11 +78,49 @@ function RootLayoutNav() {
 
   return (
     <ThemeProvider value={merged}>
-      <Stack>
+      <Stack
+        screenOptions={{
+          contentStyle: { backgroundColor: t.colors.background.primary },
+          animation: "default",
+        }}
+      >
         <Stack.Screen name="index" options={{ headerShown: false }} />
         <Stack.Screen name="login" options={{ title: "Entrar", headerShown: true }} />
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="onboarding" options={{ title: "Cadastro", presentation: "modal", headerShown: true }} />
+        <Stack.Screen
+          name="onboarding"
+          options={{
+            title: "Cadastro",
+            presentation: "formSheet",
+            headerShown: true,
+            animation: "fade_from_bottom",
+            gestureDirection: "vertical",
+            gestureEnabled: true,
+          }}
+        />
+        <Stack.Screen
+          name="lgpd-consent"
+          options={{
+            title: "Privacidade",
+            presentation: "formSheet",
+            headerShown: true,
+            animation: "fade_from_bottom",
+            gestureDirection: "vertical",
+            gestureEnabled: true,
+          }}
+        />
+        <Stack.Screen
+          name="calendar"
+          options={{ title: "Calendário", headerShown: true, animation: "slide_from_right", animationDuration: 380 }}
+        />
+        <Stack.Screen
+          name="authorizations"
+          options={{ title: "Acessos hospitalares", headerShown: true, animation: "slide_from_right", animationDuration: 380 }}
+        />
+        <Stack.Screen
+          name="reports"
+          options={{ title: "Relatórios", headerShown: true, animation: "slide_from_right", animationDuration: 380 }}
+        />
         <Stack.Screen name="+not-found" />
       </Stack>
     </ThemeProvider>

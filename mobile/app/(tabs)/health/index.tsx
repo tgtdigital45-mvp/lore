@@ -1,5 +1,5 @@
 import { useCallback } from "react";
-import { Alert, Platform, Pressable, ScrollView, Text, View } from "react-native";
+import { Platform, ScrollView, Text, View } from "react-native";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import type { Href } from "expo-router";
 import { useRouter } from "expo-router";
@@ -22,20 +22,13 @@ type Cat = {
 };
 
 const MAIN_CATEGORIES: Cat[] = [
-  { key: "cycle", label: "Acompanhamento de Ciclo", icon: "circle-o", tint: "#FF2D55" },
-  { key: "activity", label: "Atividade", icon: "bar-chart", tint: "#FF9500" },
-  { key: "hearing", label: "Audição", icon: "volume-up", tint: "#007AFF" },
-  { key: "mental", label: "Bem-estar Mental", icon: "smile-o", tint: "#5AC8FA" },
-  { key: "heart", label: "Coração", icon: "heart", tint: "#FF3B30" },
+  { key: "treatment", label: "Tratamento", icon: "circle-o", tint: "#FF2D55", href: "/(tabs)/treatment" as Href },
   { key: "meds", label: "Medicamentos", icon: "medkit", tint: "#32ADE6", href: "/(tabs)/health/medications" as Href },
-  { key: "body", label: "Medidas Corporais", icon: "user", tint: "#AF52DE" },
-  { key: "mobility", label: "Mobilidade", icon: "exchange", tint: "#FF9500" },
-  { key: "nutrition", label: "Nutrição", icon: "apple", tint: "#34C759" },
-  { key: "breath", label: "Respiração", icon: "leaf", tint: "#64D2FF" },
-  { key: "vitals", label: "Sinais Vitais", icon: "heartbeat", tint: "#FF2D55" },
-  { key: "symptoms", label: "Sintomas", icon: "search", tint: "#AF52DE" },
-  { key: "sleep", label: "Sono", icon: "moon-o", tint: "#BF5AF2" },
-  { key: "more", label: "Outros Dados", icon: "plus", tint: "#64D2FF" },
+  { key: "vitals", label: "Sinais vitais", icon: "heartbeat", tint: "#FF2D55", href: "/(tabs)/health/vitals" as Href },
+  { key: "nutrition", label: "Nutrição", icon: "cutlery", tint: "#34C759", href: "/(tabs)/health/nutrition" as Href },
+  { key: "exams", label: "Exames", icon: "file-text-o", tint: "#5E5CE6", href: "/(tabs)/exams" as Href },
+  { key: "diary", label: "Diário e sintomas", icon: "book", tint: "#AF52DE", href: "/(tabs)/diary" as Href },
+  { key: "calendar", label: "Agendamentos", icon: "calendar", tint: "#007AFF", href: "/calendar" as Href },
 ];
 
 export default function HealthBrowseScreen() {
@@ -45,19 +38,7 @@ export default function HealthBrowseScreen() {
 
   const onCategory = useCallback(
     (c: Cat) => {
-      if (c.href) {
-        router.push(c.href);
-        return;
-      }
-      if (c.key === "symptoms") {
-        router.push("/(tabs)/diary");
-        return;
-      }
-      if (c.key === "heart" || c.key === "vitals") {
-        router.push("/(tabs)/diary");
-        return;
-      }
-      Alert.alert(c.label, "Esta categoria será integrada nas próximas versões do Onco.");
+      if (c.href) router.push(c.href);
     },
     [router]
   );
@@ -91,33 +72,7 @@ export default function HealthBrowseScreen() {
           </Text>
         </View>
 
-        <HealthSection
-          theme={theme}
-          title="Ferramentas Onco"
-          marginTop={0}
-          surfaceColor={theme.colors.background.primary}
-        >
-          <HealthRow
-            theme={theme}
-            icon="book"
-            iconTint={theme.colors.semantic.symptoms}
-            title="Diário"
-            subtitle="Registro de sintomas e evolução"
-            showDivider
-            onPress={() => router.push("/(tabs)/diary" as Href)}
-          />
-          <HealthRow
-            theme={theme}
-            icon="comments"
-            iconTint={theme.colors.semantic.treatment}
-            title="Assistente"
-            subtitle="Triagem e suporte no app"
-            showDivider={false}
-            onPress={() => router.push("/(tabs)/agent" as Href)}
-          />
-        </HealthSection>
-
-        <HealthSection theme={theme} title="" marginTop={theme.spacing.md} surfaceColor={theme.colors.background.primary}>
+        <HealthSection theme={theme} title="" marginTop={0} surfaceColor={theme.colors.background.primary}>
           {MAIN_CATEGORIES.map((c, i) => (
             <HealthRow
               key={c.key}

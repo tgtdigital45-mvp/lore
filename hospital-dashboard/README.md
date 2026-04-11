@@ -1,50 +1,64 @@
-# React + TypeScript + Vite
+# Onco — Dashboard hospitalar (Vite + React)
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Interface **web para equipas clínicas e gestão**: triagem de pacientes, sintomas, exames, mensagens (ex.: WhatsApp via backend), auditoria e definições do hospital. Consome o **mesmo projeto Supabase** que o app mobile e o **onco-backend** para OCR, envio WhatsApp e ficheiros de exames.
 
-Currently, two official plugins are available:
+## Stack
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react/README.md) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+- **Vite 6**, **React 19**, **React Router 7**
+- **TypeScript**
+- **@supabase/supabase-js** (sessão staff + queries + Realtime)
+- Sem Next.js — SPA cliente única (`src/App.tsx` como shell principal)
 
-## Expanding the ESLint configuration
+## Pré-requisitos
 
-If you are developing a production application, we recommend updating the configuration to enable type aware lint rules:
+- Node 20+
+- Projeto **Supabase** com migrações aplicadas (ver [`../supabase/migrations/`](../supabase/migrations/))
+- **onco-backend** para fluxos que exigem API dedicada (OCR, WhatsApp, download/view de exames)
 
-- Configure the top-level `parserOptions` property like this:
+## Variáveis de ambiente
 
-```js
-export default tseslint.config({
-  languageOptions: {
-    // other options...
-    parserOptions: {
-      project: ['./tsconfig.node.json', './tsconfig.app.json'],
-      tsconfigRootDir: import.meta.dirname,
-    },
-  },
-})
+Crie `hospital-dashboard/.env`:
+
+| Variável | Obrigatório | Descrição |
+|----------|-------------|-----------|
+| `VITE_SUPABASE_URL` | Sim | URL do projeto Supabase |
+| `VITE_SUPABASE_ANON_KEY` | Sim | Chave **anon** do Supabase |
+| `VITE_BACKEND_URL` | Recomendado | URL do onco-backend **sem** barra final (ex.: `http://localhost:3001`). Usado para OCR, WhatsApp e exames; também pode ser indicado na UI (Integração) |
+
+Em produção, o backend deve listar a origem do dashboard em **`CORS_ORIGINS`**.
+
+## Comandos
+
+```bash
+cd hospital-dashboard
+npm install
+npm run dev
 ```
 
-- Replace `tseslint.configs.recommended` to `tseslint.configs.recommendedTypeChecked` or `tseslint.configs.strictTypeChecked`
-- Optionally add `...tseslint.configs.stylisticTypeChecked`
-- Install [eslint-plugin-react](https://github.com/jsx-eslint/eslint-plugin-react) and update the config:
+Build e pré-visualização:
 
-```js
-// eslint.config.js
-import react from 'eslint-plugin-react'
-
-export default tseslint.config({
-  // Set the react version
-  settings: { react: { version: '18.3' } },
-  plugins: {
-    // Add the react plugin
-    react,
-  },
-  rules: {
-    // other rules...
-    // Enable its recommended rules
-    ...react.configs.recommended.rules,
-    ...react.configs['jsx-runtime'].rules,
-  },
-})
+```bash
+npm run build
+npm run preview
 ```
+
+Lint: `npm run lint`
+
+## Funcionalidades (alto nível)
+
+- Login com Supabase Auth (perfil staff / `staff_assignments`)
+- Lista e detalhe de pacientes com regras de risco / alertas
+- Realtime em atualizações relevantes (ex.: sintomas)
+- Integração com backend para upload OCR de exames e mensagens outbound
+
+## Documentação do monorepo
+
+- Raiz: [`../README.md`](../README.md)
+- Contrato / sprint dashboard: [`../docs/data-contract-dashboard.md`](../docs/data-contract-dashboard.md), [`../docs/hospital-dashboard-sprint.md`](../docs/hospital-dashboard-sprint.md)
+- Backlog: [`../TODO_MASTER.md`](../TODO_MASTER.md)
+- Relatório: [`../docs/RELATORIO-PROJETO.md`](../docs/RELATORIO-PROJETO.md)
+
+## Notas
+
+- Não commite `.env` com chaves reais.
+- Deploy (ex.: Vercel): configurar as variáveis `VITE_*` no painel e apontar `VITE_BACKEND_URL` para o backend público em HTTPS.

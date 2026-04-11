@@ -1,17 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
-import {
-  ActivityIndicator,
-  Alert,
-  Modal,
-  Pressable,
-  ScrollView,
-  Text,
-  TextInput,
-  View,
-  useWindowDimensions,
-} from "react-native";
+import { ActivityIndicator, Alert, Pressable, ScrollView, Text, TextInput, View, useWindowDimensions } from "react-native";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { BottomSheetModal } from "@/src/components/BottomSheetModal";
 import { useAppTheme } from "@/src/hooks/useAppTheme";
 import { supabase } from "@/src/lib/supabase";
 import type { OcrExtractedPayload } from "@/src/exams/ocrReviewTypes";
@@ -85,21 +76,16 @@ export function OcrReviewBottomSheet({
   if (!extracted) return null;
 
   return (
-    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
-      <Pressable
-        onPress={onClose}
-        style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.45)", justifyContent: "flex-end" }}
+    <BottomSheetModal visible={visible} onClose={onClose} maxHeightFraction={0.92}>
+      <View
+        style={{
+          maxHeight: winH * 0.92,
+          backgroundColor: theme.colors.background.primary,
+          borderTopLeftRadius: theme.radius.xl,
+          borderTopRightRadius: theme.radius.xl,
+          paddingBottom: Math.max(insets.bottom, theme.spacing.md),
+        }}
       >
-        <Pressable
-          onPress={(e) => e.stopPropagation()}
-          style={{
-            maxHeight: winH * 0.92,
-            backgroundColor: theme.colors.background.primary,
-            borderTopLeftRadius: theme.radius.xl,
-            borderTopRightRadius: theme.radius.xl,
-            paddingBottom: Math.max(insets.bottom, theme.spacing.md),
-          }}
-        >
           <View style={{ alignItems: "center", paddingTop: theme.spacing.sm }}>
             <View
               style={{
@@ -278,8 +264,7 @@ export function OcrReviewBottomSheet({
               )}
             </Pressable>
           </View>
-        </Pressable>
-      </Pressable>
-    </Modal>
+      </View>
+    </BottomSheetModal>
   );
 }

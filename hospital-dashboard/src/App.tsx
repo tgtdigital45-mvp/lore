@@ -1,26 +1,15 @@
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import type { Session } from "@supabase/supabase-js";
 import { useLocation, useNavigate } from "react-router-dom";
 import {
-  AUDIT_ACTION_PT,
   CANCER_EMOJI,
   CANCER_PT,
-  CARE_TIPS,
   CYCLE_STATUS_PT,
   DOCUMENT_TYPE_PT,
-  MODAL_TAB_LABEL,
-  OUTBOUND_STATUS_PT,
   SEVERITY_PT,
   SEVERITY_RANK,
 } from "./constants/dashboardLabels";
-import { MainNavigation } from "./components/MainNavigation";
-import {
-  IconActivity,
-  IconHamburger,
-  IconLogout,
-  IconSend,
-  IconUserCircle,
-} from "./components/DashboardIcons";
 import {
   buildRiskRow,
   DEFAULT_ALERT_RULES,
@@ -32,15 +21,11 @@ import { supabase } from "./lib/supabase";
 import { formatAuthError } from "./authErrors";
 import { ensureStaffIfPending, setPendingStaffRole } from "./staffLink";
 import type {
-  AuditLogRow,
   BiomarkerModalRow,
-  HospitalMetaRow,
+  HospitalEmbed,
   MedicalDocModalRow,
-  MessageFeedRow,
-  ModalTabId,
   OutboundMessageRow,
   PatientRow,
-  RiskRow,
   SymptomLogDetail,
   SymptomLogTriage,
   TreatmentCycleRow,
@@ -268,7 +253,8 @@ function triageEstadoChat(r: RiskRow): { label: string; cls: string } {
   return { label: "Normal", cls: "risk-low" };
 }
 
-function pillClassForSeverity(sev: string): string {
+function pillClassForSeverity(sev: string | null): string {
+  if (!sev) return "risk-none";
   if (sev === "life_threatening") return "risk-critical";
   if (sev === "severe") return "risk-high";
   if (sev === "moderate") return "risk-mid";
@@ -459,6 +445,8 @@ export default function App() {
   const [staffUploadMsg, setStaffUploadMsg] = useState<string | null>(null);
   const [expandedExamDocId, setExpandedExamDocId] = useState<string | null>(null);
   const modalCloseRef = useRef<HTMLButtonElement>(null);
+  const patientModalSheetRef = useRef<HTMLDivElement>(null);
+  const patientModalDragRef = useRef<{ pointerId: number; startY: number } | null>(null);
   const auditedPatientIds = useRef(new Set<string>());
   const triageReloadTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -1374,6 +1362,59 @@ export default function App() {
       document.body.style.overflow = prev;
     };
   }, [modalPatient]);
+
+  useEffect(() => {
+    if (!modalPatient) {
+      patientModalDragRef.current = null;
+      return;
+    }
+    const el = patientModalSheetRef.current;
+    if (el) {
+      el.style.transform = "";
+      el.style.transition = "";
+    }
+  }, [modalPatient]);
+
+  const onPatientModalHeadPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (e.button !== 0) return;
+    if ((e.target as HTMLElement).closest("button.patient-modal__close")) return;
+    patientModalDragRef.current = { pointerId: e.pointerId, startY: e.clientY };
+    e.currentTarget.setPointerCapture(e.pointerId);
+  };
+
+  const onPatientModalHeadPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    const d = patientModalDragRef.current;
+    if (!d || e.pointerId !== d.pointerId) return;
+    const dy = e.clientY - d.startY;
+    const sheet = patientModalSheetRef.current;
+    if (!sheet) return;
+    if (dy > 0) {
+      sheet.style.transition = "none";
+      sheet.style.transform = `translateY(${dy}px)`;
+    } else {
+      sheet.style.transform = "";
+    }
+  };
+
+  const endPatientModalDrag = (e: React.PointerEvent<HTMLDivElement>) => {
+    const d = patientModalDragRef.current;
+    if (!d || e.pointerId !== d.pointerId) return;
+    patientModalDragRef.current = null;
+    const sheet = patientModalSheetRef.current;
+    const dy = e.clientY - d.startY;
+    try {
+      e.currentTarget.releasePointerCapture(e.pointerId);
+    } catch {
+      /* ignore */
+    }
+    if (sheet) {
+      sheet.style.transition = "";
+      sheet.style.transform = "";
+    }
+    if (dy > 72) {
+      setModalPatient(null);
+    }
+  };
 
   const triageActivityRows = useMemo(
     () =>
@@ -2585,39 +2626,50 @@ export default function App() {
         </aside>
       </div>
 
-      {modalPatient ? (
-        <div className="patient-modal-backdrop" onClick={() => setModalPatient(null)}>
-          <div
-            className="patient-modal"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="patient-modal-title"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="patient-modal__head">
-              <div className="patient-modal__identity">
-                <div className="patient-modal__avatar" aria-hidden>
-                  {initialsFromName(profileName(modalPatient.profiles))}
-                </div>
-                <div>
-                  <h2 id="patient-modal-title" className="patient-modal__name">
-                    {profileName(modalPatient.profiles)}
-                  </h2>
-                  <p className="patient-modal__meta">
-                    {ageFromDob(profileDob(modalPatient.profiles)) ?? "Idade não informada"}
-                    {modalPatient.current_stage ? ` · Estágio: ${modalPatient.current_stage}` : ""}
-                  </p>
-                </div>
-              </div>
-              <button
-                ref={modalCloseRef}
-                type="button"
-                className="patient-modal__close"
-                onClick={() => setModalPatient(null)}
+      {modalPatient
+        ? createPortal(
+            <div className="patient-modal-backdrop" onClick={() => setModalPatient(null)}>
+              <div
+                ref={patientModalSheetRef}
+                className="patient-modal"
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="patient-modal-title"
+                onClick={(e) => e.stopPropagation()}
               >
-                Fechar
-              </button>
-            </div>
+                <div
+                  className="patient-modal__head patient-modal__head--draggable"
+                  onPointerDown={onPatientModalHeadPointerDown}
+                  onPointerMove={onPatientModalHeadPointerMove}
+                  onPointerUp={endPatientModalDrag}
+                  onPointerCancel={endPatientModalDrag}
+                >
+                  <div className="patient-modal__handle" aria-hidden />
+                  <div className="patient-modal__head-main">
+                    <div className="patient-modal__identity">
+                      <div className="patient-modal__avatar" aria-hidden>
+                        {initialsFromName(profileName(modalPatient.profiles))}
+                      </div>
+                      <div>
+                        <h2 id="patient-modal-title" className="patient-modal__name">
+                          {profileName(modalPatient.profiles)}
+                        </h2>
+                        <p className="patient-modal__meta">
+                          {ageFromDob(profileDob(modalPatient.profiles)) ?? "Idade não informada"}
+                          {modalPatient.current_stage ? ` · Estágio: ${modalPatient.current_stage}` : ""}
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      ref={modalCloseRef}
+                      type="button"
+                      className="patient-modal__close"
+                      onClick={() => setModalPatient(null)}
+                    >
+                      Fechar
+                    </button>
+                  </div>
+                </div>
 
             <div className="patient-modal__tabs" role="tablist" aria-label="Secções do prontuário">
               {(Object.keys(MODAL_TAB_LABEL) as ModalTabId[]).map((id) => (
@@ -3022,7 +3074,7 @@ export default function App() {
                               <td>{s.symptom_category}</td>
                               <td>
                                 <span className={`pill pill--compact ${pillClassForSeverity(s.severity)}`}>
-                                  {SEVERITY_PT[s.severity] ?? s.severity}
+                                  {s.severity ? SEVERITY_PT[s.severity] ?? s.severity : "—"}
                                 </span>
                               </td>
                               <td>{s.body_temperature != null ? `${s.body_temperature} °C` : "—"}</td>
@@ -3039,8 +3091,10 @@ export default function App() {
             <p className="patient-modal__audit-hint muted">Acesso ao prontuário registrado para conformidade (auditoria).</p>
             </div>
           </div>
-        </div>
-      ) : null}
+        </div>,
+            document.body
+          )
+        : null}
     </div>
   );
 }

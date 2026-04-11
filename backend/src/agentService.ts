@@ -1,10 +1,16 @@
+import { createHmac } from "node:crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Env } from "./config.js";
 import { runGeminiTriagem } from "./gemini.js";
+import { logStructured } from "./logger.js";
 import { evaluateNadirFeverEmergency } from "./nadirFeverRules.js";
 
 const EMERGENCY_MESSAGE =
   "Atenção: devido à fase atual do seu tratamento, febre ou calafrios exigem avaliação urgente. Dirija-se ao pronto-socorro mais próximo agora e avise sua equipe de cuidados.";
+
+function signHospitalAlertPayload(body: string, secret: string): string {
+  return createHmac("sha256", secret).update(body, "utf8").digest("hex");
+}
 
 export type AgentResult = {
   reply: string;
@@ -64,17 +70,28 @@ export async function processAgentMessage(
     });
 
     let webhookSent = false;
-    if (env.HOSPITAL_ALERT_WEBHOOK_URL) {
+    if (env.HOSPITAL_ALERT_WEBHOOK_URL && !env.HOSPITAL_ALERT_WEBHOOK_SECRET) {
+      logStructured("hospital_alert_webhook_skipped", {
+        reason: "missing_HOSPITAL_ALERT_WEBHOOK_SECRET",
+      });
+    }
+    if (env.HOSPITAL_ALERT_WEBHOOK_URL && env.HOSPITAL_ALERT_WEBHOOK_SECRET) {
       try {
+        const payload = {
+          type: "EMERGENCY_NADIR_FEVER" as const,
+          patient_id: patient.id,
+          hospital_id: patient.hospital_id,
+          ts: new Date().toISOString(),
+        };
+        const raw = JSON.stringify(payload);
+        const sig = signHospitalAlertPayload(raw, env.HOSPITAL_ALERT_WEBHOOK_SECRET);
         await fetch(env.HOSPITAL_ALERT_WEBHOOK_URL, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            type: "EMERGENCY_NADIR_FEVER",
-            patient_id: patient.id,
-            hospital_id: patient.hospital_id,
-            message,
-          }),
+          headers: {
+            "Content-Type": "application/json",
+            "X-Webhook-Signature": sig,
+          },
+          body: raw,
         });
         webhookSent = true;
       } catch {

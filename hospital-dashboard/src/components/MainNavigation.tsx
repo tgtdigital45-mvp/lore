@@ -1,6 +1,5 @@
 import type { NavigateFunction } from "react-router-dom";
-import { tabToPath } from "../nav";
-import type { DashboardTab } from "../nav";
+import { tabToPath, type DashboardTab } from "../nav";
 import type { HospitalMetaRow } from "../types/dashboard";
 import {
   IconDashboard,
@@ -15,7 +14,7 @@ type Props = {
   navActive: DashboardTab;
   navigate: NavigateFunction;
   goToPacientes: () => void;
-  setModalPatient: (v: null) => void;
+  closePatientModal: () => void;
   hospitalsMeta: HospitalMetaRow[];
   setSettingsHospitalId: (id: string | null) => void;
   hydrateSettingsFromHospital: (h: HospitalMetaRow) => void;
@@ -25,7 +24,7 @@ export function MainNavigation({
   navActive,
   navigate,
   goToPacientes,
-  setModalPatient,
+  closePatientModal,
   hospitalsMeta,
   setSettingsHospitalId,
   hydrateSettingsFromHospital,
@@ -38,7 +37,7 @@ export function MainNavigation({
           className={`nav-item ${navActive === "painel" ? "active" : ""}`}
           onClick={() => {
             navigate(tabToPath("painel"));
-            setModalPatient(null);
+            closePatientModal();
             window.scrollTo({ top: 0, behavior: "smooth" });
           }}
         >
@@ -62,7 +61,7 @@ export function MainNavigation({
           className={`nav-item ${navActive === "mensagens" ? "active" : ""}`}
           onClick={() => {
             navigate(tabToPath("mensagens"));
-            setModalPatient(null);
+            closePatientModal();
             window.scrollTo({ top: 0, behavior: "smooth" });
           }}
         >
@@ -78,7 +77,7 @@ export function MainNavigation({
           className={`nav-item ${navActive === "integracao" ? "active" : ""}`}
           onClick={() => {
             navigate(tabToPath("integracao"));
-            setModalPatient(null);
+            closePatientModal();
             window.scrollTo({ top: 0, behavior: "smooth" });
           }}
         >
@@ -94,7 +93,7 @@ export function MainNavigation({
           className={`nav-item ${navActive === "gestao" ? "active" : ""}`}
           onClick={() => {
             navigate(tabToPath("gestao"));
-            setModalPatient(null);
+            closePatientModal();
             window.scrollTo({ top: 0, behavior: "smooth" });
           }}
         >
@@ -110,7 +109,7 @@ export function MainNavigation({
           className={`nav-item ${navActive === "configuracoes" ? "active" : ""}`}
           onClick={() => {
             navigate(tabToPath("configuracoes"));
-            setModalPatient(null);
+            closePatientModal();
             window.scrollTo({ top: 0, behavior: "smooth" });
             const first = hospitalsMeta[0];
             if (first) {

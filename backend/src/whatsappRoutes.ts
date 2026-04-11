@@ -3,6 +3,7 @@ import type { RateLimitRequestHandler } from "express-rate-limit";
 import { z } from "zod";
 import type { Env } from "./config.js";
 import { authenticateBearer } from "./authMiddleware.js";
+import { idempotencyMiddleware } from "./idempotencyMiddleware.js";
 import { logStructured } from "./logger.js";
 import { verifyMetaXHubSignature256 } from "./metaWebhookSignature.js";
 import { createServiceSupabase } from "./supabase.js";
@@ -112,10 +113,14 @@ export function mountWhatsappRoutes(app: Express, env: Env, limiter: RateLimitRe
     });
   });
 
-  app.post("/api/whatsapp/send", limiter, requireUser, async (req: Request, res: Response) => {
+  app.post("/api/whatsapp/send", limiter, idempotencyMiddleware(), requireUser, async (req: Request, res: Response) => {
     const parsed = sendBody.safeParse(req.body);
     if (!parsed.success) {
-      res.status(400).json({ error: "invalid_body", details: parsed.error.flatten() });
+      logStructured("validation_error", { route: "whatsapp_send", details: parsed.error.flatten() });
+      res.status(400).json({
+        error: "invalid_request",
+        message: "Requisição inválida. Verifique os campos enviados.",
+      });
       return;
     }
 
@@ -190,6 +195,7 @@ export function mountWhatsappRoutes(app: Express, env: Env, limiter: RateLimitRe
       graphJson = (await r.json()) as typeof graphJson;
       if (!r.ok) {
         const detail = graphJson.error?.message ?? r.statusText;
+        logStructured("whatsapp_api_error", { detail: detail.slice(0, 500), status: r.status });
         await admin.from("outbound_messages").insert({
           patient_id: patientId,
           hospital_id: hospitalId,
@@ -200,11 +206,15 @@ export function mountWhatsappRoutes(app: Express, env: Env, limiter: RateLimitRe
           error_detail: detail.slice(0, 2000),
           metadata: { graph_status: r.status },
         });
-        res.status(502).json({ error: "whatsapp_send_failed", message: detail });
+        res.status(502).json({
+          error: "whatsapp_send_failed",
+          message: "Não foi possível enviar a mensagem. Tente novamente.",
+        });
         return;
       }
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
+      logStructured("whatsapp_network_error", { detail: msg.slice(0, 500) });
       await admin.from("outbound_messages").insert({
         patient_id: patientId,
         hospital_id: hospitalId,
@@ -215,7 +225,10 @@ export function mountWhatsappRoutes(app: Express, env: Env, limiter: RateLimitRe
         error_detail: msg.slice(0, 2000),
         metadata: {},
       });
-      res.status(502).json({ error: "whatsapp_network_error", message: msg });
+      res.status(502).json({
+        error: "whatsapp_network_error",
+        message: "Não foi possível enviar a mensagem. Tente novamente.",
+      });
       return;
     }
 

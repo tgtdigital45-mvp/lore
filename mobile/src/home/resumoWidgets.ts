@@ -1,4 +1,5 @@
 import { appStorage } from "@/src/lib/appStorage";
+import type { VitalType } from "@/src/types/vitalsNutrition";
 
 const STORAGE_KEY = "resumo_pinned_widget_ids_v1";
 
@@ -19,12 +20,40 @@ export const RESUMO_WIDGET_CATALOG: WidgetDef[] = [
   { id: "symptom:pain", label: "Dor", category: "sintomas" },
   { id: "symptom:fever", label: "Febre", category: "sintomas" },
   { id: "vital:temp", label: "Temperatura", category: "sinais_vitais" },
+  { id: "vital:hr", label: "Freq. cardíaca", category: "sinais_vitais" },
+  { id: "vital:bp", label: "Pressão arterial", category: "sinais_vitais" },
+  { id: "vital:spo2", label: "SpO2", category: "sinais_vitais" },
+  { id: "vital:weight", label: "Peso", category: "sinais_vitais" },
+  { id: "vital:glucose", label: "Glicemia", category: "sinais_vitais" },
   { id: "vital:steps", label: "Passos", category: "atividade" },
   { id: "nutrition:water", label: "Água", category: "nutricao" },
   { id: "nutrition:coffee", label: "Café", category: "nutricao" },
+  { id: "nutrition:meals", label: "Refeições", category: "nutricao" },
+  { id: "nutrition:calories", label: "Calorias", category: "nutricao" },
+  { id: "nutrition:appetite", label: "Apetite", category: "nutricao" },
 ];
 
-const DEFAULT_IDS = ["lab:plaquetas", "lab:hemoglobina", "symptom:nausea", "vital:temp", "vital:steps"];
+const DEFAULT_IDS = [
+  "lab:plaquetas",
+  "lab:hemoglobina",
+  "symptom:nausea",
+  "vital:temp",
+  "vital:hr",
+  "nutrition:water",
+];
+
+/** Maps widget id vital:* to DB vital_type (except vital:steps — activity placeholder). */
+export function vitalTypeFromWidgetId(id: string): VitalType | null {
+  const m: Record<string, VitalType> = {
+    "vital:temp": "temperature",
+    "vital:hr": "heart_rate",
+    "vital:bp": "blood_pressure",
+    "vital:spo2": "spo2",
+    "vital:weight": "weight",
+    "vital:glucose": "glucose",
+  };
+  return m[id] ?? null;
+}
 
 export function normalizeBiomarkerKey(name: string): string {
   return name.trim().toLowerCase().normalize("NFD").replace(/\p{M}/gu, "");

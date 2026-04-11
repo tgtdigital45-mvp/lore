@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
-import { Modal, Pressable, ScrollView, Text, View, useWindowDimensions } from "react-native";
+import { Pressable, ScrollView, Text, View, useWindowDimensions } from "react-native";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { BottomSheetModal } from "@/src/components/BottomSheetModal";
 import { useAppTheme } from "@/src/hooks/useAppTheme";
 import { RESUMO_WIDGET_CATALOG, type WidgetCategory } from "@/src/home/resumoWidgets";
 
@@ -45,21 +46,16 @@ export function WidgetPickerModal({ visible, onClose, selectedIds, onSave }: Pro
   }
 
   return (
-    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
-      <Pressable
-        onPress={onClose}
-        style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.45)", justifyContent: "flex-end" }}
+    <BottomSheetModal visible={visible} onClose={onClose} maxHeightFraction={0.88}>
+      <View
+        style={{
+          maxHeight: winH * 0.88,
+          backgroundColor: theme.colors.background.primary,
+          borderTopLeftRadius: theme.radius.xl,
+          borderTopRightRadius: theme.radius.xl,
+          paddingBottom: Math.max(insets.bottom, theme.spacing.md),
+        }}
       >
-        <Pressable
-          onPress={(e) => e.stopPropagation()}
-          style={{
-            maxHeight: winH * 0.88,
-            backgroundColor: theme.colors.background.primary,
-            borderTopLeftRadius: theme.radius.xl,
-            borderTopRightRadius: theme.radius.xl,
-            paddingBottom: Math.max(insets.bottom, theme.spacing.md),
-          }}
-        >
           <View style={{ paddingHorizontal: theme.spacing.md, paddingTop: theme.spacing.lg }}>
             <Text style={[theme.typography.title2, { color: theme.colors.text.primary }]}>Métricas em foco</Text>
             <Text style={[theme.typography.body, { color: theme.colors.text.secondary, marginTop: theme.spacing.xs }]}>
@@ -130,8 +126,7 @@ export function WidgetPickerModal({ visible, onClose, selectedIds, onSave }: Pro
               <Text style={[theme.typography.headline, { color: "#FFFFFF" }]}>Aplicar</Text>
             </Pressable>
           </View>
-        </Pressable>
-      </Pressable>
-    </Modal>
+      </View>
+    </BottomSheetModal>
   );
 }

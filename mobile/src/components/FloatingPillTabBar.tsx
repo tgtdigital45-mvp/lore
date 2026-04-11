@@ -1,5 +1,8 @@
 import type { BottomTabBarProps } from "@react-navigation/bottom-tabs";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
+import * as Haptics from "expo-haptics";
+import type { Href } from "expo-router";
+import { useRouter } from "expo-router";
 import { Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { IOS_HEALTH } from "@/src/health/iosHealthTokens";
@@ -9,14 +12,18 @@ const ACTIVE_SEGMENT = "#E5E5EA";
 const ICON_ACTIVE = IOS_HEALTH.blue;
 const ICON_IDLE = "#000000";
 
+const BUSCAR_HREF = "/(tabs)/health" as Href;
+
 export function FloatingPillTabBar({ state, navigation }: BottomTabBarProps) {
+  const router = useRouter();
   const insets = useSafeAreaInsets();
   const current = state.routes[state.index];
   const routeName = current.name;
 
   const resumoActive = routeName === "index";
   const examesActive = routeName === "exams";
-  const buscaContext = routeName === "health" || routeName === "diary" || routeName === "agent";
+  const buscaContext =
+    routeName === "health" || routeName === "diary" || routeName === "agent" || routeName === "treatment";
 
   return (
     <View
@@ -34,7 +41,10 @@ export function FloatingPillTabBar({ state, navigation }: BottomTabBarProps) {
           <Pressable
             accessibilityRole="button"
             accessibilityState={{ selected: resumoActive }}
-            onPress={() => navigation.navigate("index" as never)}
+            onPress={() => {
+              void Haptics.selectionAsync();
+              navigation.navigate("index" as never);
+            }}
             style={({ pressed }) => [
               styles.segment,
               resumoActive && { backgroundColor: ACTIVE_SEGMENT },
@@ -48,7 +58,10 @@ export function FloatingPillTabBar({ state, navigation }: BottomTabBarProps) {
           <Pressable
             accessibilityRole="button"
             accessibilityState={{ selected: examesActive }}
-            onPress={() => navigation.navigate("exams" as never)}
+            onPress={() => {
+              void Haptics.selectionAsync();
+              navigation.navigate("exams" as never);
+            }}
             style={({ pressed }) => [
               styles.segment,
               examesActive && { backgroundColor: ACTIVE_SEGMENT },
@@ -64,7 +77,10 @@ export function FloatingPillTabBar({ state, navigation }: BottomTabBarProps) {
           accessibilityRole="button"
           accessibilityLabel="Buscar"
           accessibilityState={{ selected: buscaContext }}
-          onPress={() => navigation.navigate("health" as never)}
+          onPress={() => {
+            void Haptics.selectionAsync();
+            router.navigate(BUSCAR_HREF);
+          }}
           style={({ pressed }) => [
             styles.searchOrb,
             pressed && { opacity: 0.88 },

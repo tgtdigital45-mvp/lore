@@ -1,33 +1,33 @@
 import { useCallback, useState } from "react";
-import { Alert, Platform, Pressable, ScrollView, Text, View } from "react-native";
+import { Platform, Pressable, ScrollView, Text, View } from "react-native";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import type { Href } from "expo-router";
-import { useLocalSearchParams, useRouter } from "expo-router";
+import { useRouter } from "expo-router";
 import { ResponsiveScreen } from "@/src/components/ResponsiveScreen";
 import { CircleChromeButton } from "@/src/health/components/MedicationChromeButtons";
 import { IOS_HEALTH } from "@/src/health/iosHealthTokens";
 import { useAppTheme } from "@/src/hooks/useAppTheme";
+import { useStackBack } from "@/src/hooks/useStackBack";
+import { useMedicationWizard } from "@/src/medications/MedicationWizardContext";
 
 const FORMAS_COMUNS = ["Cápsula", "Comprimido", "Líquido", "Tópico"] as const;
-const MAIS_FORMAS = ["Adesivo", "Creme", "Injetável", "Spray"] as const;
+const MAIS_FORMAS = ["Adesivo", "Creme", "Injetável", "Spray", "Dispositivo", "Outro"] as const;
 
 export default function MedicationTypeScreen() {
   const { theme } = useAppTheme();
   const router = useRouter();
-  const { medicationName } = useLocalSearchParams<{ medicationName?: string }>();
-  const displayName = typeof medicationName === "string" && medicationName.length > 0 ? medicationName : "Medicamento";
+  const goBack = useStackBack("/(tabs)/health/medications" as Href);
+  const { draft, setDraft } = useMedicationWizard();
+  const displayName = draft.name.trim() || "Medicamento";
 
-  const [selected, setSelected] = useState<string | null>(null);
+  const [selected, setSelected] = useState<string | null>(draft.form);
   const canNext = selected !== null;
 
   const finish = useCallback(() => {
     if (!selected) return;
-    Alert.alert(
-      "Medicamento",
-      `${displayName}\nTipo: ${selected}\n\nO salvamento no Onco será habilitado com backend e lembretes.`,
-      [{ text: "OK", onPress: () => router.replace("/(tabs)/health/medications" as Href) }]
-    );
-  }, [displayName, router, selected]);
+    setDraft({ form: selected });
+    router.push("/(tabs)/health/medications/dosage" as Href);
+  }, [router, selected, setDraft]);
 
   return (
     <ResponsiveScreen variant="tabGradient">
@@ -39,7 +39,7 @@ export default function MedicationTypeScreen() {
           paddingHorizontal: theme.spacing.md,
         }}
       >
-        <CircleChromeButton accessibilityLabel="Voltar" onPress={() => router.back()}>
+        <CircleChromeButton accessibilityLabel="Voltar" onPress={goBack}>
           <FontAwesome name="chevron-left" size={18} color={theme.colors.text.primary} />
         </CircleChromeButton>
         <View style={{ flex: 1, alignItems: "center" }}>

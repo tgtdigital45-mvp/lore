@@ -12,6 +12,7 @@ import { mountExamRoutes } from "./examHandlers.js";
 import { isR2Configured } from "./r2.js";
 import { mountWhatsappRoutes } from "./whatsappRoutes.js";
 import { authenticateBearer } from "./authMiddleware.js";
+import { idempotencyMiddleware } from "./idempotencyMiddleware.js";
 
 const env = loadEnv();
 const requireUser = authenticateBearer(env);
@@ -43,9 +44,8 @@ app.use(
   })
 );
 if (isProd && (!corsOrigins || corsOrigins.length === 0)) {
-  logStructured("cors_warning", {
-    message: "NODE_ENV=production sem CORS_ORIGINS: defina origens permitidas (ex.: https://dashboard.example.com).",
-  });
+  console.error("FATAL: NODE_ENV=production requer CORS_ORIGINS (lista separada por vírgulas).");
+  process.exit(1);
 }
 
 app.use(
@@ -77,14 +77,22 @@ const processBody = z.object({
   message: z.string().min(1).max(8000),
 });
 
+function logValidationError(route: string, err: z.ZodError) {
+  logStructured("validation_error", { route, details: err.flatten() });
+}
+
 app.get("/api/health", (_req, res) => {
   res.json({ ok: true, service: "onco-backend" });
 });
 
-app.post("/api/support/chat", agentLimiter, requireUser, async (req, res) => {
+app.post("/api/support/chat", agentLimiter, idempotencyMiddleware(), requireUser, async (req, res) => {
   const parsed = processBody.safeParse(req.body);
   if (!parsed.success) {
-    res.status(400).json({ error: "Invalid body", details: parsed.error.flatten() });
+    logValidationError("support_chat", parsed.error);
+    res.status(400).json({
+      error: "invalid_request",
+      message: "Requisição inválida. Verifique os campos enviados.",
+    });
     return;
   }
 
@@ -108,10 +116,14 @@ app.post("/api/support/chat", agentLimiter, requireUser, async (req, res) => {
   }
 });
 
-app.post("/api/agent/process", agentLimiter, requireUser, async (req, res) => {
+app.post("/api/agent/process", agentLimiter, idempotencyMiddleware(), requireUser, async (req, res) => {
   const parsed = processBody.safeParse(req.body);
   if (!parsed.success) {
-    res.status(400).json({ error: "Invalid body", details: parsed.error.flatten() });
+    logValidationError("agent_process", parsed.error);
+    res.status(400).json({
+      error: "invalid_request",
+      message: "Requisição inválida. Verifique os campos enviados.",
+    });
     return;
   }
 
@@ -152,10 +164,14 @@ const staffOcrBody = ocrBody.extend({
   patient_id: z.string().uuid(),
 });
 
-app.post("/api/ocr/analyze", agentLimiter, requireUser, async (req, res) => {
+app.post("/api/ocr/analyze", agentLimiter, idempotencyMiddleware(), requireUser, async (req, res) => {
   const parsed = ocrBody.safeParse(normalizeOcrRequestBody(req.body));
   if (!parsed.success) {
-    res.status(400).json({ error: "Invalid body", details: parsed.error.flatten() });
+    logValidationError("ocr_analyze", parsed.error);
+    res.status(400).json({
+      error: "invalid_request",
+      message: "Requisição inválida. Verifique os campos enviados.",
+    });
     return;
   }
 
@@ -188,10 +204,14 @@ app.post("/api/ocr/analyze", agentLimiter, requireUser, async (req, res) => {
   }
 });
 
-app.post("/api/staff/ocr/analyze", agentLimiter, requireUser, async (req, res) => {
+app.post("/api/staff/ocr/analyze", agentLimiter, idempotencyMiddleware(), requireUser, async (req, res) => {
   const parsed = staffOcrBody.safeParse(normalizeOcrRequestBody(req.body));
   if (!parsed.success) {
-    res.status(400).json({ error: "Invalid body", details: parsed.error.flatten() });
+    logValidationError("staff_ocr_analyze", parsed.error);
+    res.status(400).json({
+      error: "invalid_request",
+      message: "Requisição inválida. Verifique os campos enviados.",
+    });
     return;
   }
 
@@ -241,7 +261,7 @@ mountExamRoutes(app, env, agentLimiter);
 
 mountWhatsappRoutes(app, env, agentLimiter);
 
-app.post("/api/agent/vision-delegate", agentLimiter, requireUser, async (_req, res) => {
+app.post("/api/agent/vision-delegate", agentLimiter, idempotencyMiddleware(), requireUser, async (_req, res) => {
   res.status(410).json({
     error: "use_ocr_endpoint",
     message: "Use POST /api/ocr/analyze com imageBase64 e mimeType (documentType opcional — a IA classifica se omitido).",

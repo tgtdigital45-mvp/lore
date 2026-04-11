@@ -1,5 +1,6 @@
 import { GoogleGenerativeAI, SchemaType } from "@google/generative-ai";
 import type { Env } from "./config.js";
+import { sanitizeUserMessageForLlm } from "./sanitizePrompt.js";
 
 const SYSTEM_INSTRUCTION = `You are the Onco clinical support assistant (SaMD). Rules from docs/diretrizes-corportamento.md:
 - NEVER diagnose, prescribe, or claim tumor progression/regression.
@@ -23,6 +24,7 @@ export async function runGeminiTriagem(
   userMessage: string,
   contextJson: Record<string, unknown>
 ): Promise<AgentStructured> {
+  const safeUser = sanitizeUserMessageForLlm(userMessage);
   const genAI = new GoogleGenerativeAI(env.GEMINI_API_KEY);
   const model = genAI.getGenerativeModel({
     model: env.GEMINI_MODEL ?? "gemini-3-flash-preview",
@@ -54,10 +56,13 @@ export async function runGeminiTriagem(
     },
   });
 
-  const prompt = `Patient context (JSON):\n${JSON.stringify(contextJson)}\n\nUser message:\n${userMessage}\n\nIf the user describes how they feel today, propose log_symptom with appropriate category (e.g. nausea, fever, fatigue) and severity. Otherwise set log_symptom to null.`;
+  const prompt = `Patient context (JSON):\n${JSON.stringify(contextJson)}\n\nUser message:\n${safeUser}\n\nIf the user describes how they feel today, propose log_symptom with appropriate category (e.g. nausea, fever, fatigue) and severity. Otherwise set log_symptom to null.`;
 
   const result = await model.generateContent(prompt);
   const text = result.response.text();
   const parsed = JSON.parse(text) as AgentStructured;
+  if (typeof parsed.assistant_message !== "string" || parsed.assistant_message.length > 12000) {
+    throw new Error("invalid_llm_output");
+  }
   return parsed;
 }

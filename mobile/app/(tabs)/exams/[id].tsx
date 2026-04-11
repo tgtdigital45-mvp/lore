@@ -3,6 +3,7 @@ import { useFocusEffect } from "@react-navigation/native";
 import {
   ActivityIndicator,
   Alert,
+  Dimensions,
   Linking,
   Platform,
   Pressable,
@@ -12,12 +13,19 @@ import {
   TextInput,
   View,
 } from "react-native";
+import { LineChart } from "react-native-gifted-charts";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { MaterialIcons } from "@expo/vector-icons";
-import { useLocalSearchParams, useNavigation, useRouter } from "expo-router";
+import type { Href } from "expo-router";
+import { useLocalSearchParams, useNavigation } from "expo-router";
 import { ResponsiveScreen } from "@/src/components/ResponsiveScreen";
 import type { ExamMetric } from "@/src/exams/examTypes";
 import { metricsFromJson } from "@/src/exams/examTypes";
+import {
+  buildMetricHistorySeries,
+  fetchBiomarkerHistoryContext,
+  type MetricHistoryChartModel,
+} from "@/src/exams/biomarkerHistoryChart";
 import {
   dateInputToExamPerformedAt,
   examDisplayDateIso,
@@ -31,6 +39,7 @@ import { documentTypeLabel } from "@/src/i18n/ui";
 import { useAuth } from "@/src/auth/AuthContext";
 import { useAppTheme } from "@/src/hooks/useAppTheme";
 import { usePatient } from "@/src/hooks/usePatient";
+import { useStackBack } from "@/src/hooks/useStackBack";
 import { getApiBaseUrl } from "@/src/lib/apiConfig";
 import { supabase } from "@/src/lib/supabase";
 
@@ -77,7 +86,7 @@ function longDatePt(iso: string): string {
 
 export default function ExamDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const router = useRouter();
+  const goBack = useStackBack("/(tabs)/exams" as Href);
   const navigation = useNavigation();
   const { theme } = useAppTheme();
   const { session } = useAuth();
@@ -90,6 +99,12 @@ export default function ExamDetailScreen() {
   const [editExamDate, setEditExamDate] = useState("");
   const [metaEditing, setMetaEditing] = useState(false);
   const [savingMeta, setSavingMeta] = useState(false);
+  const [metricCharts, setMetricCharts] = useState<MetricHistoryChartModel[]>([]);
+
+  const chartWidth = useMemo(
+    () => Math.min(Dimensions.get("window").width - theme.spacing.md * 4, 400),
+    [theme.spacing.md]
+  );
 
   const load = useCallback(async () => {
     if (!patient || !id) {
@@ -106,10 +121,12 @@ export default function ExamDetailScreen() {
     if (dErr || !doc) {
       setRow(null);
       setMetrics([]);
+      setMetricCharts([]);
       setLoading(false);
       return;
     }
-    setRow(doc as MedicalDocRow);
+    const docRow = doc as MedicalDocRow;
+    setRow(docRow);
 
     const { data: logs, error: logErr } = await supabase
       .from("biomarker_logs")
@@ -117,11 +134,24 @@ export default function ExamDetailScreen() {
       .eq("medical_document_id", id)
       .order("logged_at", { ascending: true });
 
+    let nextMetrics: ExamMetric[];
     if (!logErr && logs && logs.length > 0) {
-      setMetrics(rowToMetrics(logs as BiomarkerRow[]));
+      nextMetrics = rowToMetrics(logs as BiomarkerRow[]);
     } else {
-      setMetrics(metricsFromJson(doc.ai_extracted_json as Record<string, unknown> | null));
+      nextMetrics = metricsFromJson(doc.ai_extracted_json as Record<string, unknown> | null);
     }
+    setMetrics(nextMetrics);
+
+    const hist = await fetchBiomarkerHistoryContext(patient.id);
+    setMetricCharts(
+      nextMetrics.map((m) =>
+        buildMetricHistorySeries(m.name, hist.logs, hist.docMap, {
+          documentType: docRow.document_type,
+          currentDocumentId: id,
+          currentReading: { valueText: m.value, examDateIso: examDisplayDateIso(docRow) },
+        })
+      )
+    );
     setLoading(false);
   }, [id, patient]);
 
@@ -298,7 +328,7 @@ export default function ExamDetailScreen() {
         Alert.alert("Exames", data.error ?? "Não foi possível excluir.");
         return;
       }
-      router.back();
+      goBack();
     } catch {
       Alert.alert("Exames", "Não foi possível ligar ao servidor.");
     }
@@ -661,8 +691,9 @@ export default function ExamDetailScreen() {
             Nenhuma métrica estruturada para este exame.
           </Text>
         ) : (
-          metrics.map((m) => {
+          metrics.map((m, idx) => {
             const abnormal = m.isAbnormal;
+            const histModel = metricCharts[idx];
             return (
               <View
                 key={m.id ?? m.name + m.value}
@@ -696,20 +727,61 @@ export default function ExamDetailScreen() {
                     {m.referenceAlert}
                   </Text>
                 ) : null}
-                <View
-                  style={{
-                    marginTop: theme.spacing.md,
-                    minHeight: 56,
-                    borderRadius: 12,
-                    backgroundColor: theme.colors.background.secondary,
-                    alignItems: "center",
-                    justifyContent: "center",
-                    padding: theme.spacing.sm,
-                  }}
-                >
-                  <Text style={{ fontSize: 12, color: theme.colors.text.tertiary, textAlign: "center" }}>
-                    Histórico desta métrica no tempo: veja a secção Evolução de biomarcadores no Resumo.
-                  </Text>
+                <View style={{ marginTop: theme.spacing.md }}>
+                  {histModel?.kind === "chart" ? (
+                    <>
+                      <Text style={{ fontSize: 12, color: theme.colors.text.secondary, marginBottom: theme.spacing.sm }}>
+                        {histModel.otherExams > 0
+                          ? `Evolução com ${histModel.otherExams} exame(s) anterior(es) do mesmo tipo (datas por exame).`
+                          : "Evolução no tempo (mesmo tipo de exame). Adicione exames anteriores para ver tendência."}
+                      </Text>
+                      <LineChart
+                        data={histModel.data}
+                        width={chartWidth}
+                        height={170}
+                        color={abnormal ? "#EA580C" : "#007AFF"}
+                        thickness={3}
+                        startFillColor={abnormal ? "#EA580C" : "#007AFF"}
+                        endFillColor={abnormal ? "#EA580C" : "#007AFF"}
+                        startOpacity={0.3}
+                        endOpacity={0.05}
+                        spacing={Math.max(40, chartWidth / Math.max(histModel.data.length, 2))}
+                        hideDataPoints={false}
+                        yAxisColor={theme.colors.border.divider}
+                        xAxisColor={theme.colors.border.divider}
+                        yAxisTextStyle={{ color: theme.colors.text.secondary, fontSize: 10 }}
+                        xAxisLabelTextStyle={{ color: theme.colors.text.secondary, fontSize: 10 }}
+                        curved
+                        areaChart
+                      />
+                    </>
+                  ) : histModel?.kind === "non_numeric" ? (
+                    <View
+                      style={{
+                        borderRadius: 12,
+                        backgroundColor: theme.colors.background.secondary,
+                        padding: theme.spacing.md,
+                      }}
+                    >
+                      <Text style={{ fontSize: 12, color: theme.colors.text.secondary, textAlign: "center" }}>
+                        Valor não numérico neste e nos outros registos — gráfico indisponível.
+                      </Text>
+                    </View>
+                  ) : histModel?.kind === "empty" ? (
+                    <View
+                      style={{
+                        borderRadius: 12,
+                        backgroundColor: theme.colors.background.secondary,
+                        padding: theme.spacing.md,
+                      }}
+                    >
+                      <Text style={{ fontSize: 12, color: theme.colors.text.tertiary, textAlign: "center" }}>
+                        {histModel.hint}
+                      </Text>
+                    </View>
+                  ) : (
+                    <View style={{ minHeight: 40 }} />
+                  )}
                 </View>
               </View>
             );

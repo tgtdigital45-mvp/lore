@@ -54,6 +54,8 @@ const envSchema = z.object({
   /** Ex.: gpt-4o-mini */
   OPENAI_MODEL: z.preprocess(trim, z.string().min(1).optional()),
   HOSPITAL_ALERT_WEBHOOK_URL: z.preprocess(trim, z.string().url().optional().or(z.literal(""))),
+  /** HMAC-SHA256 (hex) do corpo JSON para X-Webhook-Signature; obrigatório se o webhook estiver configurado em produção. */
+  HOSPITAL_ALERT_WEBHOOK_SECRET: z.preprocess(trim, z.string().optional().or(z.literal(""))),
   /** Cloudflare R2 (API S3). Opcional: sem isto, OCR grava só metadados (sem ficheiro em R2). */
   R2_ACCOUNT_ID: z.preprocess(trim, z.string().optional().or(z.literal(""))),
   R2_ACCESS_KEY_ID: z.preprocess(trim, z.string().optional().or(z.literal(""))),
@@ -99,6 +101,10 @@ export function loadEnv(): Env {
       parsed.data.HOSPITAL_ALERT_WEBHOOK_URL === ""
         ? undefined
         : parsed.data.HOSPITAL_ALERT_WEBHOOK_URL,
+    HOSPITAL_ALERT_WEBHOOK_SECRET:
+      parsed.data.HOSPITAL_ALERT_WEBHOOK_SECRET === "" || parsed.data.HOSPITAL_ALERT_WEBHOOK_SECRET === undefined
+        ? undefined
+        : parsed.data.HOSPITAL_ALERT_WEBHOOK_SECRET,
     R2_ACCOUNT_ID: emptyToUndef(parsed.data.R2_ACCOUNT_ID),
     R2_ACCESS_KEY_ID: emptyToUndef(parsed.data.R2_ACCESS_KEY_ID),
     R2_SECRET_ACCESS_KEY: emptyToUndef(parsed.data.R2_SECRET_ACCESS_KEY),
