@@ -44,6 +44,12 @@ Lint: `npm run lint`
 
 Os links do rodapé em **Produto** apontam para âncoras na home (`/#features-heading`, etc.). Em deploy na Vercel, [`vercel.json`](vercel.json) faz fallback SPA para `index.html`.
 
+## Deploy na Vercel
+
+Guia completo (monorepo, Root Directory `landing-page-onco`, CLI, domínio): **[`VERCEL.md`](VERCEL.md)**.
+
+Resumo: no painel da Vercel, define **Root Directory** = `landing-page-onco`; build `npm run build`; output `dist`. O `vercel.json` garante que rotas como `/sobre` não dão 404 ao refrescar a página.
+
 ## Antes de produção
 
 Substituir placeholders: links **App Store / Google Play** (`#`), e-mails de exemplo (`contato@onco.app`, `comercial@onco.app`, `privacidade@onco.app`, `rh@onco.app`) quando URLs e domínios oficiais estiverem definidos.
