@@ -1,0 +1,60 @@
+{
+  "expo": {
+    "name": "mobile",
+    "slug": "mobile",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/images/icon.png",
+    "scheme": "mobile",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/images/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSPhotoLibraryUsageDescription": "O Onco acede às suas fotos para a imagem de perfil e para anexar laudos e exames.",
+        "NSCameraUsageDescription": "O Onco usa a câmera para fotografar laudos e documentos.",
+        "NSMicrophoneUsageDescription": "O microfone pode ser usado ao gravar vídeo com a câmera."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/images/adaptive-icon.png",
+        "backgroundColor": "#ffffff"
+      },
+      "edgeToEdgeEnabled": true,
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "static",
+      "favicon": "./assets/images/favicon.png"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "O Onco precisa acessar suas fotos para anexar laudos e exames.",
+          "cameraPermission": "O Onco usa a câmera para fotografar laudos."
+        }
+      ],
+      "expo-document-picker",
+      [
+        "@kingstinct/react-native-healthkit",
+        {
+          "NSHealthShareUsageDescription": "O Onco lê no Apple Saúde dados como frequência cardíaca, oxigênio no sangue (SpO₂) e variabilidade cardíaca (VFC) para complementar o seu acompanhamento, só com a sua autorização.",
+          "NSHealthUpdateUsageDescription": "Se no futuro gravar dados no Apple Saúde, o Onco só o fará com a sua autorização explícita.",
+          "background": false
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}
