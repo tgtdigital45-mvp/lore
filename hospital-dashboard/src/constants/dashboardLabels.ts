@@ -101,6 +101,7 @@ export const MODAL_TAB_LABEL: Record<ModalTabId, string> = {
   resumo: "Resumo",
   exames: "Exames",
   mensagens: "Mensagens",
+  diario: "Diário",
 };
 
 export const CARE_TIPS = [

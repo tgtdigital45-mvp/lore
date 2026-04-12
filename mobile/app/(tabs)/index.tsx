@@ -5,6 +5,7 @@ import type { Href } from "expo-router";
 import { Link, useRouter } from "expo-router";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { appStorage } from "@/src/lib/appStorage";
+import { OnboardingWalkthrough } from "@/src/components/OnboardingWalkthrough";
 import { OncoCard } from "@/components/OncoCard";
 import { ResponsiveScreen } from "@/src/components/ResponsiveScreen";
 import { ProfileSheet } from "@/src/home/ProfileSheet";
@@ -641,6 +642,8 @@ export default function HomeScreen() {
           void refreshSummary();
         }}
       />
+
+      <OnboardingWalkthrough />
     </ResponsiveScreen>
   );
 }

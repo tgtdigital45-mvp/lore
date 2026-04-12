@@ -1,4 +1,3 @@
-import * as Notifications from "expo-notifications";
 import type { MedicationRow } from "@/src/hooks/useMedications";
 import { enumerateDoses, nextDoseTime } from "@/src/lib/doseSchedule";
 import { parseTimeOfDay } from "@/src/medications/scheduleUtils";
@@ -6,7 +5,17 @@ import { ensureNotificationPermissions } from "@/src/utils/notifications";
 
 const PREFIX = "med-";
 
+async function notifications() {
+  try {
+    return await import("expo-notifications");
+  } catch {
+    return null;
+  }
+}
+
 export async function cancelMedicationNotifications(medicationId: string): Promise<void> {
+  const Notifications = await notifications();
+  if (!Notifications) return;
   const scheduled = await Notifications.getAllScheduledNotificationsAsync();
   const ids = scheduled.filter((n) => n.identifier.startsWith(`${PREFIX}${medicationId}-`)).map((n) => n.identifier);
   await Promise.all(ids.map((id) => Notifications.cancelScheduledNotificationAsync(id)));
@@ -60,6 +69,8 @@ export async function scheduleMedicationNotifications(med: MedicationRow): Promi
     await cancelMedicationNotifications(med.id);
     return;
   }
+  const Notifications = await notifications();
+  if (!Notifications) return;
   await ensureNotificationPermissions();
   await cancelMedicationNotifications(med.id);
 

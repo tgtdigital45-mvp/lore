@@ -1,5 +1,6 @@
 import * as AppleAuthentication from "expo-apple-authentication";
 import * as Crypto from "expo-crypto";
+import Constants from "expo-constants";
 import * as WebBrowser from "expo-web-browser";
 import { makeRedirectUri } from "expo-auth-session";
 import { Platform } from "react-native";
@@ -7,11 +8,16 @@ import { supabase } from "@/src/lib/supabase";
 
 WebBrowser.maybeCompleteAuthSession();
 
-export function getOAuthRedirectUri(): string {
-  return makeRedirectUri({ scheme: "mobile", path: "auth/callback" });
+function appAuthScheme(): string {
+  const s = Constants.expoConfig?.scheme;
+  return typeof s === "string" && s.length > 0 ? s : "auraonco";
 }
 
-function parseAuthParamsFromUrl(url: string): Record<string, string> {
+export function getOAuthRedirectUri(): string {
+  return makeRedirectUri({ scheme: appAuthScheme(), path: "auth/callback" });
+}
+
+export function parseAuthParamsFromUrl(url: string): Record<string, string> {
   const hashIdx = url.indexOf("#");
   const queryIdx = url.indexOf("?");
   let paramStr = "";
@@ -42,7 +48,9 @@ export async function signInWithOAuthGoogle(): Promise<{ error?: string }> {
   const access_token = p.access_token;
   const refresh_token = p.refresh_token;
   if (!access_token || !refresh_token) {
-    return { error: "Resposta OAuth sem tokens. Confirme o redirect em Supabase (mobile://auth/callback)." };
+    return {
+      error: `Resposta OAuth sem tokens. Confirme o redirect em Supabase (${appAuthScheme()}://auth/callback).`,
+    };
   }
   const { error: setErr } = await supabase.auth.setSession({ access_token, refresh_token });
   if (setErr) return { error: setErr.message };

@@ -27,7 +27,7 @@ const MAIN_CATEGORIES: Cat[] = [
   { key: "vitals", label: "Sinais vitais", icon: "heartbeat", tint: "#FF2D55", href: "/(tabs)/health/vitals" as Href },
   { key: "nutrition", label: "Nutrição", icon: "cutlery", tint: "#34C759", href: "/(tabs)/health/nutrition" as Href },
   { key: "exams", label: "Exames", icon: "file-text-o", tint: "#5E5CE6", href: "/(tabs)/exams" as Href },
-  { key: "diary", label: "Diário e sintomas", icon: "book", tint: "#AF52DE", href: "/(tabs)/diary" as Href },
+  { key: "diary", label: "Sintomas", icon: "book", tint: "#AF52DE", href: "/(tabs)/diary" as Href },
   { key: "calendar", label: "Agendamentos", icon: "calendar", tint: "#007AFF", href: "/calendar" as Href },
 ];
 

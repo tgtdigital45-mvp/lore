@@ -1,8 +1,7 @@
 import type { BottomTabBarProps } from "@react-navigation/bottom-tabs";
+import { CommonActions } from "@react-navigation/native";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import * as Haptics from "expo-haptics";
-import type { Href } from "expo-router";
-import { useRouter } from "expo-router";
 import { Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { IOS_HEALTH } from "@/src/health/iosHealthTokens";
@@ -12,13 +11,10 @@ const ACTIVE_SEGMENT = "#E5E5EA";
 const ICON_ACTIVE = IOS_HEALTH.blue;
 const ICON_IDLE = "#000000";
 
-const BUSCAR_HREF = "/(tabs)/health" as Href;
-
 export function FloatingPillTabBar({ state, navigation }: BottomTabBarProps) {
-  const router = useRouter();
   const insets = useSafeAreaInsets();
   const current = state.routes[state.index];
-  const routeName = current.name;
+  const routeName = current?.name ?? "";
 
   const resumoActive = routeName === "index";
   const examesActive = routeName === "exams";
@@ -79,7 +75,12 @@ export function FloatingPillTabBar({ state, navigation }: BottomTabBarProps) {
           accessibilityState={{ selected: buscaContext }}
           onPress={() => {
             void Haptics.selectionAsync();
-            router.navigate(BUSCAR_HREF);
+            navigation.dispatch(
+              CommonActions.navigate({
+                name: "health",
+                params: { screen: "index" },
+              })
+            );
           }}
           style={({ pressed }) => [
             styles.searchOrb,

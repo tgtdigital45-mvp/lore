@@ -17,4 +17,6 @@ Documentação: [Password security](https://supabase.com/docs/guides/auth/passwo
 ## CORS (API Node)
 
 - Em produção, defina `CORS_ORIGINS` com lista separada por vírgulas (ex.: `https://dashboard.exemplo.com,http://localhost:5173`).
-- Sem lista, o servidor regista aviso em log (`cors_warning`) e mantém reflexão permissiva para não quebrar clientes sem `Origin` (ex.: apps móveis).
+- **Sem lista em `NODE_ENV=production`, o processo termina ao iniciar** (falha explícita). Em desenvolvimento, sem `CORS_ORIGINS` o CORS permanece permissivo para facilitar testes locais.
+
+Ver também [OPERATIONS.md](OPERATIONS.md) (cron, webhooks, checklist).

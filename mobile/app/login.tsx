@@ -37,7 +37,7 @@ export default function LoginScreen() {
       behavior={Platform.OS === "ios" ? "padding" : undefined}
       style={{ flex: 1, justifyContent: "center", paddingVertical: theme.spacing.lg }}
     >
-      <Text style={[theme.typography.largeTitle, { color: theme.colors.text.primary }]}>Onco</Text>
+      <Text style={[theme.typography.largeTitle, { color: theme.colors.text.primary }]}>Aura Onco</Text>
       <Text style={[theme.typography.body, { color: theme.colors.text.secondary, marginTop: theme.spacing.sm }]}>
         Um dia de cada vez
       </Text>
@@ -91,12 +91,17 @@ export default function LoginScreen() {
       <Pressable
         onPress={onSubmit}
         disabled={busy}
+        accessibilityRole="button"
+        accessibilityLabel={mode === "login" ? "Entrar com e-mail" : "Criar conta com e-mail"}
         style={{
           marginTop: theme.spacing.lg,
           backgroundColor: theme.colors.semantic.treatment,
-          padding: theme.spacing.md,
+          paddingVertical: theme.spacing.md,
+          paddingHorizontal: theme.spacing.lg,
+          minHeight: 48,
           borderRadius: theme.radius.md,
           alignItems: "center",
+          justifyContent: "center",
           opacity: busy ? 0.6 : 1,
         }}
       >
@@ -112,6 +117,8 @@ export default function LoginScreen() {
           else router.replace("/");
         }}
         disabled={busy}
+        accessibilityRole="button"
+        accessibilityLabel="Continuar com Google"
         style={{
           marginTop: theme.spacing.md,
           flexDirection: "row",
@@ -119,7 +126,9 @@ export default function LoginScreen() {
           justifyContent: "center",
           gap: theme.spacing.sm,
           backgroundColor: theme.colors.background.secondary,
-          padding: theme.spacing.md,
+          paddingVertical: theme.spacing.md,
+          paddingHorizontal: theme.spacing.lg,
+          minHeight: 48,
           borderRadius: theme.radius.md,
           opacity: busy ? 0.6 : 1,
         }}
@@ -138,6 +147,8 @@ export default function LoginScreen() {
             else router.replace("/");
           }}
           disabled={busy}
+          accessibilityRole="button"
+          accessibilityLabel="Continuar com Apple"
           style={{
             marginTop: theme.spacing.sm,
             flexDirection: "row",
@@ -145,7 +156,9 @@ export default function LoginScreen() {
             justifyContent: "center",
             gap: theme.spacing.sm,
             backgroundColor: "#000000",
-            padding: theme.spacing.md,
+            paddingVertical: theme.spacing.md,
+            paddingHorizontal: theme.spacing.lg,
+            minHeight: 48,
             borderRadius: theme.radius.md,
             opacity: busy ? 0.6 : 1,
           }}

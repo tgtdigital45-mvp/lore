@@ -1,7 +1,5 @@
 import { useEffect } from "react";
 import Constants from "expo-constants";
-import * as Notifications from "expo-notifications";
-import { Platform } from "react-native";
 import { useAuth } from "@/src/auth/AuthContext";
 import { supabase } from "@/src/lib/supabase";
 import { ensureNotificationPermissions } from "@/src/utils/notifications";
@@ -17,6 +15,7 @@ export function usePushTokenRegistration() {
       const ok = await ensureNotificationPermissions();
       if (!ok || cancelled) return;
       try {
+        const Notifications = await import("expo-notifications");
         const projectId =
           typeof Constants.expoConfig?.extra?.eas?.projectId === "string"
             ? Constants.expoConfig.extra.eas.projectId

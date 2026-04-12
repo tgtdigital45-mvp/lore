@@ -1,9 +1,10 @@
 {
-  "name": "mobile",
+  "name": "aura-onco",
   "main": "expo-router/entry",
   "version": "1.0.0",
   "scripts": {
     "typecheck": "tsc --noEmit",
+    "e2e:maestro": "echo \"Instale Maestro (https://maestro.mobile.dev/) e execute: maestro test maestro/smoke.yaml (ajuste appId no YAML ao bundle da build).\"",
     "start": "expo start",
     "start:clear": "expo start -c",
     "android": "expo start --android",

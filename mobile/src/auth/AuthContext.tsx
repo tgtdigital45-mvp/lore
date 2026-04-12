@@ -1,7 +1,9 @@
 import type { Session } from "@supabase/supabase-js";
+import { router } from "expo-router";
 import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { formatAuthError } from "@/src/auth/authErrors";
 import { signInWithAppleNative, signInWithOAuthGoogle } from "@/src/auth/oauth";
+import { queryClient } from "@/src/lib/queryClient";
 import { supabase } from "@/src/lib/supabase";
 
 type AuthContextValue = {
@@ -53,6 +55,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       signInWithApple: () => signInWithAppleNative(),
       signOut: async () => {
         await supabase.auth.signOut();
+        queryClient.clear();
+        router.replace("/login");
       },
     }),
     [session, loading]

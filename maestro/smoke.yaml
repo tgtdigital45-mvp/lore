@@ -1,0 +1,9 @@
+# Smoke E2E — requer Maestro CLI e emulador/dispositivo com a app instalada.
+# https://maestro.mobile.dev/
+#
+# maestro test maestro/smoke.yaml
+
+appId: host.exp.Exponent
+---
+- launchApp
+- assertVisible: "Aura Onco"

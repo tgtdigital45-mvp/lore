@@ -70,9 +70,13 @@ export type MedicationRow = {
 export type MedicationLogRow = {
   id: string;
   medication_id: string;
-  scheduled_time: string;
-  taken_time: string | null;
-  status: string;
+  /** Preferido (schema atual) */
+  taken_at?: string;
+  scheduled_time?: string;
+  taken_time?: string | null;
+  quantity?: number;
+  status?: string;
+  notes?: string | null;
   medications: { name: string; dosage: string | null } | { name: string; dosage: string | null }[] | null;
 };
 
@@ -88,6 +92,8 @@ export type SymptomLogDetail = {
   pain_level?: number | null;
   nausea_level?: number | null;
   fatigue_level?: number | null;
+  requires_action?: boolean | null;
+  mood?: string | null;
 };
 
 /** Sinais vitais registados na app (temperatura, PA, etc.). */
@@ -191,7 +197,7 @@ export type MessageFeedRow = {
   patients: { profiles: { full_name?: string } | { full_name?: string }[] | null } | null;
 };
 
-export type ModalTabId = "resumo" | "exames" | "mensagens";
+export type ModalTabId = "resumo" | "exames" | "mensagens" | "diario";
 
 export type AuditLogRow = {
   id: string;
@@ -200,4 +206,23 @@ export type AuditLogRow = {
   metadata: Record<string, unknown>;
   actor_name: string;
   patient_name: string;
+};
+
+/** Sessões de infusão (quimio / imuno) — ver `treatment_infusions`. */
+export type TreatmentInfusionRow = {
+  id: string;
+  cycle_id: string;
+  patient_id: string;
+  session_at: string;
+  status: string;
+};
+
+/** Amostras Apple Health / wearables — ver `health_wearable_samples`. */
+export type WearableSampleRow = {
+  id: string;
+  metric: string;
+  value_numeric: number | null;
+  unit: string | null;
+  observed_start: string;
+  metadata: Record<string, unknown>;
 };

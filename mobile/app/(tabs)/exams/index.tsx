@@ -175,12 +175,22 @@ export default function ExamsScreen() {
             mimeType: asset.mime,
           }),
         });
-        const data = (await res.json()) as {
+        const raw = await res.text();
+        let data: {
           documentId?: string;
           extracted?: OcrExtractedPayload;
           error?: string;
           message?: string;
         };
+        try {
+          data = raw ? (JSON.parse(raw) as typeof data) : {};
+        } catch {
+          Alert.alert(
+            "Exames",
+            `O servidor devolveu uma resposta inválida (HTTP ${res.status}). Isto costuma ser página de erro ou proxy — não é falha da rede. Tente de novo em instantes.`
+          );
+          return null;
+        }
         if (!res.ok) {
           if (res.status === 422) {
             Alert.alert(
@@ -201,10 +211,17 @@ export default function ExamsScreen() {
           setReviewSheet({ documentId: data.documentId, extracted: data.extracted });
         }
         return { documentId: data.documentId, extracted: data.extracted };
-      } catch {
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        const looksLikeTransport =
+          /Network request failed|network error|Failed to fetch|NetworkError|timed out|ECONNREFUSED|ENOTUNREACH|ETIMEDOUT/i.test(
+            msg
+          );
         Alert.alert(
           "Exames",
-          `Não foi possível ligar ao servidor em:\n${getApiBaseUrl()}\n\nConfirme: backend a correr, IP = IP do PC na rede Wi‑Fi (mobile/.env → EXPO_PUBLIC_API_URL), porta correta, e reinicie o Metro (npx expo start -c) após alterar o .env.`
+          looksLikeTransport
+            ? `Não foi possível ligar ao servidor em:\n${getApiBaseUrl()}\n\nConfirme: backend a correr, IP = IP do PC na rede Wi‑Fi (mobile/.env → EXPO_PUBLIC_API_URL), porta correta, e reinicie o Metro (npx expo start -c) após alterar o .env.`
+            : msg
         );
         return null;
       } finally {
@@ -420,18 +437,7 @@ export default function ExamsScreen() {
   }, [pickGalleryAndAnalyze, scheduleAfterSourceModal]);
 
   const handleFile = useCallback(() => {
-    if (Platform.OS === "ios") {
-      void (async () => {
-        try {
-          await pickDocumentAndAnalyze();
-        } catch (e) {
-          Alert.alert("Exames", e instanceof Error ? e.message : "Não foi possível escolher o arquivo.");
-        } finally {
-          setSourceModalOpen(false);
-        }
-      })();
-      return;
-    }
+    /** iOS e Android: fechar o modal e esperar (520 ms / 400 ms) antes do DocumentPicker — evita corrida com a animação do modal e falhas intermitentes no primeiro envio. */
     setSourceModalOpen(false);
     afterModalCloseThen(
       pickDocumentAndAnalyze,

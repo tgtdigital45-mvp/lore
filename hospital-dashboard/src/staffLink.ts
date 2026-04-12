@@ -1,5 +1,5 @@
-import type { Session } from "@supabase/supabase-js";
 import { supabase } from "./lib/supabase";
+import { refreshSupabaseSessionIfStale } from "./lib/authSession";
 import { DEMO_HOSPITAL_ID, PENDING_STAFF_ROLE_KEY } from "./constants";
 
 type StaffRole = "doctor" | "nurse" | "hospital_admin";
@@ -35,7 +35,10 @@ export function setPendingStaffRole(role: StaffRole) {
   localStorage.setItem(PENDING_STAFF_ROLE_KEY, role);
 }
 
-export async function ensureStaffIfPending(session: Session | null) {
+/** Garante vínculo demo + papel; usa sempre sessão atual do cliente e renova JWT se estiver expirado. */
+export async function ensureStaffIfPending() {
+  const { data: auth } = await supabase.auth.getSession();
+  const session = await refreshSupabaseSessionIfStale(auth.session);
   if (!session?.user) return;
   await applyPendingStaffLink(session.user.id);
   const { error } = await supabase.from("profiles").update({ role: "hospital_admin" }).eq("id", session.user.id);
