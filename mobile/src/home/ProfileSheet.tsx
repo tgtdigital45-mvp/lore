@@ -1,9 +1,8 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ElementRef } from "react";
 import {
   ActivityIndicator,
   Alert,
   Image,
-  KeyboardAvoidingView,
   Platform,
   Pressable,
   ScrollView,
@@ -12,15 +11,19 @@ import {
   Text,
   TextInput,
   View,
-  useWindowDimensions,
 } from "react-native";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
+import {
+  BottomSheetBackdrop,
+  BottomSheetModal,
+  BottomSheetScrollView,
+  type BottomSheetBackdropProps,
+} from "@gorhom/bottom-sheet";
 import * as ImagePicker from "expo-image-picker";
 import * as WebBrowser from "expo-web-browser";
 import { useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { BottomSheetModal } from "@/src/components/BottomSheetModal";
 import { CANCER_TYPES, type CancerTypeId } from "@/src/constants/clinical";
 import { useAuth } from "@/src/auth/AuthContext";
 import { useAppTheme } from "@/src/hooks/useAppTheme";
@@ -49,11 +52,12 @@ type Props = {
 const TERMS_URL = "https://www.gov.br/saude/pt-br/canais-atendimento/ouvidoria";
 const PRIVACY_URL = "https://www.gov.br/governodigital/pt-br/privacidade-e-seguranca";
 
+/** Rótulos curtos na barra horizontal para o ícone não ser cortado; o conteúdo de cada separador mantém o título completo. */
 const TABS: { key: TabKey; label: string; icon: string }[] = [
-  { key: "dados", label: "Dados de saúde", icon: "heartbeat" },
-  { key: "ficha", label: "Ficha médica", icon: "file-text-o" },
-  { key: "notificacoes", label: "Notificações", icon: "bell" },
-  { key: "configuracoes", label: "Configurações", icon: "cog" },
+  { key: "dados", label: "Dados", icon: "heartbeat" },
+  { key: "ficha", label: "Ficha", icon: "id-card-o" },
+  { key: "notificacoes", label: "Alertas", icon: "bell" },
+  { key: "configuracoes", label: "Ajustes", icon: "cog" },
 ];
 
 type PregnancyUi = "unset" | "no" | "yes";
@@ -89,7 +93,8 @@ export function ProfileSheet({
   const router = useRouter();
   const { theme } = useAppTheme();
   const insets = useSafeAreaInsets();
-  const { height: winH } = useWindowDimensions();
+  const profileSheetModalRef = useRef<ElementRef<typeof BottomSheetModal>>(null);
+  const snapPoints = useMemo(() => ["55%", "92%"], []);
   const { session } = useAuth();
   const uid = session?.user?.id;
   const qc = useQueryClient();
@@ -105,7 +110,6 @@ export function ProfileSheet({
   const [tab, setTab] = useState<TabKey>("dados");
   const [cancer, setCancer] = useState<CancerTypeId>("other");
   const [stage, setStage] = useState("");
-  const [nadir, setNadir] = useState(false);
   const [pregnancy, setPregnancy] = useState<PregnancyUi>("unset");
   const [usesContinuousMedication, setUsesContinuousMedication] = useState(false);
   const [continuousMedNotes, setContinuousMedNotes] = useState("");
@@ -129,7 +133,6 @@ export function ProfileSheet({
     const c = patient.primary_cancer_type as CancerTypeId;
     setCancer(CANCER_TYPES.includes(c) ? c : "other");
     setStage(patient.current_stage ?? "");
-    setNadir(patient.is_in_nadir);
     setPregnancy(pregnancyFromDb(patient.is_pregnant));
     setUsesContinuousMedication(patient.uses_continuous_medication);
     setContinuousMedNotes(patient.continuous_medication_notes ?? "");
@@ -142,7 +145,6 @@ export function ProfileSheet({
     patient?.id,
     patient?.primary_cancer_type,
     patient?.current_stage,
-    patient?.is_in_nadir,
     patient?.is_pregnant,
     patient?.uses_continuous_medication,
     patient?.continuous_medication_notes,
@@ -188,6 +190,21 @@ export function ProfileSheet({
   const cardBg = theme.colors.background.secondary;
   const radius = theme.radius.md;
 
+  const renderBackdrop = useCallback(
+    (props: BottomSheetBackdropProps) => (
+      <BottomSheetBackdrop {...props} disappearsOnIndex={-1} appearsOnIndex={0} opacity={0.5} pressBehavior="close" />
+    ),
+    []
+  );
+
+  useEffect(() => {
+    if (visible) {
+      profileSheetModalRef.current?.present();
+    } else {
+      profileSheetModalRef.current?.dismiss();
+    }
+  }, [visible]);
+
   async function syncEmergencyContacts(patientId: string, draft: ContactDraft[]) {
     const { data: existing } = await supabase.from("patient_emergency_contacts").select("id").eq("patient_id", patientId);
     const existingIds = new Set((existing ?? []).map((r) => (r as { id: string }).id));
@@ -230,7 +247,6 @@ export function ProfileSheet({
         .update({
           primary_cancer_type: cancer,
           current_stage: stage.trim() || null,
-          is_in_nadir: nadir,
           is_pregnant: pregnancyToDb(pregnancy),
           uses_continuous_medication: usesContinuousMedication,
           continuous_medication_notes: continuousMedNotes.trim() || null,
@@ -313,32 +329,36 @@ export function ProfileSheet({
   }
 
   return (
-    <BottomSheetModal visible={visible} onClose={onClose} maxHeightFraction={0.92}>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
-        style={{ maxHeight: winH * 0.92 }}
+    <BottomSheetModal
+      ref={profileSheetModalRef}
+      snapPoints={snapPoints}
+      enablePanDownToClose
+      onDismiss={onClose}
+      backdropComponent={renderBackdrop}
+      keyboardBehavior="interactive"
+      keyboardBlurBehavior="restore"
+      android_keyboardInputMode="adjustResize"
+      topInset={insets.top}
+      bottomInset={Math.max(insets.bottom, theme.spacing.md)}
+      backgroundStyle={{
+        backgroundColor: theme.colors.background.primary,
+        borderTopLeftRadius: theme.radius.xl,
+        borderTopRightRadius: theme.radius.xl,
+      }}
+      handleIndicatorStyle={{
+        width: 40,
+        height: 4,
+        backgroundColor: theme.colors.border.divider,
+      }}
+    >
+      <BottomSheetScrollView
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
+        contentContainerStyle={{
+          paddingBottom: Math.max(insets.bottom, theme.spacing.md) + theme.spacing.lg,
+        }}
       >
-        <View
-          style={{
-            backgroundColor: theme.colors.background.primary,
-            borderTopLeftRadius: theme.radius.xl,
-            borderTopRightRadius: theme.radius.xl,
-            paddingBottom: Math.max(insets.bottom, theme.spacing.md),
-            maxHeight: winH * 0.92,
-          }}
-        >
-          <View style={{ alignItems: "center", paddingTop: theme.spacing.sm }}>
-            <View
-              style={{
-                width: 40,
-                height: 4,
-                borderRadius: 2,
-                backgroundColor: theme.colors.border.divider,
-              }}
-            />
-          </View>
-
-          <View style={{ alignItems: "center", paddingTop: theme.spacing.md, paddingHorizontal: theme.spacing.md }}>
+        <View style={{ alignItems: "center", paddingTop: theme.spacing.md, paddingHorizontal: theme.spacing.md }}>
             <Pressable
               onPress={() => void pickAndUploadAvatar()}
               disabled={avatarBusy}
@@ -403,7 +423,7 @@ export function ProfileSheet({
               paddingHorizontal: theme.spacing.md,
               paddingVertical: theme.spacing.md,
               gap: 10,
-              alignItems: "stretch",
+              alignItems: "flex-start",
             }}
             style={{ flexGrow: 0 }}
           >
@@ -413,23 +433,28 @@ export function ProfileSheet({
                 <Pressable
                   key={t.key}
                   onPress={() => setTab(t.key)}
+                  accessibilityRole="tab"
+                  accessibilityState={{ selected: active }}
                   style={{
-                    minWidth: 104,
-                    maxWidth: 140,
-                    paddingVertical: 12,
-                    paddingHorizontal: 10,
-                    borderRadius: radius,
-                    backgroundColor: active ? theme.colors.semantic.treatment : cardBg,
+                    flexDirection: "column",
                     alignItems: "center",
                     justifyContent: "center",
-                    gap: 6,
+                    paddingVertical: 10,
+                    paddingHorizontal: 12,
+                    minWidth: 76,
+                    maxWidth: 100,
+                    borderRadius: radius,
+                    backgroundColor: active ? theme.colors.semantic.treatment : cardBg,
+                    flexShrink: 0,
                   }}
                 >
                   <FontAwesome name={t.icon as never} size={20} color={active ? "#FFFFFF" : theme.colors.text.secondary} />
                   <Text
                     numberOfLines={2}
                     style={{
+                      marginTop: 6,
                       fontSize: 11,
+                      lineHeight: 14,
                       fontWeight: active ? "700" : "600",
                       color: active ? "#FFFFFF" : theme.colors.text.primary,
                       textAlign: "center",
@@ -442,12 +467,8 @@ export function ProfileSheet({
             })}
           </ScrollView>
 
-          <ScrollView
-            style={{ flexGrow: 0 }}
-            contentContainerStyle={{ paddingHorizontal: theme.spacing.md, paddingBottom: theme.spacing.lg }}
-            keyboardShouldPersistTaps="handled"
-            showsVerticalScrollIndicator={false}
-          >
+          <View style={{ paddingHorizontal: theme.spacing.md }}>
+
             {tab === "dados" && (
               <View style={{ gap: theme.spacing.md }}>
                 <Text style={[theme.typography.body, { color: theme.colors.text.secondary }]}>
@@ -551,7 +572,7 @@ export function ProfileSheet({
             {tab === "ficha" && (
               <View style={{ gap: theme.spacing.md }}>
                 <Text style={[theme.typography.body, { color: theme.colors.text.secondary }]}>
-                  Informações clínicas protegidas (LGPD). Guarde as alterações antes de sair.
+                  Ficha médica — informações clínicas protegidas (LGPD). Guarde as alterações antes de sair.
                 </Text>
                 {!patient ? (
                   <Text style={{ color: theme.colors.text.secondary }}>Complete o onboarding para editar a ficha.</Text>
@@ -593,24 +614,6 @@ export function ProfileSheet({
                           fontSize: 17,
                         }}
                       />
-                    </View>
-                    <View
-                      style={{
-                        backgroundColor: cardBg,
-                        borderRadius: radius,
-                        padding: theme.spacing.md,
-                        flexDirection: "row",
-                        alignItems: "center",
-                        justifyContent: "space-between",
-                      }}
-                    >
-                      <View style={{ flex: 1, paddingRight: theme.spacing.md }}>
-                        <Text style={[theme.typography.headline, { color: theme.colors.text.primary }]}>Modo nadir</Text>
-                        <Text style={{ fontSize: 13, color: theme.colors.text.secondary, marginTop: 4 }}>
-                          Reforça alertas de febre quando a imunidade está mais baixa.
-                        </Text>
-                      </View>
-                      <Switch value={nadir} onValueChange={setNadir} />
                     </View>
 
                     <View style={{ backgroundColor: cardBg, borderRadius: radius, padding: theme.spacing.md }}>
@@ -860,6 +863,34 @@ export function ProfileSheet({
                       </Pressable>
                     </View>
 
+                    <View
+                      style={{
+                        padding: theme.spacing.md,
+                        borderRadius: radius,
+                        borderLeftWidth: 3,
+                        borderLeftColor: theme.colors.semantic.treatment,
+                        backgroundColor: theme.colors.background.tertiary,
+                      }}
+                    >
+                      <Text style={{ fontSize: 11, fontWeight: "700", color: theme.colors.text.secondary, letterSpacing: 0.3 }}>
+                        INDICADOR AUTOMÁTICO — NADIR
+                      </Text>
+                      <Text style={{ fontSize: 13, color: theme.colors.text.secondary, marginTop: 6, lineHeight: 18 }}>
+                        Não tem interruptor: é calculado no servidor com base nas datas de infusão (janela habitual 7–14 dias após a última
+                        sessão). Reforça regras de alerta de febre quando aplicável.
+                      </Text>
+                      <Text
+                        style={{
+                          fontSize: 14,
+                          color: theme.colors.text.primary,
+                          marginTop: theme.spacing.sm,
+                          fontWeight: "600",
+                        }}
+                      >
+                        Estado: {patient.is_in_nadir ? "na janela de nadir — vigilância febril" : "fora da janela"}
+                      </Text>
+                    </View>
+
                     <Pressable
                       onPress={() => void saveFicha()}
                       disabled={fichaBusy}
@@ -978,7 +1009,8 @@ export function ProfileSheet({
                 </Pressable>
               </View>
             )}
-          </ScrollView>
+
+          </View>
 
           <View
             style={{
@@ -992,8 +1024,7 @@ export function ProfileSheet({
               Olá, {firstName}. Aura Onco — dados protegidos por RLS.
             </Text>
           </View>
-        </View>
-      </KeyboardAvoidingView>
+      </BottomSheetScrollView>
     </BottomSheetModal>
   );
 }

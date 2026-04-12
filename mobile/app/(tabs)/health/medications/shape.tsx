@@ -9,6 +9,7 @@ import { IOS_HEALTH } from "@/src/health/iosHealthTokens";
 import { useAppTheme } from "@/src/hooks/useAppTheme";
 import { useStackBack } from "@/src/hooks/useStackBack";
 import { useMedicationWizard } from "@/src/medications/MedicationWizardContext";
+import { MedicationWizardStepBadge } from "@/src/medications/components/MedicationWizardStepBadge";
 import { ShapeGrid } from "@/src/medications/components/ShapeGrid";
 import { PillPreview } from "@/src/medications/components/PillPreview";
 import type { MedicationShapeId } from "@/src/medications/types";
@@ -99,7 +100,8 @@ export default function MedicationShapeScreen() {
         style={{ flex: 1, backgroundColor: "transparent" }}
         contentContainerStyle={{ paddingHorizontal: theme.spacing.lg, paddingBottom: theme.spacing.xl * 2 }}
       >
-        <View style={{ alignItems: "center", marginTop: theme.spacing.md }}>
+        <MedicationWizardStepBadge step={4} theme={theme} />
+        <View style={{ alignItems: "center", marginTop: theme.spacing.sm }}>
           <PillPreview colorLeft={preview.left} colorRight={preview.right} colorBg={preview.bg} size={100} />
         </View>
 

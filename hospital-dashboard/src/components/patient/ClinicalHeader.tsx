@@ -1,6 +1,10 @@
 import { useMemo } from "react";
 import { CANCER_PT } from "../../constants/dashboardLabels";
-import { computeClinicalNadirSummary, cancerContextHint } from "../../lib/clinicalNadir";
+import {
+  computeClinicalNadirSummary,
+  computeIsInClinicalNadirWindow,
+  cancerContextHint,
+} from "../../lib/clinicalNadir";
 import type { RiskRow, TreatmentCycleRow, TreatmentInfusionRow } from "../../types/dashboard";
 import { formatPtDateTime } from "../../lib/dashboardFormat";
 
@@ -13,6 +17,10 @@ type Props = {
 
 export function ClinicalHeader({ patient, cycles, infusions, loading }: Props) {
   const summary = useMemo(() => computeClinicalNadirSummary(cycles, infusions), [cycles, infusions]);
+  const inNadirWindow = useMemo(
+    () => computeIsInClinicalNadirWindow(cycles, infusions),
+    [cycles, infusions]
+  );
   const hint = useMemo(() => cancerContextHint(patient.primary_cancer_type), [patient.primary_cancer_type]);
 
   const stage = patient.current_stage?.trim() || null;
@@ -43,9 +51,9 @@ export function ClinicalHeader({ patient, cycles, infusions, loading }: Props) {
         ) : null}
         <span
           className={`clinical-header__chip clinical-header__chip--nadir`}
-          title="Vigilância febril / neutropenia"
+          title="Vigilância febril / neutropenia (janela 7–14 dias após a última infusão)"
         >
-          {patient.is_in_nadir ? "Em nadir — vigilância" : "Fora do nadir (app)"}
+          {inNadirWindow ? "Em janela de nadir — vigilância" : "Fora da janela de nadir"}
         </span>
       </div>
       <p className="clinical-header__hint">

@@ -8,6 +8,12 @@ export function medicationNameFromLog(log: MedicationLogRow): string {
   return o?.name?.trim() || "Medicamento";
 }
 
+/** Data/hora a mostrar para um registo de toma (wizard ou esquema antigo). */
+export function medicationLogWhenIso(log: MedicationLogRow): string | null {
+  const t = log.taken_at ?? log.taken_time ?? log.scheduled_time;
+  return t && String(t).trim() !== "" ? t : null;
+}
+
 /** Posição 1-based do ciclo dentro do mesmo protocolo (por data de início). */
 export function chemoSessionNumberInProtocol(cycles: TreatmentCycleRow[], cycle: TreatmentCycleRow): number {
   const same = cycles.filter((c) => c.protocol_name === cycle.protocol_name);

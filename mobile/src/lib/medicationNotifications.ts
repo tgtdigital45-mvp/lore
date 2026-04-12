@@ -74,12 +74,15 @@ export async function scheduleMedicationNotifications(med: MedicationRow): Promi
   await ensureNotificationPermissions();
   await cancelMedicationNotifications(med.id);
 
+  const mode = med.repeat_mode ?? "interval_hours";
+  if (mode === "as_needed") {
+    return;
+  }
+
   const now = Date.now();
   const horizon = now + 14 * 86400000;
   const endDateMs = med.end_date ? endOfDayMsFromDateString(med.end_date) : horizon;
   const until = Math.min(horizon, endDateMs);
-
-  const mode = med.repeat_mode ?? "interval_hours";
   const hasSlots = (med.medication_schedules?.length ?? 0) > 0;
   const useSlots = hasSlots && (mode === "daily" || mode === "weekdays");
 
@@ -118,6 +121,7 @@ export async function rescheduleAllForPatient(meds: MedicationRow[]): Promise<vo
 
 export function computeNextDose(med: MedicationRow, afterMs: number): Date | null {
   const mode = med.repeat_mode ?? "interval_hours";
+  if (mode === "as_needed") return null;
   const hasSlots = (med.medication_schedules?.length ?? 0) > 0;
   const useSlots = hasSlots && (mode === "daily" || mode === "weekdays");
 

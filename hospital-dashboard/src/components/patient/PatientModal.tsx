@@ -197,6 +197,7 @@ export function PatientModal(props: PatientModalProps) {
 
             {modalTab === "exames" ? (
               <PatientExamesPanel
+                patientId={modalPatient.id}
                 modalLoading={examesTabLoading}
                 modalMedicalDocs={modalMedicalDocs}
                 modalBiomarkers={modalBiomarkers}

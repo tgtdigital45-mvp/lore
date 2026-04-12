@@ -18,7 +18,10 @@ export const CANCER_EMOJI: Record<string, string> = {
   other: "📋",
 };
 
+/** Ordem de risco (0 = mínimo) — alinhado à app móvel (escala verbal + legado). */
 export const SEVERITY_RANK: Record<string, number> = {
+  absent: 0,
+  present: 1,
   mild: 1,
   moderate: 2,
   severe: 3,
@@ -26,7 +29,9 @@ export const SEVERITY_RANK: Record<string, number> = {
 };
 
 export const SEVERITY_PT: Record<string, string> = {
-  mild: "Leve",
+  absent: "Não presente",
+  present: "Presente",
+  mild: "Suave",
   moderate: "Moderado",
   severe: "Grave",
   life_threatening: "Ameaça à vida",
@@ -53,14 +58,43 @@ export const DOCUMENT_TYPE_PT: Record<string, string> = {
   administrative: "Guia / convênio / adm.",
 };
 
-/** Categorias do diário de sintomas (legado) — alinhado à app móvel. */
+/**
+ * Categorias `symptom_logs.symptom_category` (app Aura) — ids estáveis em snake_case.
+ * Manter sincronizado com `mobile/src/diary/symptomCatalog.ts` (SYMPTOM_NAV_ITEMS).
+ */
 export const SYMPTOM_CATEGORY_PT: Record<string, string> = {
-  nausea: "Náuseas",
-  fever: "Febre",
-  fatigue: "Fadiga",
+  sleep_changes: "Alterações de Sono",
+  chest_tightness: "Aperto ou Dor no Peito",
+  heartburn: "Azia",
+  rapid_heartbeat: "Batimentos Rápidos ou Palpitantes",
+  chills: "Calafrios",
+  congestion: "Congestão",
+  fainting: "Desmaio",
   diarrhea: "Diarreia",
   pain: "Dor",
+  body_muscle_pain: "Dor Corporal e Muscular",
+  headache: "Dor de Cabeça",
+  sore_throat: "Dor de Garganta",
+  low_back_pain: "Dor na Região Lombar",
+  breast_pain: "Dor no Seio",
+  pelvic_pain: "Dor Pélvica",
+  fatigue: "Fadiga",
+  fever: "Febre",
   hydration: "Hidratação",
+  runny_nose: "Nariz Escorrendo",
+  nausea: "Náusea",
+  hot_flashes: "Ondas de Calor",
+  palpitations: "Palpitações",
+  dry_skin: "Pele Seca",
+  hair_loss: "Perda de Cabelo",
+  memory_loss: "Perda de Memória",
+  loss_of_smell: "Perda do Olfato",
+  loss_of_taste: "Perda do Paladar",
+  constipation: "Prisão de Ventre",
+  vaginal_dryness: "Secura Vaginal",
+  night_sweats: "Suor Noturno",
+  cough: "Tosse",
+  vomiting: "Vômito",
 };
 
 export const NUTRITION_LOG_TYPE_PT: Record<string, string> = {
@@ -113,7 +147,7 @@ export const CARE_TIPS = [
   {
     emoji: "🌡️",
     title: "Febre ou infecção",
-    text: "Com nadir ou quimio, avise a equipe ante febre ≥ 38 °C.",
+    text: "Com nadir ou quimio, avise a equipe ante febre ≥ 37,8 °C.",
   },
   {
     emoji: "📝",

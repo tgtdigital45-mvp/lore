@@ -1,17 +1,18 @@
 /** Rótulos de interface em pt-BR (valores de API/DB podem ser chaves em inglês). */
 
+import { SYMPTOM_NAV_ITEMS } from "@/src/diary/symptomCatalog";
+
+const symptomLabelsFromCatalog = Object.fromEntries(SYMPTOM_NAV_ITEMS.map((x) => [x.id, x.label])) as Record<string, string>;
+
 export const symptomCategoryLabel: Record<string, string> = {
-  nausea: "Náusea",
-  fever: "Febre",
-  fatigue: "Fadiga",
-  diarrhea: "Diarreia",
-  pain: "Dor",
-  hydration: "Hidratação",
+  ...symptomLabelsFromCatalog,
 };
 
 export const severityLabel: Record<string, string> = {
-  mild: "Leve",
-  moderate: "Moderada",
+  absent: "Não presente",
+  present: "Presente",
+  mild: "Suave",
+  moderate: "Moderado",
   severe: "Grave",
   life_threatening: "Risco à vida",
 };

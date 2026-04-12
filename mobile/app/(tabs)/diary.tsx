@@ -1,48 +1,35 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
   Modal,
   Pressable,
   ScrollView,
+  StyleSheet,
   Text,
   TextInput,
   View,
 } from "react-native";
-import Slider from "@react-native-community/slider";
 import * as Haptics from "expo-haptics";
 import { Audio } from "expo-av";
 import { useFocusEffect } from "@react-navigation/native";
-import { LineChart, BarChart } from "react-native-gifted-charts";
-import { OncoCard } from "@/components/OncoCard";
-import { ToxicityHeatmap } from "@/components/ToxicityHeatmap";
 import { ResponsiveScreen } from "@/src/components/ResponsiveScreen";
 import { SymptomQuickLog } from "@/src/diary/SymptomQuickLog";
+import type { SymptomDetailKey } from "@/src/diary/symptomCatalog";
+import type { SymptomLogRow } from "@/src/diary/symptomLogTypes";
+import { VERBAL_SYMPTOM_LEVELS, prdLevelFromVerbalKey, type VerbalSymptomKey } from "@/src/diary/verbalSeverity";
 import { labelPainRegion } from "@/src/diary/painRegions";
 import { useAppTheme } from "@/src/hooks/useAppTheme";
 import { usePatient } from "@/src/hooks/usePatient";
 import { labelSeverity, labelSymptomCategory } from "@/src/i18n/ui";
 import { supabase } from "@/src/lib/supabase";
+import type { AppTheme } from "@/src/theme/theme";
 
 const MOODS = [
   { key: "happy", label: "Bem" },
   { key: "neutral", label: "Neutro" },
   { key: "sad", label: "Mal" },
 ] as const;
-
-type LogRow = {
-  id: string;
-  entry_kind: string;
-  symptom_category: string | null;
-  severity: string | null;
-  pain_level: number | null;
-  nausea_level: number | null;
-  fatigue_level: number | null;
-  mood: string | null;
-  body_temperature: number | null;
-  notes: string | null;
-  logged_at: string;
-};
 
 function painRegionFromNotes(notes: string | null): string | null {
   if (!notes?.trim()) return null;
@@ -55,14 +42,56 @@ function painRegionFromNotes(notes: string | null): string | null {
   return null;
 }
 
+function CheckInVerbalBlock({
+  label,
+  value,
+  onChange,
+  theme,
+}: {
+  label: string;
+  value: VerbalSymptomKey;
+  onChange: (v: VerbalSymptomKey) => void;
+  theme: AppTheme;
+}) {
+  return (
+    <View style={{ marginTop: theme.spacing.md }}>
+      <Text style={[theme.typography.body, { color: theme.colors.text.secondary }]}>{label}</Text>
+      <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: theme.spacing.sm }}>
+        {VERBAL_SYMPTOM_LEVELS.map((row) => {
+          const active = value === row.key;
+          return (
+            <Pressable
+              key={row.key}
+              onPress={() => {
+                onChange(row.key);
+                void Haptics.selectionAsync();
+              }}
+              style={{
+                paddingHorizontal: theme.spacing.sm,
+                paddingVertical: theme.spacing.sm,
+                borderRadius: theme.radius.md,
+                backgroundColor: active ? theme.colors.semantic.treatment : theme.colors.background.tertiary,
+              }}
+            >
+              <Text style={{ fontSize: 13, fontWeight: "600", color: theme.colors.text.primary }}>{row.label}</Text>
+            </Pressable>
+          );
+        })}
+      </View>
+    </View>
+  );
+}
+
 export default function DiaryScreen() {
   const { theme } = useAppTheme();
   const { patient, refresh } = usePatient();
-  const [logs, setLogs] = useState<LogRow[]>([]);
+  const [logs, setLogs] = useState<SymptomLogRow[]>([]);
+  const [symptomDetailFocus, setSymptomDetailFocus] = useState<SymptomDetailKey | null>(null);
+  const hideDiaryChrome = symptomDetailFocus === "sleep_changes";
   const [fullModalOpen, setFullModalOpen] = useState(false);
-  const [pain, setPain] = useState(3);
-  const [nausea, setNausea] = useState(2);
-  const [fatigue, setFatigue] = useState(3);
+  const [painV, setPainV] = useState<VerbalSymptomKey>("present");
+  const [nauseaV, setNauseaV] = useState<VerbalSymptomKey>("present");
+  const [fatigueV, setFatigueV] = useState<VerbalSymptomKey>("present");
   const [mood, setMood] = useState<(typeof MOODS)[number]["key"]>("neutral");
   const [note, setNote] = useState("");
   const [recording, setRecording] = useState<Audio.Recording | null>(null);
@@ -74,12 +103,12 @@ export default function DiaryScreen() {
     const { data, error } = await supabase
       .from("symptom_logs")
       .select(
-        "id, entry_kind, symptom_category, severity, pain_level, nausea_level, fatigue_level, mood, body_temperature, notes, logged_at"
+        "id, entry_kind, symptom_category, severity, pain_level, nausea_level, fatigue_level, mood, body_temperature, notes, logged_at, symptom_started_at, symptom_ended_at"
       )
       .eq("patient_id", patient.id)
       .order("logged_at", { ascending: false })
       .limit(200);
-    if (!error && data) setLogs(data as LogRow[]);
+    if (!error && data) setLogs(data as SymptomLogRow[]);
   }, [patient]);
 
   useFocusEffect(
@@ -114,9 +143,9 @@ export default function DiaryScreen() {
     const { error } = await supabase.from("symptom_logs").insert({
       patient_id: patient.id,
       entry_kind: "prd",
-      pain_level: Math.round(pain),
-      nausea_level: Math.round(nausea),
-      fatigue_level: Math.round(fatigue),
+      pain_level: prdLevelFromVerbalKey(painV),
+      nausea_level: prdLevelFromVerbalKey(nauseaV),
+      fatigue_level: prdLevelFromVerbalKey(fatigueV),
       mood,
       notes: note.trim() || null,
       voice_storage_path: voicePath,
@@ -161,56 +190,6 @@ export default function DiaryScreen() {
     }
   }
 
-  const legacyLogs = useMemo(() => logs.filter((l) => l.entry_kind === "legacy" && l.severity), [logs]);
-  const prdLogs = useMemo(() => logs.filter((l) => l.entry_kind === "prd"), [logs]);
-
-  const prdPainLine = useMemo(() => {
-    const last = prdLogs.slice(0, 14).reverse();
-    return last.map((l, i) => ({
-      value: l.pain_level ?? 0,
-      label: String(i + 1),
-      dataPointText: String(l.pain_level ?? 0),
-    }));
-  }, [prdLogs]);
-
-  const prdFatigueLine = useMemo(() => {
-    const last = prdLogs.slice(0, 14).reverse();
-    return last.map((l, i) => ({
-      value: l.fatigue_level ?? 0,
-      label: String(i + 1),
-      dataPointText: String(l.fatigue_level ?? 0),
-    }));
-  }, [prdLogs]);
-
-  const prdNauseaLine = useMemo(() => {
-    const last = prdLogs.slice(0, 14).reverse();
-    return last.map((l, i) => ({
-      value: l.nausea_level ?? 0,
-      label: String(i + 1),
-      dataPointText: String(l.nausea_level ?? 0),
-    }));
-  }, [prdLogs]);
-
-  const lineDataFever = useMemo(() => {
-    const fevers = legacyLogs.filter((l) => l.symptom_category === "fever" && l.body_temperature != null);
-    const last7 = fevers.slice(0, 7).reverse();
-    return last7.map((l, i) => ({
-      value: Number(l.body_temperature),
-      label: String(i + 1),
-      dataPointText: `${l.body_temperature}°`,
-    }));
-  }, [legacyLogs]);
-
-  const barData = useMemo(() => {
-    const map = new Map<string, number>();
-    for (const l of logs.slice(0, 30)) {
-      const day = l.logged_at.slice(0, 10);
-      map.set(day, (map.get(day) ?? 0) + 1);
-    }
-    const entries = [...map.entries()].slice(-14);
-    return entries.map(([label, value]) => ({ value, label: label.slice(5) }));
-  }, [logs]);
-
   if (!patient) {
     return (
       <ResponsiveScreen variant="tabGradient">
@@ -234,183 +213,106 @@ export default function DiaryScreen() {
         <View style={{ paddingTop: theme.spacing.sm, marginBottom: theme.spacing.md }}>
           <Text style={[theme.typography.largeTitle, { color: theme.colors.text.primary }]}>Sintomas</Text>
           <Text style={[theme.typography.body, { color: theme.colors.text.secondary, marginTop: theme.spacing.xs }]}>
-            Toque no sintoma, siga os passos e registe em segundos — como na app Saúde.
+            Os gráficos ficam no ecrã de cada sintoma. Abaixo, a lista completa — toque para histórico e registo.
           </Text>
         </View>
 
-        <SymptomQuickLog theme={theme} patientId={patient.id} onLogged={onLogged} />
+        <SymptomQuickLog
+          theme={theme}
+          patientId={patient.id}
+          logs={logs}
+          onLogged={onLogged}
+          onSymptomDetailFocusChange={setSymptomDetailFocus}
+        />
 
-        <Pressable
-          onPress={() => setFullModalOpen(true)}
-          style={{
-            marginBottom: theme.spacing.lg,
-            paddingVertical: theme.spacing.md,
-            paddingHorizontal: theme.spacing.md,
-            backgroundColor: theme.colors.background.secondary,
-            borderRadius: theme.radius.lg,
-            flexDirection: "row",
-            alignItems: "center",
-            justifyContent: "space-between",
-          }}
-        >
-          <View style={{ flex: 1, paddingRight: theme.spacing.md }}>
-            <Text style={[theme.typography.headline, { color: theme.colors.text.primary }]}>Check-in completo</Text>
-            <Text style={[theme.typography.body, { color: theme.colors.text.secondary, marginTop: 4 }]}>
-              Dor, náusea e fadiga juntos, humor, nota e voz — quando quiser mais contexto.
-            </Text>
-          </View>
-          <Text style={{ color: theme.colors.semantic.treatment, fontSize: 22, fontWeight: "300" }}>›</Text>
-        </Pressable>
-
-        {prdPainLine.length > 1 ? (
-          <OncoCard style={{ marginBottom: theme.spacing.md }}>
-            <Text style={[theme.typography.title2, { color: theme.colors.text.primary }]}>Dor (tendência)</Text>
-            <LineChart
-              data={prdPainLine}
-              color={theme.colors.semantic.symptoms}
-              thickness={3}
-              spacing={28}
-              hideDataPoints={false}
-              yAxisColor={theme.colors.border.divider}
-              xAxisColor={theme.colors.border.divider}
-              yAxisTextStyle={{ color: theme.colors.text.secondary }}
-              xAxisLabelTextStyle={{ color: theme.colors.text.secondary }}
-              curved
-            />
-          </OncoCard>
-        ) : null}
-
-        {prdFatigueLine.length > 1 ? (
-          <OncoCard style={{ marginBottom: theme.spacing.md }}>
-            <Text style={[theme.typography.title2, { color: theme.colors.text.primary }]}>Fadiga (tendência)</Text>
-            <LineChart
-              data={prdFatigueLine}
-              color={theme.colors.semantic.treatment}
-              thickness={3}
-              spacing={28}
-              hideDataPoints={false}
-              yAxisColor={theme.colors.border.divider}
-              xAxisColor={theme.colors.border.divider}
-              yAxisTextStyle={{ color: theme.colors.text.secondary }}
-              xAxisLabelTextStyle={{ color: theme.colors.text.secondary }}
-              curved
-            />
-          </OncoCard>
-        ) : null}
-
-        {prdNauseaLine.length > 1 ? (
-          <OncoCard style={{ marginBottom: theme.spacing.md }}>
-            <Text style={[theme.typography.title2, { color: theme.colors.text.primary }]}>Náusea (tendência)</Text>
-            <LineChart
-              data={prdNauseaLine}
-              color={theme.colors.semantic.respiratory}
-              thickness={3}
-              spacing={28}
-              hideDataPoints={false}
-              yAxisColor={theme.colors.border.divider}
-              xAxisColor={theme.colors.border.divider}
-              yAxisTextStyle={{ color: theme.colors.text.secondary }}
-              xAxisLabelTextStyle={{ color: theme.colors.text.secondary }}
-              curved
-            />
-          </OncoCard>
-        ) : null}
-
-        {lineDataFever.length > 0 ? (
-          <OncoCard style={{ marginBottom: theme.spacing.md }}>
-            <Text style={[theme.typography.title2, { color: theme.colors.text.primary }]}>Febre (°C)</Text>
-            <LineChart
-              data={lineDataFever}
-              color={theme.colors.semantic.vitals}
-              thickness={3}
-              spacing={36}
-              hideDataPoints={false}
-              yAxisColor={theme.colors.border.divider}
-              xAxisColor={theme.colors.border.divider}
-              yAxisTextStyle={{ color: theme.colors.text.secondary }}
-              xAxisLabelTextStyle={{ color: theme.colors.text.secondary }}
-              curved
-              areaChart
-              startFillColor={theme.colors.semantic.vitals}
-              endFillColor={theme.colors.semantic.vitals}
-              startOpacity={0.35}
-              endOpacity={0.05}
-            />
-          </OncoCard>
-        ) : null}
-
-        {legacyLogs.length > 0 ? (
-          <OncoCard style={{ marginBottom: theme.spacing.md }}>
-            <Text style={[theme.typography.title2, { color: theme.colors.text.primary, marginBottom: theme.spacing.sm }]}>
-              Mapa de gravidade (legado)
-            </Text>
-            <ToxicityHeatmap logs={legacyLogs.map((l) => ({ severity: l.severity as string, logged_at: l.logged_at }))} />
-          </OncoCard>
-        ) : null}
-
-        {barData.length > 0 ? (
-          <OncoCard style={{ marginBottom: theme.spacing.md }}>
-            <Text style={[theme.typography.title2, { color: theme.colors.text.primary }]}>Frequência diária</Text>
-            <BarChart
-              barWidth={22}
-              spacing={12}
-              noOfSections={4}
-              barBorderRadius={6}
-              frontColor={theme.colors.semantic.respiratory}
-              data={barData}
-              yAxisColor={theme.colors.border.divider}
-              xAxisColor={theme.colors.border.divider}
-              yAxisTextStyle={{ color: theme.colors.text.secondary }}
-              xAxisLabelTextStyle={{ color: theme.colors.text.secondary }}
-            />
-          </OncoCard>
-        ) : null}
-
-        <OncoCard>
-          <Text style={[theme.typography.title2, { color: theme.colors.text.primary }]}>Últimos registos</Text>
-          {logs.slice(0, 14).map((l) => {
-            const painReg = painRegionFromNotes(l.notes);
-            return (
-            <View
-              key={l.id}
+        {!hideDiaryChrome ? (
+          <>
+            <Pressable
+              onPress={() => setFullModalOpen(true)}
               style={{
-                marginTop: theme.spacing.md,
-                borderTopWidth: 1,
-                borderTopColor: theme.colors.border.divider,
-                paddingTop: theme.spacing.md,
+                marginBottom: theme.spacing.lg,
+                flexDirection: "row",
+                alignItems: "center",
+                paddingVertical: 14,
+                paddingHorizontal: theme.spacing.md,
+                backgroundColor: theme.colors.background.primary,
+                borderRadius: theme.radius.lg,
+                borderWidth: StyleSheet.hairlineWidth,
+                borderColor: theme.colors.border.divider,
               }}
             >
-              {l.entry_kind === "prd" ? (
-                <>
-                  <Text style={[theme.typography.headline, { color: theme.colors.text.primary }]}>
-                    Dor {l.pain_level ?? "—"} · Náusea {l.nausea_level ?? "—"} · Fadiga {l.fatigue_level ?? "—"}
-                    {l.mood && l.mood !== "neutral" ? ` · ${l.mood}` : ""}
-                  </Text>
-                  {painReg ? (
-                    <Text style={[theme.typography.body, { color: theme.colors.text.secondary, marginTop: 4 }]}>
-                      Dor: {painReg}
-                    </Text>
-                  ) : null}
-                  <Text style={[theme.typography.body, { color: theme.colors.text.secondary }]}>
-                    {new Date(l.logged_at).toLocaleString("pt-BR")}
-                  </Text>
-                </>
-              ) : (
-                <>
-                  <Text style={[theme.typography.headline, { color: theme.colors.text.primary }]}>
-                    {l.symptom_category ? labelSymptomCategory(l.symptom_category) : "—"} ·{" "}
-                    {l.severity ? labelSeverity(l.severity) : "—"}
-                  </Text>
-                  <Text style={[theme.typography.body, { color: theme.colors.text.secondary }]}>
-                    {new Date(l.logged_at).toLocaleString("pt-BR")}
-                    {l.body_temperature != null ? ` · ${l.body_temperature}°C` : ""}
-                  </Text>
-                </>
-              )}
+              <View style={{ flex: 1, paddingRight: theme.spacing.md }}>
+                <Text style={[theme.typography.headline, { color: theme.colors.text.primary }]}>Check-in completo</Text>
+                <Text style={[theme.typography.body, { color: theme.colors.text.secondary, marginTop: 4 }]}>
+                  Dor, náusea e fadiga juntos, humor, nota e voz.
+                </Text>
+              </View>
+              <Text style={{ fontSize: 20, color: theme.colors.text.tertiary, fontWeight: "300" }}>›</Text>
+            </Pressable>
+
+            <Text style={[theme.typography.title2, { color: theme.colors.text.primary, marginBottom: theme.spacing.sm }]}>
+              Últimos registos
+            </Text>
+            <View
+              style={{
+                borderRadius: theme.radius.lg,
+                overflow: "hidden",
+                backgroundColor: theme.colors.background.primary,
+                borderWidth: StyleSheet.hairlineWidth,
+                borderColor: theme.colors.border.divider,
+              }}
+            >
+              {logs.slice(0, 14).map((l, idx) => {
+                const painReg = painRegionFromNotes(l.notes);
+                return (
+                  <View
+                    key={l.id}
+                    style={{
+                      paddingVertical: theme.spacing.md,
+                      paddingHorizontal: theme.spacing.md,
+                      borderBottomWidth: idx < Math.min(logs.length, 14) - 1 ? StyleSheet.hairlineWidth : 0,
+                      borderBottomColor: theme.colors.border.divider,
+                    }}
+                  >
+                    {l.entry_kind === "prd" ? (
+                      <>
+                        <Text style={[theme.typography.headline, { color: theme.colors.text.primary }]}>
+                          Dor {l.pain_level ?? "—"} · Náusea {l.nausea_level ?? "—"} · Fadiga {l.fatigue_level ?? "—"}
+                          {l.mood && l.mood !== "neutral" ? ` · ${l.mood}` : ""}
+                        </Text>
+                        {painReg ? (
+                          <Text style={[theme.typography.body, { color: theme.colors.text.secondary, marginTop: 4 }]}>
+                            Dor: {painReg}
+                          </Text>
+                        ) : null}
+                        <Text style={[theme.typography.body, { color: theme.colors.text.secondary }]}>
+                          {new Date(l.logged_at).toLocaleString("pt-BR")}
+                        </Text>
+                      </>
+                    ) : (
+                      <>
+                        <Text style={[theme.typography.headline, { color: theme.colors.text.primary }]}>
+                          {l.symptom_category ? labelSymptomCategory(l.symptom_category) : "—"} ·{" "}
+                          {l.severity ? labelSeverity(l.severity) : "—"}
+                        </Text>
+                        {l.symptom_started_at && l.symptom_ended_at ? (
+                          <Text style={[theme.typography.body, { color: theme.colors.text.secondary, marginTop: 4 }]}>
+                            {new Date(l.symptom_started_at).toLocaleString("pt-BR")} →{" "}
+                            {new Date(l.symptom_ended_at).toLocaleString("pt-BR")}
+                          </Text>
+                        ) : null}
+                        <Text style={[theme.typography.body, { color: theme.colors.text.secondary }]}>
+                          Registado {new Date(l.logged_at).toLocaleString("pt-BR")}
+                          {l.body_temperature != null ? ` · ${l.body_temperature}°C` : ""}
+                        </Text>
+                      </>
+                    )}
+                  </View>
+                );
+              })}
             </View>
-            );
-          })}
-        </OncoCard>
+          </>
+        ) : null}
       </ScrollView>
 
       <Modal visible={fullModalOpen} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setFullModalOpen(false)}>
@@ -423,33 +325,11 @@ export default function DiaryScreen() {
           </View>
           <ScrollView style={{ marginTop: theme.spacing.lg }} keyboardShouldPersistTaps="handled">
             <Text style={[theme.typography.body, { color: theme.colors.text.secondary }]}>
-              Escala 0–10 para cada sintoma. Útil quando quer registar tudo de uma vez.
+              Escolha a intensidade (não presente a grave) para cada sintoma. Útil quando quer registar tudo de uma vez.
             </Text>
-            {(
-              [
-                ["Dor", pain, setPain],
-                ["Náusea", nausea, setNausea],
-                ["Fadiga", fatigue, setFatigue],
-              ] as const
-            ).map(([label, val, setVal]) => (
-              <View key={label} style={{ marginTop: theme.spacing.md }}>
-                <Text style={[theme.typography.body, { color: theme.colors.text.secondary }]}>
-                  {label}: {Math.round(val)}
-                </Text>
-                <Slider
-                  style={{ width: "100%", height: 44 }}
-                  minimumValue={0}
-                  maximumValue={10}
-                  step={1}
-                  value={val}
-                  onValueChange={setVal}
-                  onSlidingComplete={() => void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)}
-                  minimumTrackTintColor={theme.colors.semantic.symptoms}
-                  maximumTrackTintColor={theme.colors.background.tertiary}
-                  thumbTintColor={theme.colors.semantic.treatment}
-                />
-              </View>
-            ))}
+            <CheckInVerbalBlock label="Dor" value={painV} onChange={setPainV} theme={theme} />
+            <CheckInVerbalBlock label="Náusea" value={nauseaV} onChange={setNauseaV} theme={theme} />
+            <CheckInVerbalBlock label="Fadiga" value={fatigueV} onChange={setFatigueV} theme={theme} />
             <Text style={[theme.typography.body, { color: theme.colors.text.secondary, marginTop: theme.spacing.md }]}>
               Humor
             </Text>

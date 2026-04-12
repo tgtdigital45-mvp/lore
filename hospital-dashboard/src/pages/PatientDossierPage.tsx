@@ -1,15 +1,15 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import type { Session } from "@supabase/supabase-js";
-import { Activity, ArrowLeft, Calendar, FileOutput, Stethoscope, Zap } from "lucide-react";
+import { Activity, AlertTriangle, ArrowLeft, Calendar, FileOutput, Stethoscope, Zap } from "lucide-react";
 import { usePatientClinicalBundle } from "@/hooks/usePatientClinicalBundle";
 import { usePatientExamesHandlers } from "@/hooks/usePatientExamesHandlers";
 import { calculateSuspensionRisk } from "@/lib/suspensionRisk";
-import { computeClinicalNadirSummary } from "@/lib/clinicalNadir";
+import { computeClinicalNadirSummary, firstInfusionSessionAtInCycle } from "@/lib/clinicalNadir";
 import { CANCER_PT } from "@/constants/dashboardLabels";
 import { profileName, profileDob, ageFromDob, initialsFromName } from "@/lib/dashboardProfile";
 import { formatPatientCodeDisplay } from "@/lib/patientCode";
-import { formatPtDateTime } from "@/lib/dashboardFormat";
+import { formatPtDateTime, formatPtShort } from "@/lib/dashboardFormat";
 import { refreshSupabaseSessionIfStale } from "@/lib/authSession";
 import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
@@ -20,16 +20,32 @@ import { TemperatureAreaChart } from "@/components/patient/TemperatureAreaChart"
 import { ToxicityHeatmap } from "@/components/patient/ToxicityHeatmap";
 import PatientExamesPanel from "@/components/patient/tabs/PatientExamesPanel";
 import PatientDiarioPanel from "@/components/patient/tabs/PatientDiarioPanel";
+import PatientMedicamentosPanel from "@/components/patient/tabs/PatientMedicamentosPanel";
+import PatientFichaMedicaPanel from "@/components/patient/tabs/PatientFichaMedicaPanel";
+import PatientTratamentoPanel from "@/components/patient/tabs/PatientTratamentoPanel";
+import { EditableMetricsPanel } from "@/components/patient/EditableMetricsPanel";
+import { DossierReportModal } from "@/components/patient/DossierReportModal";
+import { SuspensionFactorsModal } from "@/components/patient/SuspensionFactorsModal";
+import type { DossierReportPayload } from "@/lib/dossierReportHtml";
 
-type DossierTab = "resumo" | "exames" | "diario";
+type DossierTab = "resumo" | "ficha" | "tratamento" | "exames" | "medicamentos" | "diario";
 
 export function PatientDossierPage() {
   const { patientId } = useParams<{ patientId: string }>();
   const [searchParams, setSearchParams] = useSearchParams();
   const [session, setSession] = useState<Session | null>(null);
+  const [reportOpen, setReportOpen] = useState(false);
+  const [suspensionFactorsOpen, setSuspensionFactorsOpen] = useState(false);
 
   const tabParam = searchParams.get("tab");
-  const tab: DossierTab = tabParam === "exames" || tabParam === "diario" ? tabParam : "resumo";
+  const tab: DossierTab =
+    tabParam === "exames" ||
+    tabParam === "diario" ||
+    tabParam === "medicamentos" ||
+    tabParam === "ficha" ||
+    tabParam === "tratamento"
+      ? tabParam
+      : "resumo";
 
   const setTab = (t: DossierTab) => {
     if (t === "resumo") setSearchParams({}, { replace: true });
@@ -48,6 +64,10 @@ export function PatientDossierPage() {
     wearables,
     biomarkers,
     medicalDocs,
+    medicationLogs,
+    medications,
+    nutritionLogs,
+    emergencyContacts,
     refreshExames,
   } = usePatientClinicalBundle(patientId);
 
@@ -112,9 +132,35 @@ export function PatientDossierPage() {
   const age = ageFromDob(profileDob(riskRow.profiles));
   const code = formatPatientCodeDisplay(riskRow.patient_code) ?? `PR-${riskRow.id.slice(0, 8).toUpperCase()}`;
 
-  const alerts = symptoms
-    .filter((s) => s.requires_action || s.severity === "severe" || s.severity === "life_threatening")
-    .slice(0, 4);
+  const alertSymptoms = symptoms.filter(
+    (s) => s.requires_action || s.severity === "severe" || s.severity === "life_threatening"
+  );
+  const alerts = alertSymptoms.slice(0, 4);
+  const alertCount = alertSymptoms.length;
+
+  const firstInfusionAt = firstInfusionSessionAtInCycle(active, infusions);
+  const lastInfusionLabel = nadir.lastCompletedInfusionAt ? formatPtShort(nadir.lastCompletedInfusionAt) : "—";
+  const firstInfusionLabel = firstInfusionAt ? formatPtShort(firstInfusionAt) : "—";
+
+  const reportPayload: DossierReportPayload = {
+    patientName: name,
+    patientCode: code,
+    ageLabel: age ?? "—",
+    cancerKey: riskRow.primary_cancer_type,
+    stage: riskRow.current_stage,
+    isInNadir: riskRow.is_in_nadir,
+    feverThresholdC: triageRules.fever_celsius_min,
+    vitals,
+    symptoms,
+    suspensionScore: suspension.score,
+    suspensionFactors: suspension.factors,
+    alertSymptoms: alertSymptoms.slice(0, 50),
+    medicalDocs,
+    biomarkers,
+    medications,
+    medicationLogs,
+    nutritionLogs,
+  };
 
   return (
     <div className="mx-auto max-w-7xl pb-12">
@@ -127,12 +173,14 @@ export function PatientDossierPage() {
           Voltar para lista
         </Link>
         <div className="flex flex-wrap gap-2">
-          <Button type="button" variant="outline" className="rounded-2xl border-[#E2E8F0]">
+          <Button
+            type="button"
+            variant="outline"
+            className="rounded-2xl border-[#E2E8F0]"
+            onClick={() => setReportOpen(true)}
+          >
             <FileOutput className="mr-2 size-4" />
             Gerar relatório
-          </Button>
-          <Button type="button" className="rounded-2xl bg-[#0A0A0A] font-semibold text-white hover:bg-[#1A1A1A]">
-            Prescrever conduta
           </Button>
         </div>
       </div>
@@ -149,6 +197,12 @@ export function PatientDossierPage() {
                 {riskRow.current_stage ? (
                   <Badge className="rounded-lg bg-[#EEF2FF] font-bold text-[#4F46E5]">{riskRow.current_stage}</Badge>
                 ) : null}
+                {alertCount > 0 ? (
+                  <Badge className="flex items-center gap-1 rounded-lg border border-[#FECACA] bg-[#FEF2F2] font-bold text-[#B91C1C]">
+                    <AlertTriangle className="size-3.5" aria-hidden />
+                    Alertas: {alertCount}
+                  </Badge>
+                ) : null}
               </div>
               <p className="mt-1 text-sm text-muted-foreground">
                 {age ?? "—"} · — · ID: {code}
@@ -159,16 +213,28 @@ export function PatientDossierPage() {
               </p>
             </div>
           </div>
-          <div className="flex flex-wrap gap-8 rounded-2xl bg-[#F8FAFC] px-6 py-4">
+          <div className="grid w-full max-w-3xl grid-cols-2 gap-x-6 gap-y-4 rounded-2xl bg-[#F8FAFC] px-4 py-4 sm:grid-cols-3 lg:max-w-none lg:grid-cols-3">
             <div>
               <p className="text-[0.65rem] font-bold uppercase tracking-wide text-muted-foreground">Ciclo atual</p>
-              <p className="text-3xl font-black text-[#2563EB]">{cycleLabel}</p>
+              <p className="text-2xl font-black text-[#2563EB]">{cycleLabel}</p>
             </div>
             <div>
-              <p className="text-[0.65rem] font-bold uppercase tracking-wide text-muted-foreground">Próximo nadir</p>
-              <p className="flex items-center gap-2 text-lg font-bold text-[#EF4444]">
-                <Calendar className="size-4" />
-                {nadir.estimatedNadirWindowLabel.split(" ")[0] ?? "—"}
+              <p className="text-[0.65rem] font-bold uppercase tracking-wide text-muted-foreground">1.ª infusão (ciclo)</p>
+              <p className="text-sm font-bold text-foreground">{firstInfusionLabel}</p>
+            </div>
+            <div>
+              <p className="text-[0.65rem] font-bold uppercase tracking-wide text-muted-foreground">Última infusão</p>
+              <p className="text-sm font-bold text-foreground">{lastInfusionLabel}</p>
+            </div>
+            <div>
+              <p className="text-[0.65rem] font-bold uppercase tracking-wide text-muted-foreground">Próxima infusão (estim.)</p>
+              <p className="text-sm font-bold text-[#2563EB]">{nadir.predictedNextInfusionLabel}</p>
+            </div>
+            <div className="col-span-2 sm:col-span-1">
+              <p className="text-[0.65rem] font-bold uppercase tracking-wide text-muted-foreground">Janela de nadir (7–14 d)</p>
+              <p className="flex items-start gap-2 text-sm font-bold leading-snug text-[#EF4444]">
+                <Calendar className="mt-0.5 size-4 shrink-0" />
+                <span>{nadir.estimatedNadirWindowLabel}</span>
               </p>
             </div>
           </div>
@@ -188,11 +254,38 @@ export function PatientDossierPage() {
         <button
           type="button"
           role="tab"
+          aria-selected={tab === "ficha"}
+          className={`patient-modal__tab ${tab === "ficha" ? "is-active" : ""}`}
+          onClick={() => setTab("ficha")}
+        >
+          Ficha médica
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={tab === "tratamento"}
+          className={`patient-modal__tab ${tab === "tratamento" ? "is-active" : ""}`}
+          onClick={() => setTab("tratamento")}
+        >
+          Tratamento
+        </button>
+        <button
+          type="button"
+          role="tab"
           aria-selected={tab === "exames"}
           className={`patient-modal__tab ${tab === "exames" ? "is-active" : ""}`}
           onClick={() => setTab("exames")}
         >
           Exames
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={tab === "medicamentos"}
+          className={`patient-modal__tab ${tab === "medicamentos" ? "is-active" : ""}`}
+          onClick={() => setTab("medicamentos")}
+        >
+          Medicamentos
         </button>
         <button
           type="button"
@@ -259,6 +352,13 @@ export function PatientDossierPage() {
               </h2>
               <ToxicityHeatmap symptoms={symptoms} days={28} />
             </Card>
+
+            <EditableMetricsPanel
+              staffId={session?.user?.id}
+              vitals={vitals}
+              wearables={wearables}
+              biomarkers={biomarkers}
+            />
           </div>
 
           <aside className="space-y-6 lg:col-span-2">
@@ -289,7 +389,12 @@ export function PatientDossierPage() {
               <p className="mt-4 text-center text-xs leading-relaxed text-muted-foreground">
                 {suspension.reasons.length > 0 ? suspension.reasons.join(" · ") : "Sem fatores fortes na janela recente."}
               </p>
-              <Button type="button" variant="outline" className="mt-4 w-full rounded-2xl">
+              <Button
+                type="button"
+                variant="outline"
+                className="mt-4 w-full rounded-2xl"
+                onClick={() => setSuspensionFactorsOpen(true)}
+              >
                 Ver fatores de risco
               </Button>
             </Card>
@@ -339,9 +444,25 @@ export function PatientDossierPage() {
         </div>
       ) : null}
 
+      {tab === "tratamento" ? (
+        <Card className="rounded-3xl border border-[#E8EAED] p-6 shadow-sm">
+          <PatientTratamentoPanel loading={loading} cycles={cycles} infusions={infusions} medications={medications} />
+        </Card>
+      ) : null}
+
+      {tab === "ficha" ? (
+        <Card className="rounded-3xl border border-[#E8EAED] p-6 shadow-sm">
+          <PatientFichaMedicaPanel loading={loading} riskRow={riskRow} emergencyContacts={emergencyContacts} />
+          <p className="mt-6 text-center text-xs leading-relaxed text-muted-foreground">
+            Conteúdo da ficha médica preenchido pelo paciente na app Aura. Contactos de emergência sujeitos às permissões de leitura (LGPD).
+          </p>
+        </Card>
+      ) : null}
+
       {tab === "exames" ? (
         <Card className="rounded-3xl border border-[#E8EAED] p-6 shadow-sm">
           <PatientExamesPanel
+            patientId={patientId}
             modalLoading={loading}
             modalMedicalDocs={medicalDocs}
             modalBiomarkers={biomarkers}
@@ -360,6 +481,15 @@ export function PatientDossierPage() {
         </Card>
       ) : null}
 
+      {tab === "medicamentos" ? (
+        <Card className="rounded-3xl border border-[#E8EAED] p-6 shadow-sm">
+          <PatientMedicamentosPanel loading={loading} medications={medications} medicationLogs={medicationLogs} />
+          <p className="mt-6 text-center text-xs leading-relaxed text-muted-foreground">
+            Dados registados pelo paciente na app; requer vínculo aprovado para visualização completa.
+          </p>
+        </Card>
+      ) : null}
+
       {tab === "diario" ? (
         <Card className="rounded-3xl border border-[#E8EAED] p-6 shadow-sm">
           <PatientDiarioPanel modalLoading={loading} modalSymptoms={symptoms} />
@@ -367,6 +497,14 @@ export function PatientDossierPage() {
       ) : null}
 
       {loading ? <p className="mt-4 text-center text-sm text-muted-foreground">A atualizar dados…</p> : null}
+
+      <DossierReportModal open={reportOpen} onOpenChange={setReportOpen} payload={reportPayload} />
+      <SuspensionFactorsModal
+        open={suspensionFactorsOpen}
+        onOpenChange={setSuspensionFactorsOpen}
+        score={suspension.score}
+        factors={suspension.factors}
+      />
     </div>
   );
 }

@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { AgendaDailyListCard } from "@/components/oncocare/AgendaDailyListCard";
 import { getResourcePreview, kindLabel } from "@/lib/infusionResourceUi";
 import { useInfusionAgenda } from "@/hooks/useInfusionAgenda";
 import { supabase } from "@/lib/supabase";
@@ -74,7 +75,7 @@ export function OncoCareAgendaPage() {
   }
 
   return (
-    <div className="mx-auto flex max-w-5xl flex-col gap-8 pb-16">
+    <div className="mx-auto flex max-w-7xl flex-col gap-8 pb-16">
       <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
         <h1 className="text-3xl font-black tracking-tight">Agenda · recursos</h1>
         <p className="mt-2 text-muted-foreground">
@@ -151,63 +152,71 @@ export function OncoCareAgendaPage() {
       ) : null}
       {loading ? <p className="text-sm text-muted-foreground">A carregar recursos…</p> : null}
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {resources.map((c, i) => {
-          const preview = getResourcePreview(c, bookings, now);
-          const border =
-            preview.tone === "in_session"
-              ? "border-[#FFA500]/55"
-              : preview.tone === "maintenance"
-                ? "border-[#94A3B8]/60"
-                : preview.tone === "next_up"
-                  ? "border-[#4F46E5]/40"
-                  : "border-[#10B981]/45";
-          const Icon = c.kind === "chair" ? Armchair : BedDouble;
-          return (
-            <motion.div
-              key={c.id}
-              initial={{ opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: i * 0.04 }}
-            >
-              <Link
-                to={`/agenda/recurso/${c.id}`}
-                className={cn(
-                  "group block h-full rounded-[32px] outline-none transition",
-                  "focus-visible:ring-2 focus-visible:ring-[#1A1A1A] focus-visible:ring-offset-2"
-                )}
-              >
-                <Card
-                  className={cn(
-                    "h-full rounded-[32px] border-[3px] p-5 transition",
-                    border,
-                    "hover:shadow-lg hover:shadow-black/5"
-                  )}
+      <div className="flex flex-col gap-8 xl:flex-row xl:items-start">
+        <div className="min-w-0 flex-1">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {resources.map((c, i) => {
+              const preview = getResourcePreview(c, bookings, now);
+              const border =
+                preview.tone === "in_session"
+                  ? "border-[#FFA500]/55"
+                  : preview.tone === "maintenance"
+                    ? "border-[#94A3B8]/60"
+                    : preview.tone === "next_up"
+                      ? "border-[#4F46E5]/40"
+                      : "border-[#10B981]/45";
+              const Icon = c.kind === "chair" ? Armchair : BedDouble;
+              return (
+                <motion.div
+                  key={c.id}
+                  initial={{ opacity: 0, y: 12 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: i * 0.04 }}
                 >
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0">
-                      <p className="flex items-center gap-2 text-[0.65rem] font-bold uppercase tracking-wider text-muted-foreground">
-                        <Icon className="size-4 shrink-0 opacity-80" />
-                        {kindLabel(c.kind)}
+                  <Link
+                    to={`/agenda/recurso/${c.id}`}
+                    className={cn(
+                      "group block h-full rounded-[32px] outline-none transition",
+                      "focus-visible:ring-2 focus-visible:ring-[#1A1A1A] focus-visible:ring-offset-2"
+                    )}
+                  >
+                    <Card
+                      className={cn(
+                        "h-full rounded-[32px] border-[3px] p-5 transition",
+                        border,
+                        "hover:shadow-lg hover:shadow-black/5"
+                      )}
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <p className="flex items-center gap-2 text-[0.65rem] font-bold uppercase tracking-wider text-muted-foreground">
+                            <Icon className="size-4 shrink-0 opacity-80" />
+                            {kindLabel(c.kind)}
+                          </p>
+                          <p className="mt-1 truncate text-lg font-black">{c.label}</p>
+                        </div>
+                        <ChevronRight className="size-5 shrink-0 text-muted-foreground transition group-hover:translate-x-0.5 group-hover:text-foreground" />
+                      </div>
+
+                      <div className="mt-4 rounded-2xl border-[3px] border-[#F3F4F6] bg-[#FAFBFC] px-3 py-3">
+                        <p className="text-[0.65rem] font-bold uppercase tracking-wider text-muted-foreground">{preview.title}</p>
+                        <p className="mt-1 text-sm font-semibold leading-snug text-foreground">{preview.subtitle}</p>
+                      </div>
+
+                      <p className="mt-3 line-clamp-2 text-xs leading-relaxed text-muted-foreground">
+                        {c.details?.trim() || "Sem notas de equipamento."}
                       </p>
-                      <p className="mt-1 truncate text-lg font-black">{c.label}</p>
-                    </div>
-                    <ChevronRight className="size-5 shrink-0 text-muted-foreground transition group-hover:translate-x-0.5 group-hover:text-foreground" />
-                  </div>
+                    </Card>
+                  </Link>
+                </motion.div>
+              );
+            })}
+          </div>
+        </div>
 
-                  <div className="mt-4 rounded-2xl border-[3px] border-[#F3F4F6] bg-[#FAFBFC] px-3 py-3">
-                    <p className="text-[0.65rem] font-bold uppercase tracking-wider text-muted-foreground">{preview.title}</p>
-                    <p className="mt-1 text-sm font-semibold leading-snug text-foreground">{preview.subtitle}</p>
-                  </div>
-
-                  <p className="mt-3 line-clamp-2 text-xs leading-relaxed text-muted-foreground">
-                    {c.details?.trim() || "Sem notas de equipamento."}
-                  </p>
-                </Card>
-              </Link>
-            </motion.div>
-          );
-        })}
+        <aside className="w-full shrink-0 xl:w-[min(100%,380px)] xl:max-w-[380px]">
+          <AgendaDailyListCard bookings={bookings} resources={resources} />
+        </aside>
       </div>
     </div>
   );

@@ -53,6 +53,34 @@ export function computeClinicalNadirSummary(
   };
 }
 
+/** Primeira sessão de infusão do ciclo (por data), para o cabeçalho do dossiê. */
+export function firstInfusionSessionAtInCycle(
+  activeCycle: TreatmentCycleRow | null,
+  infusions: TreatmentInfusionRow[]
+): string | null {
+  if (!activeCycle) return null;
+  const rows = infusions
+    .filter((i) => i.cycle_id === activeCycle.id)
+    .sort((a, b) => new Date(a.session_at).getTime() - new Date(b.session_at).getTime());
+  return rows[0]?.session_at ?? null;
+}
+
+/** Janela de vigilância (dias 7–14 após a data de referência), usando datas em UTC — alinhado ao cálculo no Postgres. */
+export function computeIsInClinicalNadirWindow(
+  cycles: TreatmentCycleRow[],
+  infusions: TreatmentInfusionRow[],
+  now: Date = new Date()
+): boolean {
+  const { lastCompletedInfusionAt } = computeClinicalNadirSummary(cycles, infusions);
+  if (!lastCompletedInfusionAt) return false;
+  const t = new Date(lastCompletedInfusionAt);
+  const refDay = Date.UTC(t.getUTCFullYear(), t.getUTCMonth(), t.getUTCDate());
+  const nowDay = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
+  const start = refDay + 7 * 86400000;
+  const end = refDay + 14 * 86400000;
+  return nowDay >= start && nowDay <= end;
+}
+
 export function cancerContextHint(primaryCancerType: string): string {
   const t = primaryCancerType.toLowerCase();
   if (t.includes("breast") || t.includes("mama")) return "Ênfase: linfedema, pele, dor local.";

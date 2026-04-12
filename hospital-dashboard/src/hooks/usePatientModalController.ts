@@ -143,7 +143,9 @@ export function usePatientModalController(
       const p = prow as PatientRow;
       const { data: logs, error: le } = await supabase
         .from("symptom_logs")
-        .select("patient_id, severity, logged_at, symptom_category, body_temperature")
+        .select(
+          "patient_id, severity, logged_at, symptom_category, body_temperature, entry_kind, pain_level, nausea_level, fatigue_level"
+        )
         .eq("patient_id", patientId)
         .gte("logged_at", sinceFetch.toISOString());
       if (le) return;
@@ -208,7 +210,7 @@ export function usePatientModalController(
             .limit(60),
           supabase
             .from("medical_documents")
-            .select("id, document_type, uploaded_at, storage_path, mime_type")
+            .select("id, document_type, uploaded_at, exam_performed_at, storage_path, mime_type")
             .eq("patient_id", pid)
             .order("uploaded_at", { ascending: false })
             .limit(40),
@@ -387,7 +389,7 @@ export function usePatientModalController(
         supabase
           .from("symptom_logs")
           .select(
-            "id, symptom_category, severity, body_temperature, logged_at, notes, entry_kind, pain_level, nausea_level, fatigue_level, requires_action, mood"
+            "id, symptom_category, severity, body_temperature, logged_at, notes, entry_kind, pain_level, nausea_level, fatigue_level, requires_action, mood, symptom_started_at, symptom_ended_at"
           )
           .eq("patient_id", pid)
           .order("logged_at", { ascending: false })
@@ -413,10 +415,12 @@ export function usePatientModalController(
           .limit(400),
         supabase
           .from("medication_logs")
-          .select("id, medication_id, taken_at, quantity, notes, medications!inner ( name, dosage, patient_id )")
-          .eq("medications.patient_id", pid)
-          .order("taken_at", { ascending: false })
-          .limit(25),
+          .select(
+            "id, medication_id, patient_id, taken_at, scheduled_time, taken_time, quantity, status, notes, created_at, medications ( name, dosage )"
+          )
+          .eq("patient_id", pid)
+          .order("created_at", { ascending: false })
+          .limit(100),
         supabase
           .from("nutrition_logs")
           .select("id, logged_at, log_type, quantity, meal_name, calories, protein_g, carbs_g, fat_g, appetite_level, notes")
@@ -470,7 +474,7 @@ export function usePatientModalController(
           .limit(60),
         supabase
           .from("medical_documents")
-          .select("id, document_type, uploaded_at, storage_path, mime_type")
+          .select("id, document_type, uploaded_at, exam_performed_at, storage_path, mime_type")
           .eq("patient_id", pid)
           .order("uploaded_at", { ascending: false })
           .limit(40),

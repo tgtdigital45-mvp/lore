@@ -19,7 +19,7 @@ import { WearableVitalsChart } from "../WearableVitalsChart";
 import { TemperatureAreaChart } from "../TemperatureAreaChart";
 import { OncoSuspensionGauge } from "../OncoSuspensionGauge";
 import { InterventionTimeline } from "../InterventionTimeline";
-import { medicationNameFromLog } from "../../../lib/patientModalHelpers";
+import { medicationLogWhenIso, medicationNameFromLog } from "../../../lib/patientModalHelpers";
 
 type Props = {
   modalPatient: RiskRow;
@@ -71,7 +71,7 @@ export default function PatientResumoPanel({
         </div>
         <div className="patient-modal__card" style={{ borderColor: "color-mix(in srgb, var(--risk-critical) 25%, transparent)" }}>
           <h3 className="patient-modal__label" style={{ color: "var(--risk-critical)" }}>
-            Nadir (app)
+            Nadir
           </h3>
           <p className="patient-modal__value">{modalPatient.is_in_nadir ? "Sim — vigilância febril" : "Não"}</p>
         </div>
@@ -177,13 +177,16 @@ export default function PatientResumoPanel({
                 </tr>
               </thead>
               <tbody>
-                {modalMedicationLogs.map((m) => (
-                  <tr key={m.id}>
-                    <td>{m.taken_at ? formatPtDateTime(m.taken_at) : "—"}</td>
-                    <td>{medicationNameFromLog(m)}</td>
-                    <td>{m.quantity ?? "—"}</td>
-                  </tr>
-                ))}
+                {modalMedicationLogs.map((m) => {
+                  const when = medicationLogWhenIso(m);
+                  return (
+                    <tr key={m.id}>
+                      <td>{when ? formatPtDateTime(when) : "—"}</td>
+                      <td>{medicationNameFromLog(m)}</td>
+                      <td>{m.quantity ?? "—"}</td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

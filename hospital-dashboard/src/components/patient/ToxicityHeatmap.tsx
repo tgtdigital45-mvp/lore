@@ -1,9 +1,10 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import type { SymptomLogDetail } from "../../types/dashboard";
+import { SYMPTOM_CATEGORY_PT } from "../../constants/dashboardLabels";
 
-type RowKey = "pain" | "nausea" | "fatigue";
+type PrdRowKey = "pain" | "nausea" | "fatigue";
 
-const ROW_LABEL: Record<RowKey, string> = {
+const PRD_ROW_LABEL: Record<PrdRowKey, string> = {
   pain: "Dor",
   nausea: "Náusea",
   fatigue: "Fadiga",
@@ -19,6 +20,8 @@ function severityToBucket0to4(s: SymptomLogDetail): number | null {
     return 4;
   }
   const map: Record<string, number> = {
+    absent: 0,
+    present: 1,
     mild: 1,
     moderate: 2,
     severe: 3,
@@ -27,22 +30,38 @@ function severityToBucket0to4(s: SymptomLogDetail): number | null {
   return s.severity ? map[s.severity] ?? 2 : null;
 }
 
-function valueForRow(s: SymptomLogDetail, row: RowKey): number | null {
-  if (s.entry_kind === "prd") {
-    if (row === "pain") return s.pain_level ?? null;
-    if (row === "nausea") return s.nausea_level ?? null;
-    if (row === "fatigue") return s.fatigue_level ?? null;
-  }
-  const cat = (s.symptom_category ?? "").toLowerCase();
-  if (row === "pain" && cat.includes("pain")) return severityToBucket0to4(s) != null ? (severityToBucket0to4(s)! + 1) * 2.5 : null;
-  if (row === "nausea" && cat.includes("nausea")) return severityToBucket0to4(s) != null ? (severityToBucket0to4(s)! + 1) * 2.5 : null;
-  if (row === "fatigue" && cat.includes("fatigue")) return severityToBucket0to4(s) != null ? (severityToBucket0to4(s)! + 1) * 2.5 : null;
+function valueForPrdRow(s: SymptomLogDetail, row: PrdRowKey): number | null {
+  if (s.entry_kind !== "prd") return null;
+  if (row === "pain") return s.pain_level ?? null;
+  if (row === "nausea") return s.nausea_level ?? null;
+  if (row === "fatigue") return s.fatigue_level ?? null;
   return null;
+}
+
+function legacyNumericScore(s: SymptomLogDetail): number | null {
+  if (s.entry_kind === "prd") return null;
+  const b = severityToBucket0to4(s);
+  return b != null ? (b + 1) * 2.5 : null;
 }
 
 function utcDayKey(iso: string): string {
   const d = new Date(iso);
   return d.toISOString().slice(0, 10);
+}
+
+function rowLabel(key: string): string {
+  if (key === "pain") return PRD_ROW_LABEL.pain;
+  if (key === "nausea") return PRD_ROW_LABEL.nausea;
+  if (key === "fatigue") return PRD_ROW_LABEL.fatigue;
+  return SYMPTOM_CATEGORY_PT[key] ?? key;
+}
+
+function sortRowKeys(keys: string[]): string[] {
+  const pr: PrdRowKey[] = ["pain", "nausea", "fatigue"];
+  const prSet = new Set(pr);
+  const prOrdered = pr.filter((k) => keys.includes(k));
+  const rest = keys.filter((k) => !prSet.has(k as PrdRowKey)).sort((a, b) => rowLabel(a).localeCompare(rowLabel(b), "pt-BR"));
+  return [...prOrdered, ...rest];
 }
 
 type Props = {
@@ -51,7 +70,9 @@ type Props = {
 };
 
 export function ToxicityHeatmap({ symptoms, days = 14 }: Props) {
-  const { dayKeys, matrix } = useMemo(() => {
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  const { dayKeys, matrix, rowKeys, hasAnyData } = useMemo(() => {
     const end = new Date();
     const keys: string[] = [];
     for (let i = days - 1; i >= 0; i--) {
@@ -59,26 +80,68 @@ export function ToxicityHeatmap({ symptoms, days = 14 }: Props) {
       d.setUTCDate(d.getUTCDate() - i);
       keys.push(d.toISOString().slice(0, 10));
     }
-    const m: Record<RowKey, Record<string, number | null>> = {
-      pain: {},
-      nausea: {},
-      fatigue: {},
+
+    const matrix: Record<string, Record<string, number | null>> = {};
+
+    const ensureRow = (rowKey: string) => {
+      if (!matrix[rowKey]) {
+        matrix[rowKey] = {};
+        keys.forEach((k) => {
+          matrix[rowKey][k] = null;
+        });
+      }
     };
-    (["pain", "nausea", "fatigue"] as RowKey[]).forEach((rk) => keys.forEach((k) => (m[rk][k] = null)));
 
     for (const s of symptoms) {
       const day = utcDayKey(s.logged_at);
       if (!keys.includes(day)) continue;
-      for (const row of ["pain", "nausea", "fatigue"] as RowKey[]) {
-        const v = valueForRow(s, row);
+
+      if (s.entry_kind === "prd") {
+        for (const row of ["pain", "nausea", "fatigue"] as PrdRowKey[]) {
+          const v = valueForPrdRow(s, row);
+          if (v == null) continue;
+          ensureRow(row);
+          const cur = matrix[row][day];
+          if (cur == null || v > cur) matrix[row][day] = v;
+        }
+      } else {
+        const raw = (s.symptom_category ?? "").trim();
+        if (!raw) continue;
+        const rowKey = raw.toLowerCase();
+        const v = legacyNumericScore(s);
         if (v == null) continue;
-        const cur = m[row][day];
-        if (cur == null || v > cur) m[row][day] = v;
+        ensureRow(rowKey);
+        const cur = matrix[rowKey][day];
+        if (cur == null || v > cur) matrix[rowKey][day] = v;
       }
     }
 
-    return { dayKeys: keys, matrix: m };
+    const rowKeysAll = Object.keys(matrix);
+    const rowKeys = sortRowKeys(
+      rowKeysAll.filter((rk) => keys.some((d) => matrix[rk][d] != null))
+    );
+
+    const hasAnyData = rowKeys.length > 0;
+
+    return { dayKeys: keys, matrix, rowKeys, hasAnyData };
   }, [symptoms, days]);
+
+  useEffect(() => {
+    if (!hasAnyData) return;
+    const el = scrollRef.current;
+    if (!el) return;
+    const snapToToday = () => {
+      el.scrollLeft = Math.max(0, el.scrollWidth - el.clientWidth);
+    };
+    snapToToday();
+    const raf = requestAnimationFrame(snapToToday);
+    const ro = new ResizeObserver(snapToToday);
+    ro.observe(el);
+    return () => {
+      cancelAnimationFrame(raf);
+      ro.disconnect();
+    };
+  }, [hasAnyData, symptoms, days]);
 
   const cellClass = (v: number | null) => {
     if (v == null) return "toxicity-heatmap__cell toxicity-heatmap__cell--0";
@@ -89,38 +152,50 @@ export function ToxicityHeatmap({ symptoms, days = 14 }: Props) {
     return "toxicity-heatmap__cell toxicity-heatmap__cell--4";
   };
 
+  if (!hasAnyData) {
+    return (
+      <div className="toxicity-heatmap">
+        <p className="muted text-sm">Sem registos de sintomas neste período.</p>
+      </div>
+    );
+  }
+
   return (
     <div className="toxicity-heatmap">
       <p className="muted" style={{ fontSize: "0.85rem", marginBottom: "0.35rem" }}>
-        Dias em UTC · valores PRD 0–10 (ou legado aproximado por categoria). Célula vazia = sem registo nesse dia.
+        Dias em UTC · PRD 0–10 ou escala legado por categoria. Só aparecem linhas com pelo menos um registo. Célula vazia = sem
+        registo nesse dia.
       </p>
-      <table className="toxicity-heatmap__table">
-        <thead>
-          <tr>
-            <th className="toxicity-heatmap__label" />
-            {dayKeys.map((k) => (
-              <th key={k} title={k}>
-                {k.slice(8, 10)}/{k.slice(5, 7)}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {(["pain", "nausea", "fatigue"] as RowKey[]).map((row) => (
-            <tr key={row}>
-              <td className="toxicity-heatmap__label">{ROW_LABEL[row]}</td>
-              {dayKeys.map((k) => {
-                const v = matrix[row][k];
-                return (
-                  <td key={k} className={cellClass(v)} title={v != null ? `${ROW_LABEL[row]}: ${v.toFixed(0)}` : undefined}>
-                    {v != null ? (v >= 10 ? Math.round(v) : v.toFixed(0)) : "·"}
-                  </td>
-                );
-              })}
+      <div ref={scrollRef} className="max-w-full overflow-x-auto">
+        <table className="toxicity-heatmap__table">
+          <thead>
+            <tr>
+              <th className="toxicity-heatmap__label" />
+              {dayKeys.map((k, i) => (
+                <th key={k} title={i === dayKeys.length - 1 ? `${k} · hoje` : k}>
+                  {k.slice(8, 10)}/{k.slice(5, 7)}
+                  {i === dayKeys.length - 1 ? <span className="sr-only"> (hoje)</span> : null}
+                </th>
+              ))}
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {rowKeys.map((row) => (
+              <tr key={row}>
+                <td className="toxicity-heatmap__label">{rowLabel(row)}</td>
+                {dayKeys.map((k) => {
+                  const v = matrix[row]?.[k] ?? null;
+                  return (
+                    <td key={k} className={cellClass(v)} title={v != null ? `${rowLabel(row)}: ${v.toFixed(1)}` : undefined}>
+                      {v != null ? (v >= 10 ? Math.round(v) : v.toFixed(0)) : "·"}
+                    </td>
+                  );
+                })}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }

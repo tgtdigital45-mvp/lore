@@ -1,4 +1,4 @@
-import { Image, Keyboard, Platform, Pressable, ScrollView, Text, TextInput, View } from "react-native";
+import { Keyboard, Platform, Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import type { Href } from "expo-router";
 import { useRouter } from "expo-router";
@@ -6,10 +6,11 @@ import { KeyboardAccessoryDone, KEYBOARD_ACCESSORY_ID } from "@/src/components/K
 import { ResponsiveScreen } from "@/src/components/ResponsiveScreen";
 import { CircleChromeButton } from "@/src/health/components/MedicationChromeButtons";
 import { IOS_HEALTH } from "@/src/health/iosHealthTokens";
-import { healthRel } from "@/src/health/referenceImages";
 import { useAppTheme } from "@/src/hooks/useAppTheme";
 import { useStackBack } from "@/src/hooks/useStackBack";
 import { useMedicationWizard } from "@/src/medications/MedicationWizardContext";
+import { MedicationWizardHero } from "@/src/medications/components/MedicationWizardHero";
+import { MedicationWizardStepBadge } from "@/src/medications/components/MedicationWizardStepBadge";
 
 export default function MedicationNameScreen() {
   const { theme } = useAppTheme();
@@ -35,12 +36,27 @@ export default function MedicationNameScreen() {
         style={{
           flexDirection: "row",
           alignItems: "center",
-          justifyContent: "flex-end",
           paddingVertical: theme.spacing.sm,
           paddingHorizontal: theme.spacing.md,
         }}
       >
-        <CircleChromeButton accessibilityLabel="Fechar" onPress={goBack}>
+        <CircleChromeButton accessibilityLabel="Voltar" onPress={goBack}>
+          <FontAwesome name="chevron-left" size={18} color={theme.colors.text.primary} />
+        </CircleChromeButton>
+        <View style={{ flex: 1, alignItems: "center" }}>
+          <Text
+            style={{
+              fontSize: 17,
+              fontWeight: "600",
+              color: theme.colors.text.primary,
+              letterSpacing: Platform.OS === "ios" ? -0.41 : 0,
+            }}
+            numberOfLines={1}
+          >
+            Novo medicamento
+          </Text>
+        </View>
+        <CircleChromeButton accessibilityLabel="Fechar" onPress={() => router.replace("/(tabs)/health/medications" as Href)}>
           <FontAwesome name="times" size={20} color={theme.colors.text.primary} />
         </CircleChromeButton>
       </View>
@@ -51,28 +67,27 @@ export default function MedicationNameScreen() {
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode={Platform.OS === "ios" ? "interactive" : "on-drag"}
       >
-        <Image
-          source={healthRel["2"]}
-          style={{ width: "100%", height: 200, marginTop: theme.spacing.sm }}
-          resizeMode="contain"
-          accessibilityLabel="Ilustração de comprimidos"
-        />
+        <MedicationWizardStepBadge step={1} theme={theme} />
+        <MedicationWizardHero variant="name" theme={theme} />
 
         <Text
           style={{
-            fontSize: 17,
+            fontSize: 22,
             fontWeight: "700",
             color: theme.colors.text.primary,
-            marginTop: theme.spacing.lg,
+            marginTop: theme.spacing.sm,
           }}
         >
-          Nome do medicamento
+          Como se chama o medicamento?
+        </Text>
+        <Text style={[theme.typography.body, { color: theme.colors.text.secondary, marginTop: theme.spacing.xs }]}>
+          Use o nome na embalagem ou bula. Pode editar o nome de exibição mais à frente.
         </Text>
 
         <TextInput
           value={name}
           onChangeText={(t) => setDraft({ name: t })}
-          placeholder="Nome do medicamento"
+          placeholder="Ex.: Paracetamol 500 mg"
           placeholderTextColor={theme.colors.text.tertiary}
           autoCapitalize="sentences"
           autoCorrect
@@ -84,7 +99,7 @@ export default function MedicationNameScreen() {
           }}
           inputAccessoryViewID={Platform.OS === "ios" ? KEYBOARD_ACCESSORY_ID : undefined}
           style={{
-            marginTop: theme.spacing.md,
+            marginTop: theme.spacing.lg,
             backgroundColor: theme.colors.background.secondary,
             borderRadius: IOS_HEALTH.pillButtonRadius,
             paddingVertical: 14,

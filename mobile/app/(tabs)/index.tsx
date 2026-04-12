@@ -96,7 +96,15 @@ export default function HomeScreen() {
   } = useHomeSummary(patient);
   const { medications, refresh: refreshMeds } = useMedications();
   const { fetchInfusions } = useTreatmentCycles(patient);
-  const nextMed = useMemo(() => nextMedicationSlot(medications.filter((m) => m.active)), [medications]);
+  const scheduledActiveMeds = useMemo(
+    () => medications.filter((m) => m.active && m.repeat_mode !== "as_needed"),
+    [medications]
+  );
+  const nextMed = useMemo(() => nextMedicationSlot(scheduledActiveMeds), [scheduledActiveMeds]);
+  const hasSosMedication = useMemo(
+    () => medications.some((m) => m.active && m.repeat_mode === "as_needed"),
+    [medications]
+  );
 
   const [profileOpen, setProfileOpen] = useState(false);
   const [widgetPickerOpen, setWidgetPickerOpen] = useState(false);
@@ -469,6 +477,10 @@ export default function HomeScreen() {
                     <Text style={[theme.typography.headline, { color: "#FFFFFF" }]}>Marcar como tomado</Text>
                   </Pressable>
                 </View>
+              ) : hasSosMedication ? (
+                <Text style={[theme.typography.body, { color: theme.colors.text.secondary, marginTop: theme.spacing.sm }]}>
+                  Medicamentos SOS não têm horário fixo. Abra Medicamentos e use &quot;Registar dose&quot; no item para marcar como tomado.
+                </Text>
               ) : (
                 <Text style={[theme.typography.body, { color: theme.colors.text.secondary, marginTop: theme.spacing.sm }]}>
                   Adicione medicamentos com horário em Saúde → Medicamentos.

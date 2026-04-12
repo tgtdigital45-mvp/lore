@@ -28,6 +28,7 @@ export function pillClassForSeverity(sev: string): string {
   if (sev === "life_threatening") return "risk-critical";
   if (sev === "severe") return "risk-high";
   if (sev === "moderate") return "risk-mid";
-  if (sev === "mild") return "risk-low";
+  if (sev === "mild" || sev === "present") return "risk-low";
+  if (sev === "absent") return "risk-none";
   return "risk-none";
 }

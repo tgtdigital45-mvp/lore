@@ -1,59 +1,91 @@
-import { useCallback, useState, type ComponentProps } from "react";
-import { Alert, Pressable, Text, TextInput, View } from "react-native";
-import FontAwesome from "@expo/vector-icons/FontAwesome";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Alert, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { PAIN_REGIONS, labelPainRegion, type PainRegionId } from "@/src/diary/painRegions";
-import { IntensityStep } from "@/src/diary/IntensityStep";
-import { scale0to10ToSeverity } from "@/src/diary/scaleToSeverity";
-import { labelSymptomCategory } from "@/src/i18n/ui";
+import { LegacySymptomLogStep } from "@/src/diary/LegacySymptomLogStep";
+import { VerbalIntensityStep } from "@/src/diary/VerbalIntensityStep";
+import {
+  SYMPTOM_NAV_ITEMS,
+  logDestinationForSymptom,
+  type SymptomDetailKey,
+  type SymptomLogDestination,
+  symptomLabel,
+} from "@/src/diary/symptomCatalog";
+import { SymptomDetailView } from "@/src/diary/SymptomDetailView";
+import type { SymptomLogRow } from "@/src/diary/symptomLogTypes";
+import {
+  type VerbalSymptomDbSeverity,
+  type VerbalSymptomKey,
+  prdLevelFromVerbalKey,
+} from "@/src/diary/verbalSeverity";
 import { supabase } from "@/src/lib/supabase";
 import type { AppTheme } from "@/src/theme/theme";
 
 type Wizard =
-  | { screen: "grid" }
+  | { screen: "list" }
+  | { screen: "symptom_detail"; key: SymptomDetailKey }
   | { screen: "pain_region" }
   | { screen: "pain_intensity"; region: PainRegionId }
   | { screen: "single_intensity"; key: "fatigue" | "nausea" }
   | { screen: "fever_temp" }
-  | { screen: "other_intensity"; key: "diarrhea" | "hydration" };
+  | { screen: "legacy_verbal"; key: SymptomDetailKey };
 
-const GRID_ITEMS: {
-  id: string;
-  label: string;
-  icon: ComponentProps<typeof FontAwesome>["name"];
-  accent: "symptoms" | "vitals" | "respiratory";
-  go: Wizard;
-}[] = [
-  { id: "pain", label: "Dor", icon: "bolt", accent: "symptoms", go: { screen: "pain_region" } },
-  { id: "fatigue", label: "Fadiga", icon: "heartbeat", accent: "symptoms", go: { screen: "single_intensity", key: "fatigue" } },
-  { id: "nausea", label: "Náusea", icon: "medkit", accent: "respiratory", go: { screen: "single_intensity", key: "nausea" } },
-  { id: "fever", label: "Febre", icon: "fire", accent: "vitals", go: { screen: "fever_temp" } },
-  { id: "diarrhea", label: "Diarreia", icon: "tint", accent: "respiratory", go: { screen: "other_intensity", key: "diarrhea" } },
-  { id: "hydration", label: "Hidratação", icon: "leaf", accent: "respiratory", go: { screen: "other_intensity", key: "hydration" } },
-];
+function destinationToWizard(d: SymptomLogDestination): Wizard {
+  switch (d.type) {
+    case "pain_region":
+      return { screen: "pain_region" };
+    case "single_intensity":
+      return { screen: "single_intensity", key: d.key };
+    case "fever_temp":
+      return { screen: "fever_temp" };
+    case "legacy_intensity":
+      return { screen: "legacy_verbal", key: d.key };
+  }
+}
+
+function diaryChromeDetailKey(w: Wizard): SymptomDetailKey | null {
+  if (w.screen === "symptom_detail" || w.screen === "legacy_verbal") return w.key;
+  return null;
+}
 
 type Props = {
   theme: AppTheme;
   patientId: string;
+  logs: SymptomLogRow[];
   onLogged: () => Promise<void> | void;
+  onSymptomDetailFocusChange?: (key: SymptomDetailKey | null) => void;
 };
 
 function prdNotesPainRegion(region: PainRegionId): string {
   return JSON.stringify({ kind: "prd_meta", painRegion: region });
 }
 
-export function SymptomQuickLog({ theme, patientId, onLogged }: Props) {
-  const [wizard, setWizard] = useState<Wizard>({ screen: "grid" });
-  const [painLevel, setPainLevel] = useState(4);
-  const [singleLevel, setSingleLevel] = useState(4);
-  const [otherLevel, setOtherLevel] = useState(3);
+export function SymptomQuickLog({ theme, patientId, logs, onLogged, onSymptomDetailFocusChange }: Props) {
+  const [wizard, setWizard] = useState<Wizard>({ screen: "list" });
+  const [painVerbal, setPainVerbal] = useState<VerbalSymptomKey>("present");
+  const [singleVerbal, setSingleVerbal] = useState<VerbalSymptomKey>("present");
   const [temperature, setTemperature] = useState("");
   const [busy, setBusy] = useState(false);
+  const returnToDetailKeyRef = useRef<SymptomDetailKey | null>(null);
 
-  const accent = (k: (typeof GRID_ITEMS)[number]["accent"]) => theme.colors.semantic[k];
+  useEffect(() => {
+    onSymptomDetailFocusChange?.(diaryChromeDetailKey(wizard));
+  }, [wizard, onSymptomDetailFocusChange]);
 
-  const resetToGrid = useCallback(() => {
-    setWizard({ screen: "grid" });
+  const resetToList = useCallback(() => {
+    returnToDetailKeyRef.current = null;
+    setWizard({ screen: "list" });
   }, []);
+
+  const finishLogAndNavigate = useCallback(async () => {
+    await onLogged();
+    const k = returnToDetailKeyRef.current;
+    returnToDetailKeyRef.current = null;
+    if (k) {
+      setWizard({ screen: "symptom_detail", key: k });
+    } else {
+      resetToList();
+    }
+  }, [onLogged, resetToList]);
 
   const submitPrd = useCallback(
     async (payload: {
@@ -78,22 +110,32 @@ export function SymptomQuickLog({ theme, patientId, onLogged }: Props) {
         Alert.alert("Sintomas", error.message);
         return;
       }
-      resetToGrid();
-      await onLogged();
+      await finishLogAndNavigate();
     },
-    [onLogged, patientId, resetToGrid]
+    [finishLogAndNavigate, patientId]
   );
 
   const submitLegacy = useCallback(
-    async (symptom_category: string, severityScale: number, body_temperature: number | null) => {
+    async (
+      symptom_category: string,
+      args: {
+        severity: VerbalSymptomDbSeverity;
+        body_temperature: number | null;
+        symptom_started_at: string | null;
+        symptom_ended_at: string | null;
+        logged_at: string;
+      }
+    ) => {
       setBusy(true);
       const { error } = await supabase.from("symptom_logs").insert({
         patient_id: patientId,
         entry_kind: "legacy",
         symptom_category,
-        severity: scale0to10ToSeverity(severityScale),
-        body_temperature,
-        logged_at: new Date().toISOString(),
+        severity: args.severity,
+        body_temperature: args.body_temperature,
+        logged_at: args.logged_at,
+        symptom_started_at: args.symptom_started_at,
+        symptom_ended_at: args.symptom_ended_at,
       });
       setBusy(false);
       if (error) {
@@ -101,17 +143,32 @@ export function SymptomQuickLog({ theme, patientId, onLogged }: Props) {
         return;
       }
       setTemperature("");
-      resetToGrid();
-      await onLogged();
+      await finishLogAndNavigate();
     },
-    [onLogged, patientId, resetToGrid]
+    [finishLogAndNavigate, patientId]
   );
+
+  if (wizard.screen === "symptom_detail") {
+    const dest = logDestinationForSymptom(wizard.key);
+    return (
+      <SymptomDetailView
+        theme={theme}
+        symptomKey={wizard.key}
+        logs={logs}
+        onBack={resetToList}
+        onAdd={() => {
+          returnToDetailKeyRef.current = wizard.key;
+          setWizard(destinationToWizard(dest));
+        }}
+      />
+    );
+  }
 
   if (wizard.screen === "pain_region") {
     return (
       <View style={{ marginBottom: theme.spacing.lg }}>
         <Pressable
-          onPress={resetToGrid}
+          onPress={resetToList}
           hitSlop={12}
           style={{ flexDirection: "row", alignItems: "center", marginBottom: theme.spacing.md }}
         >
@@ -151,18 +208,18 @@ export function SymptomQuickLog({ theme, patientId, onLogged }: Props) {
 
   if (wizard.screen === "pain_intensity") {
     return (
-      <IntensityStep
+      <VerbalIntensityStep
         theme={theme}
         title="Intensidade da dor"
         subtitle={labelPainRegion(wizard.region)}
-        value={painLevel}
-        onChange={setPainLevel}
+        value={painVerbal}
+        onChange={setPainVerbal}
         accent={theme.colors.semantic.symptoms}
         onBack={() => setWizard({ screen: "pain_region" })}
         busy={busy}
         onSubmit={() =>
           void submitPrd({
-            pain: painLevel,
+            pain: prdLevelFromVerbalKey(painVerbal),
             nausea: 0,
             fatigue: 0,
             notes: prdNotesPainRegion(wizard.region),
@@ -177,20 +234,20 @@ export function SymptomQuickLog({ theme, patientId, onLogged }: Props) {
     const title = isFatigue ? "Fadiga" : "Náusea";
     const sub = isFatigue ? "Quanto a fadiga o limita agora?" : "Quanto sente náusea agora?";
     return (
-      <IntensityStep
+      <VerbalIntensityStep
         theme={theme}
         title={title}
         subtitle={sub}
-        value={singleLevel}
-        onChange={setSingleLevel}
+        value={singleVerbal}
+        onChange={setSingleVerbal}
         accent={theme.colors.semantic.symptoms}
-        onBack={resetToGrid}
+        onBack={resetToList}
         busy={busy}
         onSubmit={() =>
           void submitPrd(
             isFatigue
-              ? { pain: 0, nausea: 0, fatigue: singleLevel, notes: null }
-              : { pain: 0, nausea: singleLevel, fatigue: 0, notes: null }
+              ? { pain: 0, nausea: 0, fatigue: prdLevelFromVerbalKey(singleVerbal), notes: null }
+              : { pain: 0, nausea: prdLevelFromVerbalKey(singleVerbal), fatigue: 0, notes: null }
           )
         }
       />
@@ -201,7 +258,7 @@ export function SymptomQuickLog({ theme, patientId, onLogged }: Props) {
     return (
       <View>
         <Pressable
-          onPress={resetToGrid}
+          onPress={resetToList}
           hitSlop={12}
           style={{ flexDirection: "row", alignItems: "center", marginBottom: theme.spacing.md }}
         >
@@ -237,7 +294,14 @@ export function SymptomQuickLog({ theme, patientId, onLogged }: Props) {
               Alert.alert("Febre", "Indique uma temperatura entre 35 e 42 °C.");
               return;
             }
-            void submitLegacy("fever", 0, t);
+            const logged = new Date().toISOString();
+            void submitLegacy("fever", {
+              severity: "mild",
+              body_temperature: t,
+              symptom_started_at: null,
+              symptom_ended_at: null,
+              logged_at: logged,
+            });
           }}
           disabled={busy}
           style={{
@@ -255,74 +319,55 @@ export function SymptomQuickLog({ theme, patientId, onLogged }: Props) {
     );
   }
 
-  if (wizard.screen === "other_intensity") {
-    const cat = wizard.key;
-    const label = labelSymptomCategory(cat);
+  if (wizard.screen === "legacy_verbal") {
     return (
-      <IntensityStep
+      <LegacySymptomLogStep
         theme={theme}
-        title={label}
-        subtitle="Intensidade agora (0 = nada, 10 = muito intenso)"
-        value={otherLevel}
-        onChange={setOtherLevel}
-        accent={theme.colors.semantic.respiratory}
-        onBack={resetToGrid}
+        symptomKey={wizard.key}
+        accent={theme.colors.semantic.symptoms}
+        onBack={() => setWizard({ screen: "symptom_detail", key: wizard.key })}
         busy={busy}
-        onSubmit={() => void submitLegacy(cat, otherLevel, null)}
+        onSubmit={(payload) =>
+          void submitLegacy(wizard.key, {
+            severity: payload.severity,
+            body_temperature: null,
+            symptom_started_at: payload.symptom_started_at,
+            symptom_ended_at: payload.symptom_ended_at,
+            logged_at: payload.logged_at,
+          })
+        }
       />
     );
   }
 
-  /* grid */
   return (
     <View style={{ marginBottom: theme.spacing.md }}>
-      <Text style={[theme.typography.title1, { color: theme.colors.text.primary }]}>Registar sintoma</Text>
-      <Text style={[theme.typography.body, { color: theme.colors.text.secondary, marginTop: theme.spacing.xs }]}>
-        Toque no sintoma. Em seguida, confirme a intensidade ou o local — é rápido.
-      </Text>
       <View
         style={{
-          flexDirection: "row",
-          flexWrap: "wrap",
-          gap: theme.spacing.md,
-          marginTop: theme.spacing.lg,
+          borderRadius: theme.radius.lg,
+          overflow: "hidden",
+          backgroundColor: theme.colors.background.primary,
+          borderWidth: StyleSheet.hairlineWidth,
+          borderColor: theme.colors.border.divider,
         }}
       >
-        {GRID_ITEMS.map((item) => (
+        {SYMPTOM_NAV_ITEMS.map((item, index) => (
           <Pressable
             key={item.id}
-            onPress={() => setWizard(item.go)}
+            onPress={() => setWizard({ screen: "symptom_detail", key: item.id })}
+            accessibilityRole="button"
+            accessibilityLabel={item.label}
             style={{
-              width: "47%",
-              backgroundColor: theme.colors.background.primary,
-              borderRadius: theme.radius.xl,
-              padding: theme.spacing.lg,
-              minHeight: 118,
-              justifyContent: "space-between",
-              borderWidth: 1,
-              borderColor: theme.colors.border.divider,
-              shadowColor: "#000",
-              shadowOffset: { width: 0, height: 1 },
-              shadowOpacity: 0.06,
-              shadowRadius: 6,
-              elevation: 2,
+              flexDirection: "row",
+              alignItems: "center",
+              paddingVertical: 14,
+              paddingHorizontal: theme.spacing.md,
+              borderBottomWidth: index < SYMPTOM_NAV_ITEMS.length - 1 ? StyleSheet.hairlineWidth : 0,
+              borderBottomColor: theme.colors.border.divider,
             }}
           >
-            <View
-              style={{
-                width: 40,
-                height: 40,
-                borderRadius: 12,
-                backgroundColor: theme.colors.background.secondary,
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-            >
-              <FontAwesome name={item.icon} size={22} color={accent(item.accent)} />
-            </View>
-            <Text style={[theme.typography.headline, { color: theme.colors.text.primary, marginTop: theme.spacing.sm }]}>
-              {item.label}
-            </Text>
+            <Text style={{ flex: 1, fontSize: 17, fontWeight: "600", color: theme.colors.text.primary }}>{item.label}</Text>
+            <Text style={{ fontSize: 20, color: theme.colors.text.tertiary, fontWeight: "300" }}>›</Text>
           </Pressable>
         ))}
       </View>

@@ -1,4 +1,3 @@
-import { SEVERITY_PT } from "../../../constants/dashboardLabels";
 import type { SymptomLogDetail } from "../../../types/dashboard";
 import { formatPtDateTime } from "../../../lib/dashboardFormat";
 import { symptomCategoryLabel, symptomSeverityLabel, symptomSeverityPillClass } from "../../../lib/patientModalHelpers";
@@ -22,7 +21,7 @@ export default function PatientDiarioPanel({ modalLoading, modalSymptoms }: Prop
             <table className="patient-modal__table">
               <thead>
                 <tr>
-                  <th>Data</th>
+                  <th>Registado</th>
                   <th>Tipo / categoria</th>
                   <th>Gravidade / PRD</th>
                   <th>Temp.</th>
@@ -32,7 +31,14 @@ export default function PatientDiarioPanel({ modalLoading, modalSymptoms }: Prop
               <tbody>
                 {modalSymptoms.map((s) => (
                   <tr key={s.id}>
-                    <td>{formatPtDateTime(s.logged_at)}</td>
+                    <td>
+                      <div>{formatPtDateTime(s.logged_at)}</div>
+                      {s.symptom_started_at && s.symptom_ended_at ? (
+                        <div className="muted" style={{ fontSize: "0.8rem", marginTop: "0.25rem" }}>
+                          Episódio: {formatPtDateTime(s.symptom_started_at)} → {formatPtDateTime(s.symptom_ended_at)}
+                        </div>
+                      ) : null}
+                    </td>
                     <td>{symptomCategoryLabel(s)}</td>
                     <td>
                       <span className={`pill pill--compact ${symptomSeverityPillClass(s)}`}>{symptomSeverityLabel(s)}</span>
@@ -46,7 +52,8 @@ export default function PatientDiarioPanel({ modalLoading, modalSymptoms }: Prop
           </div>
         )}
         <p className="muted" style={{ fontSize: "0.8rem", marginTop: "0.75rem" }}>
-          Legado: gravidade categórica ({Object.values(SEVERITY_PT).slice(0, 3).join(", ")}). PRD: escalas 0–10.
+          Sintomas alinhados à app Aura: escala verbal (não presente … grave) e janela de episódio quando aplicável. PRD:
+          dor, náusea e fadiga (0–10).
         </p>
       </section>
     </div>

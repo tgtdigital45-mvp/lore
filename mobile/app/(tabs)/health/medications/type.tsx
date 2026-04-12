@@ -9,6 +9,7 @@ import { IOS_HEALTH } from "@/src/health/iosHealthTokens";
 import { useAppTheme } from "@/src/hooks/useAppTheme";
 import { useStackBack } from "@/src/hooks/useStackBack";
 import { useMedicationWizard } from "@/src/medications/MedicationWizardContext";
+import { MedicationWizardStepBadge } from "@/src/medications/components/MedicationWizardStepBadge";
 
 const FORMAS_COMUNS = ["Cápsula", "Comprimido", "Líquido", "Tópico"] as const;
 const MAIS_FORMAS = ["Adesivo", "Creme", "Injetável", "Spray", "Dispositivo", "Outro"] as const;
@@ -65,12 +66,13 @@ export default function MedicationTypeScreen() {
         contentContainerStyle={{ paddingHorizontal: theme.spacing.md, paddingBottom: theme.spacing.xl * 2 }}
         keyboardShouldPersistTaps="handled"
       >
+        <MedicationWizardStepBadge step={2} theme={theme} />
         <Text
           style={{
             fontSize: 28,
             fontWeight: "700",
             color: theme.colors.text.primary,
-            marginTop: theme.spacing.md,
+            marginTop: theme.spacing.sm,
             marginBottom: theme.spacing.lg,
           }}
         >

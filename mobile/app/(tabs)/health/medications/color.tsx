@@ -8,6 +8,7 @@ import { IOS_HEALTH } from "@/src/health/iosHealthTokens";
 import { useAppTheme } from "@/src/hooks/useAppTheme";
 import { useStackBack } from "@/src/hooks/useStackBack";
 import { useMedicationWizard } from "@/src/medications/MedicationWizardContext";
+import { MedicationWizardStepBadge } from "@/src/medications/components/MedicationWizardStepBadge";
 import { ColorPalette } from "@/src/medications/components/ColorPalette";
 import { PillPreview } from "@/src/medications/components/PillPreview";
 import { PILL_BACKGROUND_COLORS, PILL_HALVES_COLORS } from "@/src/medications/constants";
@@ -74,7 +75,8 @@ export default function MedicationColorScreen() {
         style={{ flex: 1, backgroundColor: "transparent" }}
         contentContainerStyle={{ paddingHorizontal: theme.spacing.lg, paddingBottom: theme.spacing.xl * 2 }}
       >
-        <View style={{ alignItems: "center", marginTop: theme.spacing.md }}>
+        <MedicationWizardStepBadge step={5} theme={theme} />
+        <View style={{ alignItems: "center", marginTop: theme.spacing.sm }}>
           <PillPreview colorLeft={draft.colorLeft} colorRight={draft.colorRight} colorBg={draft.colorBg} size={140} />
         </View>
 

@@ -58,18 +58,23 @@ export type TreatmentCycleRow = {
 export type MedicationRow = {
   id: string;
   name: string;
+  display_name?: string | null;
   dosage: string | null;
   form: string | null;
+  unit?: string | null;
   frequency_hours: number;
+  repeat_mode?: string | null;
   active: boolean;
   anchor_at: string;
   end_date: string | null;
   notes: string | null;
+  pinned?: boolean | null;
 };
 
 export type MedicationLogRow = {
   id: string;
   medication_id: string;
+  patient_id?: string;
   /** Preferido (schema atual) */
   taken_at?: string;
   scheduled_time?: string;
@@ -77,6 +82,7 @@ export type MedicationLogRow = {
   quantity?: number;
   status?: string;
   notes?: string | null;
+  created_at?: string;
   medications: { name: string; dosage: string | null } | { name: string; dosage: string | null }[] | null;
 };
 
@@ -94,6 +100,8 @@ export type SymptomLogDetail = {
   fatigue_level?: number | null;
   requires_action?: boolean | null;
   mood?: string | null;
+  symptom_started_at?: string | null;
+  symptom_ended_at?: string | null;
 };
 
 /** Sinais vitais registados na app (temperatura, PA, etc.). */
@@ -152,16 +160,21 @@ export type MedicalDocModalRow = {
   id: string;
   document_type: string;
   uploaded_at: string;
+  exam_performed_at: string | null;
   storage_path: string;
   mime_type: string | null;
 };
 
 export type SymptomLogTriage = {
   patient_id: string;
-  severity: string;
-  symptom_category: string;
+  severity: string | null;
+  symptom_category: string | null;
   body_temperature: number | null;
   logged_at: string;
+  entry_kind?: string | null;
+  pain_level?: number | null;
+  nausea_level?: number | null;
+  fatigue_level?: number | null;
 };
 
 export type MergedAlertRules = {

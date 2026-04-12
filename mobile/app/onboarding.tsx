@@ -18,7 +18,6 @@ export default function OnboardingScreen() {
   const router = useRouter();
   const [stage, setStage] = useState("");
   const [cancer, setCancer] = useState<(typeof CANCER_TYPES)[number]>("other");
-  const [nadir, setNadir] = useState(false);
   const [busy, setBusy] = useState(false);
 
   async function save() {
@@ -29,7 +28,6 @@ export default function OnboardingScreen() {
       primary_cancer_type: cancer,
       current_stage: stage.trim() || null,
       hospital_id: DEMO_HOSPITAL_ID,
-      is_in_nadir: nadir,
     });
     setBusy(false);
     if (error) {
@@ -84,23 +82,6 @@ export default function OnboardingScreen() {
           color: theme.colors.text.primary,
         }}
       />
-
-      <Pressable
-        onPress={() => setNadir(!nadir)}
-        style={{
-          marginTop: theme.spacing.lg,
-          padding: theme.spacing.md,
-          borderRadius: theme.radius.md,
-          backgroundColor: theme.colors.background.secondary,
-        }}
-      >
-        <Text style={[theme.typography.headline, { color: theme.colors.text.primary }]}>
-          Modo nadir (imunidade baixa): {nadir ? "Sim" : "Não"}
-        </Text>
-        <Text style={[theme.typography.body, { color: theme.colors.text.secondary, marginTop: theme.spacing.xs }]}>
-          Ative se estiver no período de maior risco infeccioso do ciclo — reforça alertas de febre.
-        </Text>
-      </Pressable>
 
       <Pressable
         onPress={save}

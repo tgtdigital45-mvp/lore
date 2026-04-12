@@ -1,3 +1,4 @@
+import "react-native-gesture-handler";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { DarkTheme, DefaultTheme, ThemeProvider } from "@react-navigation/native";
 import { useFonts } from "expo-font";
@@ -6,6 +7,8 @@ import * as SplashScreen from "expo-splash-screen";
 import { useEffect } from "react";
 import { useColorScheme } from "react-native";
 import "react-native-reanimated";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
+import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
 
 import { AuthProvider } from "@/src/auth/AuthContext";
 import { AppErrorBoundary } from "@/src/components/AppErrorBoundary";
@@ -38,18 +41,22 @@ export default function RootLayout() {
   if (!loaded) return null;
 
   return (
-    <SafeAreaProvider>
-      <AppErrorBoundary>
-        <QueryClientProvider client={queryClient}>
-          <AuthProvider>
-            <PatientProvider>
-              <PushTokenBridge />
-              <RootLayoutNav />
-            </PatientProvider>
-          </AuthProvider>
-        </QueryClientProvider>
-      </AppErrorBoundary>
-    </SafeAreaProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <BottomSheetModalProvider>
+        <SafeAreaProvider>
+          <AppErrorBoundary>
+            <QueryClientProvider client={queryClient}>
+              <AuthProvider>
+                <PatientProvider>
+                  <PushTokenBridge />
+                  <RootLayoutNav />
+                </PatientProvider>
+              </AuthProvider>
+            </QueryClientProvider>
+          </AppErrorBoundary>
+        </SafeAreaProvider>
+      </BottomSheetModalProvider>
+    </GestureHandlerRootView>
   );
 }
 

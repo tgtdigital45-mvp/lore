@@ -11,6 +11,7 @@ import type { RiskRow, SymptomLogDetail, TreatmentCycleRow, TreatmentInfusionRow
 import { profileName, profileDob, ageFromDob } from "@/lib/dashboardProfile";
 import { formatPatientCodeDisplay } from "@/lib/patientCode";
 import { formatPtDateTime, formatPtShort } from "@/lib/dashboardFormat";
+import { symptomCategoryLabel, symptomSeverityShort } from "@/lib/patientModalHelpers";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -64,7 +65,7 @@ export function TriagePatientCard({ row, vitals }: Props) {
         supabase
           .from("symptom_logs")
           .select(
-            "id, symptom_category, severity, body_temperature, logged_at, notes, entry_kind, pain_level, nausea_level, fatigue_level, requires_action"
+            "id, symptom_category, severity, body_temperature, logged_at, notes, entry_kind, pain_level, nausea_level, fatigue_level, requires_action, mood, symptom_started_at, symptom_ended_at"
           )
           .eq("patient_id", pid)
           .order("logged_at", { ascending: false })
@@ -85,12 +86,7 @@ export function TriagePatientCard({ row, vitals }: Props) {
   const inter = symptoms.find((s) => s.requires_action) ?? symptoms[0];
   let interText = "Sem intercorrência registada recentemente.";
   if (inter) {
-    if (inter.entry_kind === "prd") {
-      const mx = Math.max(inter.pain_level ?? 0, inter.nausea_level ?? 0, inter.fatigue_level ?? 0);
-      interText = mx >= 7 ? "Sintomas intensos (diário)" : "Registo recente no diário de sintomas.";
-    } else {
-      interText = `${inter.symptom_category ?? "Sintoma"} · ${inter.severity ?? "—"}`;
-    }
+    interText = `${symptomCategoryLabel(inter)} · ${symptomSeverityShort(inter)}`;
   }
 
   return (

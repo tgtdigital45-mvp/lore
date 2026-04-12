@@ -1,9 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
-import { SEVERITY_RANK } from "../constants/dashboardLabels";
 import { refreshSupabaseSessionIfStale } from "../lib/authSession";
 import { ensureStaffIfPending } from "../staffLink";
-import { mergeAlertRulesFromAssignments, patientClinicalAlert } from "../lib/triage";
+import { mergeAlertRulesFromAssignments, patientClinicalAlert, symptomLogTriageRank } from "../lib/triage";
 import { riskFromRank } from "../lib/riskUi";
 import { supabase } from "../lib/supabase";
 import type {
@@ -20,7 +19,7 @@ type CohortRow = { bucket: string; symptom_count: number; requires_action_count:
 export function useTriageData(session: Session | null) {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [rows, setRows] = useState<RiskRow[]>([]);
-  const [triageRules, setTriageRules] = useState<MergedAlertRules>({ fever_celsius_min: 38, alert_window_hours: 72 });
+  const [triageRules, setTriageRules] = useState<MergedAlertRules>({ fever_celsius_min: 37.8, alert_window_hours: 72 });
   const [busy, setBusy] = useState(false);
   const [staffProfile, setStaffProfile] = useState<{ full_name: string; role: string } | null>(null);
   const [hospitalNames, setHospitalNames] = useState<string[]>([]);
@@ -183,7 +182,9 @@ export function useTriageData(session: Session | null) {
     const ids = plist.map((p) => p.id);
     const { data: logs, error: lErr } = await supabase
       .from("symptom_logs")
-      .select("patient_id, severity, logged_at, symptom_category, body_temperature")
+      .select(
+        "patient_id, severity, logged_at, symptom_category, body_temperature, entry_kind, pain_level, nausea_level, fatigue_level"
+      )
       .in("patient_id", ids)
       .gte("logged_at", sinceFetch.toISOString());
 
@@ -204,7 +205,7 @@ export function useTriageData(session: Session | null) {
     const lastAtByPatient = new Map<string, string>();
     for (const l of logRows) {
       if (new Date(l.logged_at).getTime() < sinceRiskMs) continue;
-      const r = SEVERITY_RANK[l.severity as string] ?? 0;
+      const r = symptomLogTriageRank(l);
       const prev = maxByPatient.get(l.patient_id) ?? 0;
       if (r > prev) maxByPatient.set(l.patient_id, r);
       const cur = lastAtByPatient.get(l.patient_id);

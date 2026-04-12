@@ -48,6 +48,12 @@ Deno.serve(async (req) => {
   }
 
   const sb = createClient(url, key);
+
+  const { error: nadirErr } = await sb.rpc("refresh_all_patients_nadir_flags");
+  if (nadirErr) {
+    console.error("treatment-reminders: refresh_all_patients_nadir_flags", nadirErr.message);
+  }
+
   const todayYmd = utcYmd(new Date());
 
   const { data: infusions, error: iErr } = await sb

@@ -1,14 +1,15 @@
-import { Pressable, Text, View } from "react-native";
-import Slider from "@react-native-community/slider";
+import { Pressable, StyleSheet, Text, View } from "react-native";
+import FontAwesome from "@expo/vector-icons/FontAwesome";
 import * as Haptics from "expo-haptics";
+import { VERBAL_SYMPTOM_LEVELS, type VerbalSymptomKey } from "@/src/diary/verbalSeverity";
 import type { AppTheme } from "@/src/theme/theme";
 
 type Props = {
   theme: AppTheme;
   title: string;
   subtitle?: string;
-  value: number;
-  onChange: (n: number) => void;
+  value: VerbalSymptomKey;
+  onChange: (k: VerbalSymptomKey) => void;
   accent: string;
   onBack: () => void;
   onSubmit: () => void;
@@ -16,8 +17,7 @@ type Props = {
   busy?: boolean;
 };
 
-/** Um passo: título + número grande + slider 0–10 (rápido, estilo Saúde). */
-export function IntensityStep({
+export function VerbalIntensityStep({
   theme,
   title,
   subtitle,
@@ -29,7 +29,6 @@ export function IntensityStep({
   submitLabel = "Registar",
   busy,
 }: Props) {
-  const v = Math.round(value);
   return (
     <View>
       <Pressable
@@ -48,31 +47,44 @@ export function IntensityStep({
           {subtitle}
         </Text>
       ) : null}
-      <View style={{ alignItems: "center", marginTop: theme.spacing.xl, marginBottom: theme.spacing.lg }}>
-        <Text style={[theme.typography.dataHuge, { color: theme.colors.text.primary }]}>{v}</Text>
-        <Text style={[theme.typography.body, { color: theme.colors.text.secondary }]}>
-          de 10
-        </Text>
-      </View>
-      <Slider
-        style={{ width: "100%", height: 48 }}
-        minimumValue={0}
-        maximumValue={10}
-        step={1}
-        value={value}
-        onValueChange={(n) => {
-          onChange(n);
-          void Haptics.selectionAsync();
+
+      <View
+        style={{
+          marginTop: theme.spacing.lg,
+          borderRadius: theme.radius.lg,
+          overflow: "hidden",
+          backgroundColor: theme.colors.background.primary,
+          borderWidth: StyleSheet.hairlineWidth,
+          borderColor: theme.colors.border.divider,
         }}
-        onSlidingComplete={() => void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)}
-        minimumTrackTintColor={accent}
-        maximumTrackTintColor={theme.colors.background.tertiary}
-        thumbTintColor={accent}
-      />
-      <View style={{ flexDirection: "row", justifyContent: "space-between", marginTop: theme.spacing.xs }}>
-        <Text style={{ fontSize: 13, color: theme.colors.text.tertiary }}>Nenhum</Text>
-        <Text style={{ fontSize: 13, color: theme.colors.text.tertiary }}>Máximo</Text>
+      >
+        {VERBAL_SYMPTOM_LEVELS.map((row, index) => {
+          const sel = value === row.key;
+          return (
+            <Pressable
+              key={row.key}
+              onPress={() => {
+                void Haptics.selectionAsync();
+                onChange(row.key);
+              }}
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                paddingVertical: 14,
+                paddingHorizontal: theme.spacing.md,
+                borderBottomWidth: index < VERBAL_SYMPTOM_LEVELS.length - 1 ? StyleSheet.hairlineWidth : 0,
+                borderBottomColor: theme.colors.border.divider,
+              }}
+            >
+              <Text style={{ flex: 1, fontSize: 17, fontWeight: "600", color: theme.colors.text.primary }}>
+                {row.label}
+              </Text>
+              {sel ? <FontAwesome name="check" size={18} color={accent} /> : null}
+            </Pressable>
+          );
+        })}
       </View>
+
       <Pressable
         onPress={onSubmit}
         disabled={busy}

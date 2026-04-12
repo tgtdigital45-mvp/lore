@@ -2,6 +2,12 @@ import type { PatientRow, SymptomLogDetail, VitalLogRow, WearableSampleRow } fro
 
 const MS_DAY = 86400000;
 
+export type SuspensionRiskFactor = {
+  label: string;
+  points: number;
+  detail?: string;
+};
+
 function prdMax(s: SymptomLogDetail): number {
   if (s.entry_kind === "prd") {
     const a = s.pain_level ?? 0;
@@ -36,14 +42,17 @@ export function calculateSuspensionRisk(
   vitals: VitalLogRow[],
   wearables: WearableSampleRow[],
   feverThresholdC: number
-): { score: number; reasons: string[] } {
+): { score: number; reasons: string[]; factors: SuspensionRiskFactor[] } {
   const now = Date.now();
   const reasons: string[] = [];
+  const factors: SuspensionRiskFactor[] = [];
   let score = 0;
 
   if (patient.is_in_nadir) {
     score += 18;
-    reasons.push("Paciente em janela de nadir");
+    const label = "Paciente em janela de nadir";
+    reasons.push(label);
+    factors.push({ label, points: 18, detail: "Vigilância febril e toxicidade esperada no período pós-quimioterapia." });
   }
 
   const since48h = now - 48 * MS_DAY;
@@ -51,7 +60,13 @@ export function calculateSuspensionRisk(
   for (const v of recentVitals) {
     if (v.vital_type === "temperature" && v.value_numeric != null && v.value_numeric >= feverThresholdC) {
       score += 35;
-      reasons.push(`Febre ≥ ${feverThresholdC} °C (48h)`);
+      const label = `Febre ≥ ${feverThresholdC} °C (48h)`;
+      reasons.push(label);
+      factors.push({
+        label,
+        points: 35,
+        detail: `Temperatura registada: ${v.value_numeric.toFixed(1)} °C. Febrile neutropenia risk — avaliar urgentemente.`,
+      });
       break;
     }
   }
@@ -67,7 +82,13 @@ export function calculateSuspensionRisk(
   }
   if (severeSymptom) {
     score += 28;
-    reasons.push("Sintomas intensos (72h)");
+    const label = "Sintomas intensos (72h)";
+    reasons.push(label);
+    factors.push({
+      label,
+      points: 28,
+      detail: "Escala PRD ≥7 ou gravidade severa/crítica no diário recente.",
+    });
   }
 
   const since7d = now - 7 * MS_DAY;
@@ -79,7 +100,9 @@ export function calculateSuspensionRisk(
   );
   if (fallEvents.length > 0) {
     score += 22;
-    reasons.push("Queda(s) registada(s) no período");
+    const label = "Queda(s) registada(s) no período";
+    reasons.push(label);
+    factors.push({ label, points: 22, detail: "Eventos de queda nos últimos 7 dias (wearable)." });
   }
 
   const hrvLow = wearables.filter(
@@ -91,8 +114,23 @@ export function calculateSuspensionRisk(
   );
   if (hrvLow.length >= 3) {
     score += 12;
-    reasons.push("VFC baixa (possível stress/fadiga)");
+    const label = "VFC baixa (possível stress/fadiga)";
+    reasons.push(label);
+    factors.push({
+      label,
+      points: 12,
+      detail: "Três ou mais medições de VFC (HRV SDNN) abaixo de 20 ms em 72h.",
+    });
   }
 
-  return { score: Math.min(100, Math.round(score)), reasons: reasons.slice(0, 5) };
+  if (factors.filter((f) => f.points > 0).length === 0) {
+    factors.push({
+      label: "Sem fatores que aumentem o score",
+      points: 0,
+      detail:
+        "Nadir, febre (vitals), sintomas intensos, quedas e VFC foram considerados nas janelas definidas (48h–7d conforme o fator).",
+    });
+  }
+
+  return { score: Math.min(100, Math.round(score)), reasons: reasons.slice(0, 5), factors };
 }

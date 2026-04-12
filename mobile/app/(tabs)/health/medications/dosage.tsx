@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Image, Keyboard, Platform, Pressable, ScrollView, Text, TextInput, View } from "react-native";
+import { Keyboard, Platform, Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import type { Href } from "expo-router";
 import { useRouter } from "expo-router";
@@ -7,10 +7,11 @@ import { KeyboardAccessoryDone, KEYBOARD_ACCESSORY_ID } from "@/src/components/K
 import { ResponsiveScreen } from "@/src/components/ResponsiveScreen";
 import { CircleChromeButton } from "@/src/health/components/MedicationChromeButtons";
 import { IOS_HEALTH } from "@/src/health/iosHealthTokens";
-import { healthRel } from "@/src/health/referenceImages";
 import { useAppTheme } from "@/src/hooks/useAppTheme";
 import { useStackBack } from "@/src/hooks/useStackBack";
 import { useMedicationWizard } from "@/src/medications/MedicationWizardContext";
+import { MedicationWizardHero } from "@/src/medications/components/MedicationWizardHero";
+import { MedicationWizardStepBadge } from "@/src/medications/components/MedicationWizardStepBadge";
 import { DOSAGE_UNITS } from "@/src/medications/constants";
 
 export default function MedicationDosageScreen() {
@@ -83,23 +84,23 @@ export default function MedicationDosageScreen() {
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode={Platform.OS === "ios" ? "interactive" : "on-drag"}
       >
-        <Image
-          source={healthRel["3"]}
-          style={{ width: "100%", height: 140, marginTop: theme.spacing.sm }}
-          resizeMode="contain"
-        />
+        <MedicationWizardStepBadge step={3} theme={theme} />
+        <MedicationWizardHero variant="dosage" theme={theme} />
 
         <Text style={[theme.typography.title2, { color: theme.colors.text.primary, marginTop: theme.spacing.md }]}>
-          Adicione a intensidade do medicamento
+          Dose e unidade
+        </Text>
+        <Text style={[theme.typography.body, { color: theme.colors.text.secondary, marginTop: theme.spacing.xs }]}>
+          Indique a quantidade (ex.: 1 ou 0,5) e a unidade que consta na embalagem ou bula.
         </Text>
 
         <Text style={[theme.typography.headline, { color: theme.colors.text.primary, marginTop: theme.spacing.lg }]}>
-          Intensidade
+          Quantidade
         </Text>
         <TextInput
           value={amount}
           onChangeText={setAmount}
-          placeholder="Adicionar intensidade"
+          placeholder="Ex.: 1 ou 0,5"
           placeholderTextColor={theme.colors.text.tertiary}
           keyboardType="decimal-pad"
           inputAccessoryViewID={Platform.OS === "ios" ? KEYBOARD_ACCESSORY_ID : undefined}

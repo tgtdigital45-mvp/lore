@@ -19,6 +19,7 @@ import { IOS_HEALTH } from "@/src/health/iosHealthTokens";
 import { useAppTheme } from "@/src/hooks/useAppTheme";
 import { useStackBack } from "@/src/hooks/useStackBack";
 import { useMedicationWizard } from "@/src/medications/MedicationWizardContext";
+import { MedicationWizardStepBadge } from "@/src/medications/components/MedicationWizardStepBadge";
 import { ScheduleRow } from "@/src/medications/components/ScheduleRow";
 import { INTERVAL_HOUR_OPTIONS } from "@/src/medications/constants";
 import type { DraftFrequency, ScheduleItem } from "@/src/medications/types";
@@ -217,7 +218,8 @@ export default function MedicationScheduleScreen() {
         style={{ flex: 1, backgroundColor: "transparent" }}
         contentContainerStyle={{ paddingHorizontal: theme.spacing.lg, paddingBottom: theme.spacing.xl * 2 }}
       >
-        <View style={{ alignItems: "center", marginTop: theme.spacing.sm }}>
+        <MedicationWizardStepBadge step={6} theme={theme} />
+        <View style={{ alignItems: "center", marginTop: theme.spacing.xs }}>
           <PillPreview colorLeft={draft.colorLeft} colorRight={draft.colorRight} colorBg={draft.colorBg} size={72} />
         </View>
 

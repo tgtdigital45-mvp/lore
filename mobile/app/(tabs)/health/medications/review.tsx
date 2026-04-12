@@ -14,6 +14,7 @@ import { useStackBack } from "@/src/hooks/useStackBack";
 import { scheduleMedicationNotifications } from "@/src/lib/medicationNotifications";
 import { supabase } from "@/src/lib/supabase";
 import { useMedicationWizard } from "@/src/medications/MedicationWizardContext";
+import { MedicationWizardStepBadge } from "@/src/medications/components/MedicationWizardStepBadge";
 import { PillPreview } from "@/src/medications/components/PillPreview";
 import { scheduleItemToTimeOfDay } from "@/src/medications/scheduleUtils";
 import type { DraftFrequency } from "@/src/medications/types";
@@ -97,8 +98,9 @@ export default function MedicationReviewScreen() {
         : null;
 
     const repeat_mode = repeatModeFromDraft(draft.frequency);
-    const frequency_hours =
-      draft.frequency === "interval_hours" ? Math.min(168, Math.max(1, draft.intervalHours ?? 8)) : 24;
+    const frequency_hours = Math.round(
+      draft.frequency === "interval_hours" ? Math.min(168, Math.max(1, draft.intervalHours ?? 8)) : 24
+    );
 
     const schedule_weekdays =
       draft.frequency === "weekdays" && draft.weekdays?.length ? draft.weekdays : null;
@@ -197,7 +199,8 @@ export default function MedicationReviewScreen() {
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode={Platform.OS === "ios" ? "interactive" : "on-drag"}
       >
-        <View style={{ alignItems: "center", marginTop: theme.spacing.md }}>
+        <MedicationWizardStepBadge step={7} theme={theme} />
+        <View style={{ alignItems: "center", marginTop: theme.spacing.sm }}>
           <PillPreview colorLeft={draft.colorLeft} colorRight={draft.colorRight} colorBg={draft.colorBg} size={120} />
         </View>
 

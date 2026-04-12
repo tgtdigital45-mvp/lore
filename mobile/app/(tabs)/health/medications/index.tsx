@@ -1,4 +1,4 @@
-import { Alert, Image, Modal, Platform, Pressable, ScrollView, Text, View } from "react-native";
+import { Alert, Modal, Platform, Pressable, ScrollView, Text, View } from "react-native";
 import { useCallback, useMemo, useRef, useState } from "react";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import DateTimePicker from "@react-native-community/datetimepicker";
@@ -7,13 +7,13 @@ import { useRouter } from "expo-router";
 import { ResponsiveScreen } from "@/src/components/ResponsiveScreen";
 import { CircleChromeButton } from "@/src/health/components/MedicationChromeButtons";
 import { IOS_HEALTH } from "@/src/health/iosHealthTokens";
-import { healthRel } from "@/src/health/referenceImages";
 import { useAppTheme } from "@/src/hooks/useAppTheme";
 import { useStackBack } from "@/src/hooks/useStackBack";
 import { useFocusEffect } from "@react-navigation/native";
 import { useMedications, type MedicationRow } from "@/src/hooks/useMedications";
 import { usePatient } from "@/src/hooks/usePatient";
 import { useMedicationWizard } from "@/src/medications/MedicationWizardContext";
+import { MedicationWizardHero } from "@/src/medications/components/MedicationWizardHero";
 import { PillPreview } from "@/src/medications/components/PillPreview";
 import { supabase } from "@/src/lib/supabase";
 
@@ -72,6 +72,7 @@ export default function MedicationsLandingScreen() {
   const [logModalMed, setLogModalMed] = useState<MedicationRow | null>(null);
   const [logDate, setLogDate] = useState(() => new Date());
   const [logTime, setLogTime] = useState(() => new Date());
+  const [logOutcome, setLogOutcome] = useState<"taken" | "skipped" | null>(null);
   const [loggingDose, setLoggingDose] = useState(false);
 
   useFocusEffect(
@@ -116,29 +117,48 @@ export default function MedicationsLandingScreen() {
     setLogModalMed(med);
     setLogDate(new Date());
     setLogTime(new Date());
+    setLogOutcome(null);
   };
 
-  const confirmLogDose = async () => {
-    if (!logModalMed || !patient) return;
+  const saveMedicationLog = async () => {
+    if (!logModalMed || !patient || !logOutcome) return;
     setLoggingDose(true);
     try {
-      const takenAt = new Date(logDate);
-      takenAt.setHours(logTime.getHours(), logTime.getMinutes(), 0, 0);
-      const iso = takenAt.toISOString();
+      const at = new Date(logDate);
+      at.setHours(logTime.getHours(), logTime.getMinutes(), 0, 0);
+      const iso = at.toISOString();
 
-      const { error } = await supabase.from("medication_logs").insert({
+      const base = {
         patient_id: patient.id,
         medication_id: logModalMed.id,
         scheduled_time: iso,
-        taken_time: iso,
-        status: "taken",
-      });
+        quantity: 1,
+      };
+
+      const { error } =
+        logOutcome === "taken"
+          ? await supabase.from("medication_logs").insert({
+              ...base,
+              taken_time: iso,
+              status: "taken",
+            })
+          : await supabase.from("medication_logs").insert({
+              ...base,
+              taken_time: null,
+              status: "skipped",
+            });
 
       if (error) throw error;
-      Alert.alert("Registrado", `Dose de ${logModalMed.display_name || logModalMed.name} registrada com sucesso.`);
+      const label = logModalMed.display_name?.trim() || logModalMed.name;
+      Alert.alert(
+        "Registado",
+        logOutcome === "taken" ? `Toma de ${label} guardada.` : `Registámos que não tomou ${label}.`
+      );
       setLogModalMed(null);
+      setLogOutcome(null);
+      await refresh();
     } catch (e: any) {
-      Alert.alert("Erro", e.message ?? "Não foi possível registrar a dose.");
+      Alert.alert("Erro", e.message ?? "Não foi possível guardar o registo.");
     } finally {
       setLoggingDose(false);
     }
@@ -196,12 +216,9 @@ export default function MedicationsLandingScreen() {
                 ...IOS_HEALTH.shadow.card,
               }}
             >
-              <Image
-                source={healthRel["1"]}
-                style={{ width: "100%", height: 220 }}
-                resizeMode="contain"
-                accessibilityLabel="Ilustração de medicamentos"
-              />
+              <View style={{ paddingHorizontal: theme.spacing.md, paddingTop: theme.spacing.md }}>
+                <MedicationWizardHero variant="landing" theme={theme} />
+              </View>
 
               <Text
                 style={{
@@ -285,7 +302,11 @@ export default function MedicationsLandingScreen() {
               ref={calendarScrollRef}
               horizontal
               showsHorizontalScrollIndicator={false}
-              contentContainerStyle={{ paddingHorizontal: theme.spacing.md }}
+              contentContainerStyle={{
+                paddingHorizontal: theme.spacing.md,
+                paddingVertical: theme.spacing.sm,
+                alignItems: "center",
+              }}
               style={{ marginBottom: theme.spacing.lg }}
               onLayout={() => {
                 const idx = calendarDays.findIndex((d) => d.toDateString() === today.toDateString());
@@ -305,9 +326,11 @@ export default function MedicationsLandingScreen() {
                     onPress={() => handleSelectDate(d)}
                     style={{
                       alignItems: "center",
-                      width: 44,
+                      justifyContent: "center",
+                      minWidth: 48,
+                      minHeight: 64,
                       paddingVertical: theme.spacing.sm,
-                      marginRight: 4,
+                      marginRight: 6,
                       borderRadius: 22,
                       backgroundColor: isSelected ? theme.colors.text.primary : "transparent",
                     }}
@@ -338,29 +361,42 @@ export default function MedicationsLandingScreen() {
 
             <View style={{ paddingHorizontal: theme.spacing.md }}>
               {/* Registrar section - para cadastrar novos medicamentos */}
-              <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: theme.spacing.md }}>
-                <Text style={[theme.typography.title2, { color: theme.colors.text.primary }]}>
+              <View
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  marginBottom: theme.spacing.md,
+                  gap: theme.spacing.sm,
+                }}
+              >
+                <Text
+                  style={[theme.typography.title2, { color: theme.colors.text.primary, flex: 1, flexShrink: 1 }]}
+                  numberOfLines={1}
+                >
                   Registrar
                 </Text>
                 <Pressable
                   onPress={() => startNewMedWizard(false)}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                   style={{
                     flexDirection: "row",
                     alignItems: "center",
-                    gap: 6,
+                    gap: 8,
+                    flexShrink: 0,
                   }}
                 >
                   <View
                     style={{
-                      width: 28,
-                      height: 28,
-                      borderRadius: 14,
+                      width: 32,
+                      height: 32,
+                      borderRadius: 16,
                       backgroundColor: "#34C759",
                       alignItems: "center",
                       justifyContent: "center",
                     }}
                   >
-                    <FontAwesome name="plus" size={12} color="#FFF" />
+                    <FontAwesome name="plus" size={14} color="#FFF" />
                   </View>
                   <Text style={{ color: IOS_HEALTH.blue, fontWeight: "600" }}>Novo</Text>
                 </Pressable>
@@ -391,16 +427,17 @@ export default function MedicationsLandingScreen() {
                         <Text style={[theme.typography.headline, { color: theme.colors.text.primary }]}>{time}</Text>
                         <Pressable
                           onPress={() => startNewMedWizard(false)}
+                          hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
                           style={{
-                            width: 28,
-                            height: 28,
-                            borderRadius: 14,
+                            width: 32,
+                            height: 32,
+                            borderRadius: 16,
                             backgroundColor: "#34C759",
                             alignItems: "center",
                             justifyContent: "center",
                           }}
                         >
-                          <FontAwesome name="plus" size={12} color="#FFF" />
+                          <FontAwesome name="plus" size={14} color="#FFF" />
                         </Pressable>
                       </View>
                       {items.map(({ med }, idx) => {
@@ -421,11 +458,18 @@ export default function MedicationsLandingScreen() {
                               borderBottomColor: IOS_HEALTH.separator,
                             }}
                           >
-                            <PillPreview colorLeft={left} colorRight={right} colorBg={bg} size={40} />
-                            <Text style={[theme.typography.body, { flex: 1, color: theme.colors.text.primary }]}>
+                            <View style={{ flexShrink: 0 }}>
+                              <PillPreview colorLeft={left} colorRight={right} colorBg={bg} size={40} />
+                            </View>
+                            <Text
+                              style={[theme.typography.body, { flex: 1, minWidth: 0, color: theme.colors.text.primary }]}
+                              numberOfLines={2}
+                            >
                               {med.display_name?.trim() || med.name}
                             </Text>
-                            <FontAwesome name="chevron-right" size={14} color={theme.colors.text.tertiary} />
+                            <View style={{ flexShrink: 0, paddingLeft: 4 }}>
+                              <FontAwesome name="chevron-right" size={14} color={theme.colors.text.tertiary} />
+                            </View>
                           </Pressable>
                         );
                       })}
@@ -457,9 +501,20 @@ export default function MedicationsLandingScreen() {
               )}
 
               {/* Medicamentos de Uso Esporádico */}
-              <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: theme.spacing.md }}>
-                <View style={{ flexDirection: "row", alignItems: "center", gap: theme.spacing.sm }}>
-                  <Text style={[theme.typography.title2, { color: theme.colors.text.primary }]}>
+              <View
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  marginBottom: theme.spacing.md,
+                  gap: theme.spacing.sm,
+                }}
+              >
+                <View style={{ flexDirection: "row", alignItems: "center", gap: theme.spacing.sm, flex: 1, minWidth: 0 }}>
+                  <Text
+                    style={[theme.typography.title2, { color: theme.colors.text.primary, flexShrink: 1 }]}
+                    numberOfLines={2}
+                  >
                     Medicamentos de Uso Esporádico
                   </Text>
                   {asNeededMeds.length > 0 && (
@@ -469,6 +524,7 @@ export default function MedicationsLandingScreen() {
                         borderRadius: 10,
                         paddingHorizontal: 8,
                         paddingVertical: 2,
+                        flexShrink: 0,
                       }}
                     >
                       <Text style={{ color: "#FFF", fontSize: 12, fontWeight: "600" }}>{asNeededMeds.length}</Text>
@@ -477,16 +533,18 @@ export default function MedicationsLandingScreen() {
                 </View>
                 <Pressable
                   onPress={() => startNewMedWizard(true)}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                   style={{
-                    width: 28,
-                    height: 28,
-                    borderRadius: 14,
+                    width: 32,
+                    height: 32,
+                    borderRadius: 16,
                     backgroundColor: "#34C759",
                     alignItems: "center",
                     justifyContent: "center",
+                    flexShrink: 0,
                   }}
                 >
-                  <FontAwesome name="plus" size={12} color="#FFF" />
+                  <FontAwesome name="plus" size={14} color="#FFF" />
                 </Pressable>
               </View>
 
@@ -517,26 +575,23 @@ export default function MedicationsLandingScreen() {
                           borderBottomColor: IOS_HEALTH.separator,
                         }}
                       >
-                        <PillPreview colorLeft={left} colorRight={right} colorBg={bg} size={44} />
-                        <View style={{ flex: 1 }}>
-                          <Text style={[theme.typography.headline, { color: theme.colors.text.primary }]}>
+                        <View style={{ flexShrink: 0 }}>
+                          <PillPreview colorLeft={left} colorRight={right} colorBg={bg} size={44} />
+                        </View>
+                        <View style={{ flex: 1, minWidth: 0 }}>
+                          <Text
+                            style={[theme.typography.headline, { color: theme.colors.text.primary }]}
+                            numberOfLines={2}
+                          >
                             {med.display_name?.trim() || med.name}
                           </Text>
-                          <Text style={{ fontSize: 13, color: theme.colors.text.secondary }}>
-                            {med.dosage ?? "—"}
+                          <Text style={{ fontSize: 13, color: theme.colors.text.secondary }} numberOfLines={1}>
+                            {med.dosage ?? "—"} · Toque para registar toma
                           </Text>
                         </View>
-                        <Pressable
-                          onPress={() => openLogModal(med)}
-                          style={{
-                            backgroundColor: "#FF9500",
-                            paddingHorizontal: 12,
-                            paddingVertical: 6,
-                            borderRadius: 14,
-                          }}
-                        >
-                          <Text style={{ color: "#FFF", fontWeight: "600", fontSize: 13 }}>Tomar</Text>
-                        </Pressable>
+                        <View style={{ flexShrink: 0 }}>
+                          <FontAwesome name="chevron-right" size={14} color={theme.colors.text.tertiary} />
+                        </View>
                       </Pressable>
                     );
                   })}
@@ -564,11 +619,22 @@ export default function MedicationsLandingScreen() {
               )}
 
               {/* Seus Medicamentos */}
-              <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: theme.spacing.sm }}>
-                <Text style={[theme.typography.title2, { color: theme.colors.text.primary }]}>
+              <View
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  marginBottom: theme.spacing.sm,
+                  gap: theme.spacing.sm,
+                }}
+              >
+                <Text
+                  style={[theme.typography.title2, { color: theme.colors.text.primary, flex: 1 }]}
+                  numberOfLines={1}
+                >
                   Seus Medicamentos
                 </Text>
-                <Pressable onPress={() => setEditMode((e) => !e)}>
+                <Pressable onPress={() => setEditMode((e) => !e)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
                   <Text style={{ color: IOS_HEALTH.blue, fontWeight: "600" }}>{editMode ? "OK" : "Editar"}</Text>
                 </Pressable>
               </View>
@@ -595,8 +661,9 @@ export default function MedicationsLandingScreen() {
                           ? `${m.medication_schedules.length} horário(s)`
                           : "Todos os dias";
                   return (
-                    <View
+                    <Pressable
                       key={m.id}
+                      onPress={() => openLogModal(m)}
                       style={{
                         borderBottomWidth: idx < medications.length - 1 ? 1 : 0,
                         borderBottomColor: IOS_HEALTH.separator,
@@ -610,55 +677,43 @@ export default function MedicationsLandingScreen() {
                           gap: theme.spacing.md,
                         }}
                       >
-                        <PillPreview colorLeft={left} colorRight={right} colorBg={bg} size={56} />
-                        <View style={{ flex: 1 }}>
-                          <Text style={[theme.typography.headline, { color: theme.colors.text.primary }]}>
+                        <View style={{ flexShrink: 0 }}>
+                          <PillPreview colorLeft={left} colorRight={right} colorBg={bg} size={52} />
+                        </View>
+                        <View style={{ flex: 1, minWidth: 0, paddingRight: theme.spacing.xs }}>
+                          <Text
+                            style={[theme.typography.headline, { color: theme.colors.text.primary }]}
+                            numberOfLines={2}
+                          >
                             {m.display_name?.trim() || m.name}
                           </Text>
-                          <Text style={[theme.typography.body, { color: theme.colors.text.secondary, marginTop: 2 }]}>
+                          <Text
+                            style={[theme.typography.body, { color: theme.colors.text.secondary, marginTop: 2 }]}
+                            numberOfLines={1}
+                          >
                             {m.form ?? "—"}
                           </Text>
-                          <Text style={[theme.typography.body, { color: theme.colors.text.secondary }]}>
+                          <Text style={[theme.typography.body, { color: theme.colors.text.secondary }]} numberOfLines={1}>
                             {m.dosage ?? "—"}
                           </Text>
-                          <View style={{ flexDirection: "row", alignItems: "center", marginTop: 4, gap: 4 }}>
-                            <FontAwesome name="calendar" size={12} color={theme.colors.text.tertiary} />
-                            <Text style={{ fontSize: 13, color: theme.colors.text.tertiary }}>{scheduleText}</Text>
+                          <View style={{ flexDirection: "row", alignItems: "center", marginTop: 4, gap: 6 }}>
+                            <FontAwesome name="calendar" size={12} color={theme.colors.text.tertiary} style={{ marginTop: 1 }} />
+                            <Text
+                              style={{ fontSize: 13, color: theme.colors.text.tertiary, flex: 1 }}
+                              numberOfLines={2}
+                            >
+                              {scheduleText}
+                            </Text>
                           </View>
+                          <Text style={{ fontSize: 12, color: IOS_HEALTH.blue, marginTop: 6, fontWeight: "600" }}>
+                            Toque para registar toma
+                          </Text>
                         </View>
-                        <Pressable
-                          onPress={() => router.push(`/(tabs)/health/medications/detail?id=${m.id}` as Href)}
-                        >
+                        <View style={{ flexShrink: 0, alignSelf: "center" }}>
                           <FontAwesome name="chevron-right" size={14} color={theme.colors.text.tertiary} />
-                        </Pressable>
+                        </View>
                       </View>
-                      {/* Botão para registrar dose */}
-                      <View
-                        style={{
-                          flexDirection: "row",
-                          paddingHorizontal: theme.spacing.md,
-                          paddingBottom: theme.spacing.md,
-                          gap: theme.spacing.sm,
-                        }}
-                      >
-                        <Pressable
-                          onPress={() => openLogModal(m)}
-                          style={({ pressed }) => ({
-                            flex: 1,
-                            flexDirection: "row",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            gap: 6,
-                            backgroundColor: pressed ? theme.colors.background.tertiary : theme.colors.background.secondary,
-                            paddingVertical: 10,
-                            borderRadius: 10,
-                          })}
-                        >
-                          <FontAwesome name="check" size={14} color="#34C759" />
-                          <Text style={{ color: "#34C759", fontWeight: "600" }}>Registrar dose</Text>
-                        </Pressable>
-                      </View>
-                    </View>
+                    </Pressable>
                   );
                 })}
               </View>
@@ -745,93 +800,170 @@ export default function MedicationsLandingScreen() {
         )}
       </ScrollView>
 
-      {/* Modal para registrar dose */}
-      <Modal visible={!!logModalMed} transparent animationType="fade" onRequestClose={() => setLogModalMed(null)}>
+      {/* Modal: toma tomada ou não + data/hora */}
+      <Modal
+        visible={!!logModalMed}
+        transparent
+        animationType="fade"
+        onRequestClose={() => {
+          setLogModalMed(null);
+          setLogOutcome(null);
+        }}
+      >
         <Pressable
-          style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.45)", justifyContent: "center", padding: theme.spacing.lg }}
-          onPress={() => setLogModalMed(null)}
+          style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.45)", justifyContent: "center", padding: theme.spacing.md }}
+          onPress={() => {
+            setLogModalMed(null);
+            setLogOutcome(null);
+          }}
         >
-          <Pressable
-            onPress={(e) => e.stopPropagation()}
-            style={{
-              backgroundColor: theme.colors.background.primary,
-              borderRadius: theme.radius.lg,
-              padding: theme.spacing.lg,
-            }}
-          >
-            <Text style={[theme.typography.title2, { marginBottom: theme.spacing.md, textAlign: "center" }]}>
-              Registrar Dose
-            </Text>
+          <Pressable onPress={(e) => e.stopPropagation()}>
+            <ScrollView
+              keyboardShouldPersistTaps="handled"
+              style={{
+                backgroundColor: theme.colors.background.primary,
+                borderRadius: theme.radius.lg,
+                maxHeight: 560,
+              }}
+              contentContainerStyle={{ padding: theme.spacing.lg }}
+            >
+              <Text style={[theme.typography.title2, { marginBottom: theme.spacing.sm, textAlign: "center" }]}>
+                Registar toma
+              </Text>
+              <Text
+                style={[theme.typography.body, { color: theme.colors.text.secondary, textAlign: "center", marginBottom: theme.spacing.md }]}
+              >
+                Indique se tomou o medicamento e a data/hora do registo.
+              </Text>
 
-            {logModalMed && (
-              <View style={{ alignItems: "center", marginBottom: theme.spacing.md }}>
-                <PillPreview
-                  colorLeft={logModalMed.color_left ?? "#FF3B30"}
-                  colorRight={logModalMed.color_right ?? "#FFADB0"}
-                  colorBg={logModalMed.color_bg ?? "#007AFF"}
-                  size={64}
-                />
-                <Text style={[theme.typography.headline, { marginTop: theme.spacing.sm }]}>
-                  {logModalMed.display_name || logModalMed.name}
-                </Text>
-                <Text style={{ color: theme.colors.text.secondary }}>{logModalMed.dosage ?? ""}</Text>
+              {logModalMed ? (
+                <View style={{ alignItems: "center", marginBottom: theme.spacing.md }}>
+                  <PillPreview
+                    colorLeft={logModalMed.color_left ?? "#FF3B30"}
+                    colorRight={logModalMed.color_right ?? "#FFADB0"}
+                    colorBg={logModalMed.color_bg ?? "#007AFF"}
+                    size={64}
+                  />
+                  <Text style={[theme.typography.headline, { marginTop: theme.spacing.sm, textAlign: "center" }]}>
+                    {logModalMed.display_name || logModalMed.name}
+                  </Text>
+                  <Text style={{ color: theme.colors.text.secondary, textAlign: "center" }}>{logModalMed.dosage ?? ""}</Text>
+                </View>
+              ) : null}
+
+              <Text style={[theme.typography.headline, { color: theme.colors.text.primary, marginBottom: theme.spacing.sm }]}>
+                O que aconteceu?
+              </Text>
+              <View style={{ flexDirection: "row", gap: theme.spacing.sm, marginBottom: theme.spacing.lg }}>
+                <Pressable
+                  onPress={() => setLogOutcome("taken")}
+                  style={({ pressed }) => ({
+                    flex: 1,
+                    paddingVertical: 14,
+                    borderRadius: IOS_HEALTH.pillButtonRadius,
+                    backgroundColor: logOutcome === "taken" ? "#34C759" : theme.colors.background.secondary,
+                    borderWidth: logOutcome === "taken" ? 0 : 1,
+                    borderColor: IOS_HEALTH.separator,
+                    alignItems: "center",
+                    opacity: pressed ? 0.9 : 1,
+                  })}
+                >
+                  <Text style={{ color: logOutcome === "taken" ? "#FFF" : theme.colors.text.primary, fontWeight: "700" }}>
+                    Tomei
+                  </Text>
+                </Pressable>
+                <Pressable
+                  onPress={() => setLogOutcome("skipped")}
+                  style={({ pressed }) => ({
+                    flex: 1,
+                    paddingVertical: 14,
+                    borderRadius: IOS_HEALTH.pillButtonRadius,
+                    backgroundColor: logOutcome === "skipped" ? theme.colors.text.primary : theme.colors.background.secondary,
+                    borderWidth: logOutcome === "skipped" ? 0 : 1,
+                    borderColor: IOS_HEALTH.separator,
+                    alignItems: "center",
+                    opacity: pressed ? 0.9 : 1,
+                  })}
+                >
+                  <Text style={{ color: logOutcome === "skipped" ? "#FFF" : theme.colors.text.primary, fontWeight: "700" }}>
+                    Não tomei
+                  </Text>
+                </Pressable>
               </View>
-            )}
 
-            <Text style={[theme.typography.body, { color: theme.colors.text.secondary, marginBottom: theme.spacing.sm }]}>
-              Data
-            </Text>
-            <DateTimePicker
-              value={logDate}
-              mode="date"
-              display={Platform.OS === "ios" ? "spinner" : "default"}
-              onChange={(_, date) => {
-                if (date) setLogDate(date);
-              }}
-              style={{ marginBottom: theme.spacing.md }}
-            />
-
-            <Text style={[theme.typography.body, { color: theme.colors.text.secondary, marginBottom: theme.spacing.sm }]}>
-              Horário
-            </Text>
-            <DateTimePicker
-              value={logTime}
-              mode="time"
-              display={Platform.OS === "ios" ? "spinner" : "default"}
-              onChange={(_, time) => {
-                if (time) setLogTime(time);
-              }}
-              style={{ marginBottom: theme.spacing.lg }}
-            />
-
-            <View style={{ flexDirection: "row", gap: theme.spacing.md }}>
-              <Pressable
-                onPress={() => setLogModalMed(null)}
-                style={{
-                  flex: 1,
-                  paddingVertical: 14,
-                  borderRadius: IOS_HEALTH.pillButtonRadius,
-                  backgroundColor: theme.colors.background.tertiary,
-                  alignItems: "center",
+              <Text style={[theme.typography.body, { color: theme.colors.text.secondary, marginBottom: theme.spacing.sm }]}>
+                Data
+              </Text>
+              <DateTimePicker
+                value={logDate}
+                mode="date"
+                display={Platform.OS === "ios" ? "spinner" : "default"}
+                onChange={(_, date) => {
+                  if (date) setLogDate(date);
                 }}
-              >
-                <Text style={{ color: theme.colors.text.primary, fontWeight: "600" }}>Cancelar</Text>
-              </Pressable>
-              <Pressable
-                onPress={confirmLogDose}
-                disabled={loggingDose}
-                style={{
-                  flex: 1,
-                  paddingVertical: 14,
-                  borderRadius: IOS_HEALTH.pillButtonRadius,
-                  backgroundColor: "#34C759",
-                  alignItems: "center",
-                  opacity: loggingDose ? 0.6 : 1,
+                style={{ marginBottom: theme.spacing.md }}
+              />
+
+              <Text style={[theme.typography.body, { color: theme.colors.text.secondary, marginBottom: theme.spacing.sm }]}>
+                Horário
+              </Text>
+              <DateTimePicker
+                value={logTime}
+                mode="time"
+                display={Platform.OS === "ios" ? "spinner" : "default"}
+                onChange={(_, time) => {
+                  if (time) setLogTime(time);
                 }}
-              >
-                <Text style={{ color: "#FFF", fontWeight: "600" }}>{loggingDose ? "Salvando..." : "Confirmar"}</Text>
-              </Pressable>
-            </View>
+                style={{ marginBottom: theme.spacing.lg }}
+              />
+
+              {logModalMed ? (
+                <Pressable
+                  onPress={() => {
+                    setLogModalMed(null);
+                    setLogOutcome(null);
+                    router.push(`/(tabs)/health/medications/detail?id=${logModalMed.id}` as Href);
+                  }}
+                  style={{ marginBottom: theme.spacing.lg, alignItems: "center" }}
+                >
+                  <Text style={{ color: IOS_HEALTH.blue, fontWeight: "600" }}>Ver ficha e horários do medicamento</Text>
+                </Pressable>
+              ) : null}
+
+              <View style={{ flexDirection: "row", gap: theme.spacing.md }}>
+                <Pressable
+                  onPress={() => {
+                    setLogModalMed(null);
+                    setLogOutcome(null);
+                  }}
+                  style={{
+                    flex: 1,
+                    paddingVertical: 14,
+                    borderRadius: IOS_HEALTH.pillButtonRadius,
+                    backgroundColor: theme.colors.background.tertiary,
+                    alignItems: "center",
+                  }}
+                >
+                  <Text style={{ color: theme.colors.text.primary, fontWeight: "600" }}>Cancelar</Text>
+                </Pressable>
+                <Pressable
+                  onPress={saveMedicationLog}
+                  disabled={loggingDose || logOutcome === null}
+                  style={{
+                    flex: 1,
+                    paddingVertical: 14,
+                    borderRadius: IOS_HEALTH.pillButtonRadius,
+                    backgroundColor: logOutcome === null ? theme.colors.background.tertiary : IOS_HEALTH.blue,
+                    alignItems: "center",
+                    opacity: loggingDose ? 0.65 : 1,
+                  }}
+                >
+                  <Text style={{ color: logOutcome === null ? theme.colors.text.tertiary : "#FFF", fontWeight: "600" }}>
+                    {loggingDose ? "A guardar..." : "Guardar"}
+                  </Text>
+                </Pressable>
+              </View>
+            </ScrollView>
           </Pressable>
         </Pressable>
       </Modal>

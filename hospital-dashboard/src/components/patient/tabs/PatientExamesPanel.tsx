@@ -8,14 +8,122 @@ import {
   Loader2,
   Upload,
 } from "lucide-react";
+import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { DOCUMENT_TYPE_PT } from "../../../constants/dashboardLabels";
 import { formatBiomarkerValue, formatPtDateTime } from "../../../lib/dashboardFormat";
+import { buildMetricHistorySeries, type MetricHistoryChartModel } from "@/lib/biomarkerHistoryChart";
+import { examDisplayDateIso } from "@/lib/examDisplayDate";
+import { useBiomarkerHistoryContext } from "@/hooks/useBiomarkerHistoryContext";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import type { BiomarkerModalRow, MedicalDocModalRow } from "../../../types/dashboard";
 
+type ChartPoint = { value: number; label: string; formattedValue: string };
+
+function MetricTrendChart({
+  model,
+  abnormal,
+  unit,
+}: {
+  model: MetricHistoryChartModel;
+  abnormal: boolean;
+  unit: string | null;
+}) {
+  const stroke = abnormal ? "#EA580C" : "#4F46E5";
+  const fill = abnormal ? "#EA580C" : "#6366F1";
+  const u = unit?.trim() ?? "";
+
+  const chartData = useMemo((): ChartPoint[] => {
+    if (model.kind !== "chart") return [];
+    return model.data.map((d) => ({
+      ...d,
+      formattedValue: u ? `${d.value} ${u}`.trim() : String(d.value),
+    }));
+  }, [model, u]);
+
+  const valueByLabel = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const row of chartData) {
+      m.set(row.label, row.formattedValue);
+    }
+    return m;
+  }, [chartData]);
+
+  if (model.kind === "non_numeric") {
+    return (
+      <div className="rounded-xl bg-[#F8FAFC] px-4 py-3 text-center text-xs text-muted-foreground">
+        Valor não numérico neste e nos outros registos — gráfico indisponível.
+      </div>
+    );
+  }
+  if (model.kind === "empty") {
+    return (
+      <div className="rounded-xl bg-[#F8FAFC] px-4 py-3 text-center text-xs text-muted-foreground">{model.hint}</div>
+    );
+  }
+
+  return (
+    <div className="space-y-2">
+      <p className="text-xs text-muted-foreground">
+        {model.otherExams > 0
+          ? `Evolução com ${model.otherExams} outro(s) exame(s) do mesmo tipo (datas por exame).`
+          : "Evolução no tempo (mesmo tipo de exame). Adicione exames anteriores para ver tendência."}
+      </p>
+      <div className="h-[170px] w-full min-w-0">
+        <ResponsiveContainer width="100%" height="100%">
+          <AreaChart data={chartData} margin={{ top: 8, right: 10, left: 4, bottom: 4 }}>
+            <CartesianGrid strokeDasharray="3 3" className="stroke-[#E8EAED]" />
+            <XAxis
+              dataKey="label"
+              tick={(props) => {
+                const x = Number(props.x);
+                const y = Number(props.y);
+                const label = String((props.payload as { value?: unknown } | undefined)?.value ?? "");
+                const tip = valueByLabel.get(label) ?? label;
+                return (
+                  <g transform={`translate(${x},${y})`} className="cursor-default">
+                    <title>{`Valor nesta data: ${tip}`}</title>
+                    <text
+                      x={0}
+                      y={0}
+                      dy={14}
+                      textAnchor="middle"
+                      fill="hsl(var(--muted-foreground))"
+                      fontSize={10}
+                    >
+                      {label}
+                    </text>
+                  </g>
+                );
+              }}
+              height={32}
+            />
+            <YAxis tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} width={40} />
+            <Tooltip
+              formatter={(v) => {
+                if (v === undefined || v === null) return ["—", "Valor"];
+                const display =
+                  typeof v === "number" && u ? `${v} ${u}`.trim() : String(v);
+                return [display, "Valor"];
+              }}
+              labelFormatter={(lbl) => `Data ${lbl}`}
+              contentStyle={{
+                borderRadius: "12px",
+                border: "1px solid #e8eaed",
+                fontSize: "12px",
+              }}
+            />
+            <Area type="monotone" dataKey="value" stroke={stroke} fill={fill} fillOpacity={0.12} strokeWidth={2} />
+          </AreaChart>
+        </ResponsiveContainer>
+      </div>
+    </div>
+  );
+}
+
 type Props = {
+  patientId: string | undefined;
   modalLoading: boolean;
   modalMedicalDocs: MedicalDocModalRow[];
   modalBiomarkers: BiomarkerModalRow[];
@@ -39,6 +147,7 @@ function SectionTitle({ icon: Icon, children }: { icon: typeof FileText; childre
 }
 
 export default function PatientExamesPanel({
+  patientId,
   modalLoading,
   modalMedicalDocs,
   modalBiomarkers,
@@ -53,6 +162,20 @@ export default function PatientExamesPanel({
 }: Props) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [dragActive, setDragActive] = useState(false);
+
+  const historyInvalidationKey = useMemo(
+    () =>
+      `${modalMedicalDocs
+        .map((d) => d.id)
+        .sort()
+        .join(",")}|${modalBiomarkers.length}`,
+    [modalMedicalDocs, modalBiomarkers.length]
+  );
+
+  const { ready: historyReady, logs: histLogs, docMap: histDocMap } = useBiomarkerHistoryContext(
+    patientId,
+    historyInvalidationKey
+  );
 
   const examBiomarkerGroups = useMemo(() => {
     const byDoc = new Map<string, BiomarkerModalRow[]>();
@@ -92,7 +215,9 @@ export default function PatientExamesPanel({
         <div>
           <SectionTitle icon={FileText}>Exames</SectionTitle>
           <p className="mt-2 max-w-3xl text-sm leading-relaxed text-muted-foreground">
-            Lista por documento. Expanda a linha para ver biomarcadores; use Ver ou Baixar quando existir ficheiro no armazenamento.
+            Clique na linha do exame (ou na seta) para expandir: vê as métricas extraídas do PDF/OCR e, quando existirem vários exames do mesmo
+            tipo (ex.: dois hemogramas), gráficos de evolução por data de exame — alinhados à app do paciente. Use Ver ou Baixar quando existir
+            ficheiro no armazenamento.
           </p>
         </div>
 
@@ -204,38 +329,62 @@ export default function PatientExamesPanel({
                       <div className="border-t border-[#F1F5F9] bg-[#F8FAFC]/80 px-4 py-4">
                         {markers.length === 0 ? (
                           <p className="text-sm text-muted-foreground">Sem biomarcadores associados a este exame (ou ainda não extraídos).</p>
+                        ) : !historyReady ? (
+                          <p className="text-sm text-muted-foreground" aria-busy="true">
+                            A carregar histórico para gráficos…
+                          </p>
                         ) : (
-                          <div className="overflow-x-auto rounded-xl border border-[#E8EAED] bg-white">
-                            <table className="w-full min-w-[520px] text-sm">
-                              <thead>
-                                <tr className="border-b border-[#F1F5F9] bg-[#F8FAFC] text-left text-xs font-bold uppercase tracking-wide text-muted-foreground">
-                                  <th className="px-4 py-3 font-semibold">Data</th>
-                                  <th className="px-4 py-3 font-semibold">Marcador</th>
-                                  <th className="px-4 py-3 font-semibold">Valor</th>
-                                  <th className="px-4 py-3 font-semibold">Un.</th>
-                                </tr>
-                              </thead>
-                              <tbody>
-                                {markers.map((b) => (
-                                  <tr key={b.id} className="border-b border-[#F1F5F9] last:border-0">
-                                    <td className="whitespace-nowrap px-4 py-2.5 text-muted-foreground">
-                                      {formatPtDateTime(b.logged_at)}
-                                    </td>
-                                    <td className="px-4 py-2.5 font-medium">
-                                      {b.name}
-                                      {b.is_abnormal ? (
-                                        <Badge variant="attention" className="ml-2 align-middle text-[0.65rem]">
-                                          Atenção
-                                        </Badge>
-                                      ) : null}
-                                    </td>
-                                    <td className="px-4 py-2.5 tabular-nums">{formatBiomarkerValue(b)}</td>
-                                    <td className="px-4 py-2.5 text-muted-foreground">{b.unit ?? "—"}</td>
-                                  </tr>
-                                ))}
-                              </tbody>
-                            </table>
-                          </div>
+                          <ul className="space-y-4">
+                            {markers.map((b) => {
+                              const trend = buildMetricHistorySeries(b.name, histLogs, histDocMap, {
+                                documentType: d.document_type,
+                                currentDocumentId: d.id,
+                                currentReading: {
+                                  valueText: formatBiomarkerValue(b),
+                                  examDateIso: examDisplayDateIso(d),
+                                },
+                              });
+                              return (
+                                <li
+                                  key={b.id}
+                                  className={cn(
+                                    "overflow-hidden rounded-2xl border bg-white p-4 shadow-sm",
+                                    b.is_abnormal ? "border-amber-200/90 bg-[#FFFBEB]/40" : "border-[#E8EAED]"
+                                  )}
+                                >
+                                  <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                                    <div className="min-w-0">
+                                      <div className="flex flex-wrap items-center gap-2">
+                                        <span className="font-semibold text-foreground">{b.name}</span>
+                                        {b.is_abnormal ? (
+                                          <Badge variant="attention" className="text-[0.65rem]">
+                                            Atenção
+                                          </Badge>
+                                        ) : null}
+                                      </div>
+                                      <p className="mt-1 text-xs text-muted-foreground">{formatPtDateTime(b.logged_at)}</p>
+                                    </div>
+                                    <div className="shrink-0 text-left sm:text-right">
+                                      <span
+                                        className={cn(
+                                          "text-lg font-bold tabular-nums",
+                                          b.is_abnormal ? "text-[#C2410C]" : "text-[#4F46E5]"
+                                        )}
+                                      >
+                                        {formatBiomarkerValue(b)}
+                                        {b.unit ? (
+                                          <span className="ml-1 text-sm font-medium text-muted-foreground">{b.unit}</span>
+                                        ) : null}
+                                      </span>
+                                    </div>
+                                  </div>
+                                  <div className="mt-4 border-t border-[#F1F5F9] pt-4">
+                                    <MetricTrendChart model={trend} abnormal={b.is_abnormal} unit={b.unit} />
+                                  </div>
+                                </li>
+                              );
+                            })}
+                          </ul>
                         )}
                       </div>
                     ) : null}

@@ -7,8 +7,9 @@ import type {
   SymptomLogTriage,
 } from "../types/dashboard";
 
+/** Febrile alerta clínico: ≥ 37,8 °C (grave). */
 export const DEFAULT_ALERT_RULES: MergedAlertRules = {
-  fever_celsius_min: 38,
+  fever_celsius_min: 37.8,
   alert_window_hours: 72,
 };
 
@@ -31,7 +32,23 @@ export function mergeAlertRulesFromAssignments(
   }
   if (!Number.isFinite(feverMin)) feverMin = DEFAULT_ALERT_RULES.fever_celsius_min;
   if (windowH <= 0) windowH = DEFAULT_ALERT_RULES.alert_window_hours;
-  return { fever_celsius_min: feverMin, alert_window_hours: windowH };
+  /** Nunca acima de 37,8 °C: febre grave considera-se a partir deste limiar. */
+  const fever_celsius_min = Math.min(feverMin, 37.8);
+  return { fever_celsius_min, alert_window_hours: windowH };
+}
+
+/** Grau numérico para triagem (0–4), incluindo diário PRD (dor/náusea/fadiga 0–10). */
+export function symptomLogTriageRank(l: SymptomLogTriage): number {
+  if (l.entry_kind === "prd") {
+    const mx = Math.max(l.pain_level ?? 0, l.nausea_level ?? 0, l.fatigue_level ?? 0);
+    if (mx >= 9) return 4;
+    if (mx >= 8) return 3;
+    if (mx >= 6) return 2;
+    if (mx >= 3) return 1;
+    return 0;
+  }
+  const sev = (l.severity ?? "") as string;
+  return SEVERITY_RANK[sev] ?? 0;
 }
 
 export function patientClinicalAlert(
@@ -49,11 +66,19 @@ export function patientClinicalAlert(
     if (l.patient_id !== patientId) continue;
     if (new Date(l.logged_at).getTime() < cutoff) continue;
 
-    const sev = l.severity as string;
-    if (sev === "severe" || sev === "life_threatening") {
-      if (!hasSeverityReason) {
+    if (l.entry_kind === "prd") {
+      const mx = Math.max(l.pain_level ?? 0, l.nausea_level ?? 0, l.fatigue_level ?? 0);
+      if (mx >= 8 && !hasSeverityReason) {
         hasSeverityReason = true;
-        reasons.push(sev === "life_threatening" ? "Gravidade crítica" : "Gravidade alta");
+        reasons.push("Escala PRD elevada (≥8)");
+      }
+    } else {
+      const sev = l.severity as string;
+      if (sev === "severe" || sev === "life_threatening") {
+        if (!hasSeverityReason) {
+          hasSeverityReason = true;
+          reasons.push(sev === "life_threatening" ? "Gravidade crítica" : "Gravidade alta");
+        }
       }
     }
 
@@ -90,7 +115,7 @@ export function buildRiskRow(
   for (const l of logRows) {
     if (l.patient_id !== p.id) continue;
     if (new Date(l.logged_at).getTime() < sinceRiskMs) continue;
-    const r = SEVERITY_RANK[l.severity as string] ?? 0;
+    const r = symptomLogTriageRank(l);
     if (r > maxRank) maxRank = r;
     const la = l.logged_at as string;
     if (!lastAt || new Date(la) > new Date(lastAt)) lastAt = la;
