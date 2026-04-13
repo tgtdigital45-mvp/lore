@@ -159,7 +159,7 @@ export default function TreatmentScheduleWizardScreen() {
           Infusões já realizadas (opcional)
         </Text>
         <Text style={[theme.typography.body, { color: theme.colors.text.secondary, marginTop: theme.spacing.xs }]}>
-          Número aproximado antes de registar o histórico detalhado.
+          Número aproximado antes de registrar o histórico detalhado.
         </Text>
         <TextInput
           ref={completedRef}

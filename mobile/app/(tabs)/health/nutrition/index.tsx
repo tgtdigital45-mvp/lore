@@ -74,7 +74,7 @@ export default function NutritionHomeScreen() {
   }, [logs]);
 
   function confirmDelete(id: string) {
-    Alert.alert("Eliminar", "Remover este registo?", [
+    Alert.alert("Eliminar", "Remover este registro?", [
       { text: "Cancelar", style: "cancel" },
       { text: "Eliminar", style: "destructive", onPress: () => void deleteLog(id) },
     ]);
@@ -90,7 +90,7 @@ export default function NutritionHomeScreen() {
           Nutrição
         </Text>
         <Pressable onPress={() => router.push("/(tabs)/health/nutrition/log" as Href)}>
-          <Text style={{ color: theme.colors.semantic.treatment, fontWeight: "700" }}>Registar</Text>
+          <Text style={{ color: theme.colors.semantic.treatment, fontWeight: "700" }}>Registrar</Text>
         </Pressable>
       </View>
 
@@ -112,7 +112,7 @@ export default function NutritionHomeScreen() {
             <Text style={{ color: theme.colors.text.secondary }}>Água: {today.water} copo(s)</Text>
             <Text style={{ color: theme.colors.text.secondary, marginTop: 4 }}>Café: {today.coffee}</Text>
             <Text style={{ color: theme.colors.text.secondary, marginTop: 4 }}>Refeições: {today.meals}</Text>
-            <Text style={{ color: theme.colors.text.secondary, marginTop: 4 }}>Calorias (refeições + registo): {today.kcal} kcal</Text>
+            <Text style={{ color: theme.colors.text.secondary, marginTop: 4 }}>Calorias (refeições + registro): {today.kcal} kcal</Text>
             <Text style={{ color: theme.colors.text.secondary, marginTop: 4 }}>
               Apetite (último): {today.appetite != null ? `${today.appetite}/10` : "—"}
             </Text>
@@ -121,7 +121,7 @@ export default function NutritionHomeScreen() {
           {!patient ? (
             <Text style={{ color: theme.colors.text.secondary }}>Perfil necessário.</Text>
           ) : logs.length === 0 ? (
-            <Text style={{ color: theme.colors.text.secondary }}>Sem registos. Toque em Registar.</Text>
+            <Text style={{ color: theme.colors.text.secondary }}>Sem registros. Toque em Registrar.</Text>
           ) : (
             logs.map((r) => (
               <View

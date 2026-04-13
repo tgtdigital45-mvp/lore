@@ -8,7 +8,7 @@ import { computeClinicalNadirSummary } from "@/lib/clinicalNadir";
 import { clinicalTier, TIER_ACCENT } from "@/lib/clinicalTier";
 import { latestVital, vitalPointsLast24h } from "@/lib/vitalsSpark";
 import type { RiskRow, SymptomLogDetail, TreatmentCycleRow, TreatmentInfusionRow, VitalLogRow } from "@/types/dashboard";
-import { profileName, profileDob, ageFromDob } from "@/lib/dashboardProfile";
+import { profileName, profileDob, profileAvatarUrl, ageFromDob, initialsFromName } from "@/lib/dashboardProfile";
 import { formatPatientCodeDisplay } from "@/lib/patientCode";
 import { formatPtDateTime, formatPtShort } from "@/lib/dashboardFormat";
 import { symptomCategoryLabel, symptomSeverityShort } from "@/lib/patientModalHelpers";
@@ -16,6 +16,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { VitalMicroSpark } from "./VitalMicroSpark";
+import { PatientFaceThumb } from "./PatientFaceThumb";
 
 function spo2Color(v: number | null): string {
   if (v == null) return "#14B8A6";
@@ -47,6 +48,8 @@ export function TriagePatientCard({ row, vitals }: Props) {
   const name = profileName(row.profiles);
   const age = ageFromDob(profileDob(row.profiles));
   const code = formatPatientCodeDisplay(row.patient_code) ?? `PR-${row.id.slice(0, 8).toUpperCase()}`;
+  const faceUrl = profileAvatarUrl(row.profiles);
+  const faceInitials = initialsFromName(name);
 
   useEffect(() => {
     if (!open) return;
@@ -84,7 +87,7 @@ export function TriagePatientCard({ row, vitals }: Props) {
 
   const nadir = computeClinicalNadirSummary(cycles, infusions);
   const inter = symptoms.find((s) => s.requires_action) ?? symptoms[0];
-  let interText = "Sem intercorrência registada recentemente.";
+  let interText = "Sem intercorrência registrada recentemente.";
   if (inter) {
     interText = `${symptomCategoryLabel(inter)} · ${symptomSeverityShort(inter)}`;
   }
@@ -101,7 +104,8 @@ export function TriagePatientCard({ row, vitals }: Props) {
         <div className="min-w-0 flex-1 p-4 md:p-5">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
             <div className="min-w-0 flex-1">
-              <div className="flex flex-wrap items-center gap-2">
+              <div className="flex flex-wrap items-center gap-3">
+                <PatientFaceThumb url={faceUrl} initials={faceInitials} className="h-11 w-11 text-xs" />
                 <h3 className="text-lg font-black tracking-tight">{name}</h3>
                 {row.current_stage ? (
                   <Badge className="rounded-lg border-0 bg-[#EEF2FF] px-2 py-0.5 text-[0.65rem] font-bold uppercase tracking-wide text-[#4F46E5]">
@@ -126,7 +130,14 @@ export function TriagePatientCard({ row, vitals }: Props) {
               <VitalMicroSpark data={hrPts} color="#6366F1" unit="bpm" label="FC" />
             </div>
 
-            <div className="flex shrink-0 flex-col gap-2 sm:flex-row lg:flex-col">
+            <div className="flex w-full shrink-0 flex-col gap-2 sm:w-auto sm:min-w-[200px] lg:flex-col">
+              <Button
+                type="button"
+                className="rounded-2xl bg-[#0A0A0A] font-bold text-white hover:bg-[#1A1A1A]"
+                onClick={() => navigate(`/paciente/${row.id}`)}
+              >
+                Ver dossiê completo
+              </Button>
               <Button
                 type="button"
                 variant="outline"
@@ -164,7 +175,7 @@ export function TriagePatientCard({ row, vitals }: Props) {
                   <div className="rounded-2xl border border-[#F1F5F9] bg-[#FFFBEB] p-4">
                     <p className="text-[0.65rem] font-bold uppercase tracking-wide text-[#B45309]">Última intercorrência</p>
                     {detailLoading ? (
-                      <p className="mt-2 text-sm text-muted-foreground">A carregar…</p>
+                      <p className="mt-2 text-sm text-muted-foreground">Carregando…</p>
                     ) : (
                       <>
                         <p className="mt-2 text-sm font-semibold leading-snug text-foreground">{interText}</p>
@@ -177,7 +188,7 @@ export function TriagePatientCard({ row, vitals }: Props) {
                   <div className="rounded-2xl border border-[#F1F5F9] p-4">
                     <p className="text-[0.65rem] font-bold uppercase tracking-wide text-muted-foreground">Cronograma clínico</p>
                     {detailLoading ? (
-                      <p className="mt-2 text-sm text-muted-foreground">A carregar…</p>
+                      <p className="mt-2 text-sm text-muted-foreground">Carregando…</p>
                     ) : (
                       <>
                         <p className="mt-2 text-sm">
@@ -192,13 +203,6 @@ export function TriagePatientCard({ row, vitals }: Props) {
                     )}
                   </div>
                 </div>
-                <Button
-                  type="button"
-                  className="mt-4 w-full rounded-2xl bg-[#0A0A0A] font-bold text-white hover:bg-[#1A1A1A] md:w-auto"
-                  onClick={() => navigate(`/paciente/${row.id}`)}
-                >
-                  Ver dossiê completo
-                </Button>
               </motion.div>
             ) : null}
           </AnimatePresence>

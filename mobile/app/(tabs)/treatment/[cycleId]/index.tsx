@@ -19,7 +19,11 @@ import { useAppTheme } from "@/src/hooks/useAppTheme";
 import { useStackBack } from "@/src/hooks/useStackBack";
 import { usePatient } from "@/src/hooks/usePatient";
 import { useTreatmentCycles } from "@/src/hooks/useTreatmentCycles";
-import { formatPtDateShort, nextSuggestedInfusionDate } from "@/src/lib/treatmentInfusionSchedule";
+import {
+  formatPtDateShort,
+  isPastPredictedCalendarDay,
+  nextSuggestedInfusionDate,
+} from "@/src/lib/treatmentInfusionSchedule";
 import { supabase } from "@/src/lib/supabase";
 import type { TreatmentCycleRow, TreatmentInfusionRow } from "@/src/types/treatment";
 
@@ -190,35 +194,40 @@ export default function TreatmentCycleDetailScreen() {
             ) : null}
           </View>
 
-          <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: theme.spacing.sm }}>
-            <Text style={[theme.typography.title2, { color: theme.colors.text.primary }]}>Check-ins</Text>
-            <Link href={`/treatment/${cycleId}/infusion/new` as Href} asChild>
-              <Pressable>
-                <Text style={{ color: theme.colors.text.tertiary, fontWeight: "600", fontSize: 13 }}>+ Registo manual</Text>
-              </Pressable>
-            </Link>
+          <View style={{ marginBottom: theme.spacing.sm }}>
+            <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+              <Text style={[theme.typography.title2, { color: theme.colors.text.primary }]}>Check-ins</Text>
+              <Link href={`/treatment/${cycleId}/infusion/new` as Href} asChild>
+                <Pressable>
+                  <Text style={{ color: theme.colors.text.tertiary, fontWeight: "600", fontSize: 13 }}>+ Registro manual</Text>
+                </Pressable>
+              </Link>
+            </View>
+            <Text style={[theme.typography.body, { color: theme.colors.text.tertiary, marginTop: 6, fontSize: 13 }]}>
+              Toque numa sessão pendente para confirmar que foi feita (antes ou depois da data prevista). Sem confirmação, continua em aberto.
+            </Text>
           </View>
 
           {sortedForDisplay.length === 0 ? (
             <Text style={[theme.typography.body, { color: theme.colors.text.secondary }]}>
-              Sem sessões. Use &quot;Registo manual&quot; para adicionar ou edite o ciclo.
+              Sem sessões. Use &quot;Registro manual&quot; para adicionar ou edite o ciclo.
             </Text>
           ) : (
             sortedForDisplay.map((inf, idx) => {
               const n = idx + 1;
               const isDone = inf.status === "completed";
               const isScheduled = inf.status === "scheduled";
+              const overdue = isScheduled && isPastPredictedCalendarDay(inf.session_at);
 
-              return (
-                <View
-                  key={inf.id}
-                  style={{
-                    marginBottom: theme.spacing.sm,
-                    backgroundColor: theme.colors.background.primary,
-                    borderRadius: theme.radius.md,
-                    padding: theme.spacing.md,
-                  }}
-                >
+              const cardStyle = {
+                marginBottom: theme.spacing.sm,
+                backgroundColor: theme.colors.background.primary,
+                borderRadius: theme.radius.md,
+                padding: theme.spacing.md,
+              } as const;
+
+              const sessionBody = (
+                <View>
                   <View style={{ flexDirection: "row", alignItems: "flex-start", gap: theme.spacing.sm }}>
                     <FontAwesome
                       name={isDone ? "check-square" : "square-o"}
@@ -227,9 +236,7 @@ export default function TreatmentCycleDetailScreen() {
                       style={{ marginTop: 2 }}
                     />
                     <View style={{ flex: 1 }}>
-                      <Text style={[theme.typography.headline, { color: theme.colors.text.primary }]}>
-                        Sessão {n}
-                      </Text>
+                      <Text style={[theme.typography.headline, { color: theme.colors.text.primary }]}>Sessão {n}</Text>
                       {isDone ? (
                         <>
                           <Text style={[theme.typography.body, { color: theme.colors.text.secondary, marginTop: 4 }]}>
@@ -252,23 +259,31 @@ export default function TreatmentCycleDetailScreen() {
                       ) : isScheduled ? (
                         <>
                           <Text style={[theme.typography.body, { color: theme.colors.text.secondary, marginTop: 4 }]}>
-                            Prevista: {formatPredictedDay(inf.session_at)}
+                            Prevista no protocolo: {formatPredictedDay(inf.session_at)}
                           </Text>
-                          <Link href={`/treatment/${cycleId}/checkin?infusionId=${inf.id}` as Href} asChild>
-                            <Pressable
-                              style={({ pressed }) => ({
-                                marginTop: theme.spacing.sm,
-                                alignSelf: "flex-start",
-                                backgroundColor: IOS_HEALTH.blue,
-                                paddingVertical: 10,
-                                paddingHorizontal: 16,
-                                borderRadius: IOS_HEALTH.pillButtonRadius,
-                                opacity: pressed ? 0.88 : 1,
-                              })}
+                          {overdue ? (
+                            <Text
+                              style={[theme.typography.body, { color: theme.colors.semantic.vitals, marginTop: 4, fontWeight: "600" }]}
                             >
-                              <Text style={{ color: "#FFFFFF", fontWeight: "700", fontSize: 15 }}>Fazer check-in</Text>
-                            </Pressable>
-                          </Link>
+                              Ainda sem confirmação — toque para registrar se já foi feita.
+                            </Text>
+                          ) : (
+                            <Text style={[theme.typography.body, { color: theme.colors.text.tertiary, marginTop: 4, fontSize: 13 }]}>
+                              Pode confirmar assim que for à unidade; a hora gravada será a deste check-in.
+                            </Text>
+                          )}
+                          <View
+                            style={{
+                              marginTop: theme.spacing.sm,
+                              alignSelf: "flex-start",
+                              backgroundColor: IOS_HEALTH.blue,
+                              paddingVertical: 10,
+                              paddingHorizontal: 16,
+                              borderRadius: IOS_HEALTH.pillButtonRadius,
+                            }}
+                          >
+                            <Text style={{ color: "#FFFFFF", fontWeight: "700", fontSize: 15 }}>Fazer check-in</Text>
+                          </View>
                         </>
                       ) : (
                         <Text style={[theme.typography.body, { color: theme.colors.text.secondary, marginTop: 4 }]}>
@@ -280,10 +295,33 @@ export default function TreatmentCycleDetailScreen() {
                   {!isScheduled ? (
                     <Link href={`/treatment/${cycleId}/infusion/${inf.id}` as Href} asChild>
                       <Pressable style={{ marginTop: theme.spacing.sm }}>
-                        <Text style={{ color: IOS_HEALTH.blue, fontWeight: "600", fontSize: 14 }}>Ver / editar registo</Text>
+                        <Text style={{ color: IOS_HEALTH.blue, fontWeight: "600", fontSize: 14 }}>Ver / editar registro</Text>
                       </Pressable>
                     </Link>
                   ) : null}
+                </View>
+              );
+
+              return isScheduled ? (
+                <Link
+                  key={inf.id}
+                  href={`/treatment/${cycleId}/checkin?infusionId=${inf.id}` as Href}
+                  asChild
+                >
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel={`Confirmar check-in da sessão ${n}`}
+                    style={({ pressed }) => ({
+                      ...cardStyle,
+                      opacity: pressed ? 0.94 : 1,
+                    })}
+                  >
+                    {sessionBody}
+                  </Pressable>
+                </Link>
+              ) : (
+                <View key={inf.id} style={cardStyle}>
+                  {sessionBody}
                 </View>
               );
             })

@@ -10,7 +10,7 @@ const PatientMensagensPanel = lazy(() => import("./tabs/PatientMensagensPanel"))
 const PatientDiarioPanel = lazy(() => import("./tabs/PatientDiarioPanel"));
 
 function TabFallback() {
-  return <p className="muted patient-modal__loading">A carregar painel…</p>;
+  return <p className="muted patient-modal__loading">Carregando painel…</p>;
 }
 
 export function PatientModal(props: PatientModalProps) {
@@ -50,6 +50,7 @@ export function PatientModal(props: PatientModalProps) {
     examesTabLoading,
     displayName,
     displayInitials,
+    displayAvatarUrl,
     ageLabel,
   } = props;
 
@@ -144,7 +145,11 @@ export function PatientModal(props: PatientModalProps) {
           <div className="patient-modal__head-main">
             <div className="patient-modal__identity">
               <div className="patient-modal__avatar" aria-hidden>
-                {displayInitials}
+                {displayAvatarUrl ? (
+                  <img src={displayAvatarUrl} alt="" referrerPolicy="no-referrer" className="patient-modal__avatar-img" />
+                ) : (
+                  displayInitials
+                )}
               </div>
               <div>
                 <h2 id="patient-modal-title" className="patient-modal__name">
@@ -162,7 +167,7 @@ export function PatientModal(props: PatientModalProps) {
           </div>
         </div>
 
-        <div className="patient-modal__tabs" role="tablist" aria-label="Secções do prontuário">
+        <div className="patient-modal__tabs" role="tablist" aria-label="Seções do prontuário">
           {(Object.keys(MODAL_TAB_LABEL) as ModalTabId[]).map((id) => (
             <button
               key={id}

@@ -9,7 +9,7 @@ type Props = {
 
 export function InterventionTimeline({ entries }: Props) {
   if (entries.length === 0) {
-    return <p className="muted">Nenhum registo com prioridade de triagem recente.</p>;
+    return <p className="muted">Nenhum registro com prioridade de triagem recente.</p>;
   }
 
   return (

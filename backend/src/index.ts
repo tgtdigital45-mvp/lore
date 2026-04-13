@@ -135,7 +135,7 @@ app.post("/api/agent/process", agentLimiter, idempotencyMiddleware(), requireUse
   } catch (e) {
     logStructured("agent_process_failed", { err: e instanceof Error ? e.message : String(e) });
     res.status(500).json({
-      error: "Agent processing failed",
+      error: "agent_process_failed",
       reply:
         "Sistema temporariamente indisponível. Se precisar de ajuda clínica urgente, ligue para sua clínica ou procure o pronto-socorro.",
     });

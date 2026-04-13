@@ -120,7 +120,7 @@ export default function PatientFichaMedicaPanel({ loading, riskRow, emergencyCon
             <h4 className="text-sm font-bold text-foreground">Contactos de emergência</h4>
             {emergencyContacts.length === 0 ? (
               <p className="rounded-2xl border border-dashed border-[#E2E8F0] bg-[#FAFBFC] px-4 py-8 text-center text-sm text-muted-foreground">
-                Sem contactos registados ou sem permissão de leitura.
+                Sem contactos registrados ou sem permissão de leitura.
               </p>
             ) : (
               <ul className="space-y-3">

@@ -4,7 +4,7 @@ import { DEMO_HOSPITAL_ID, PENDING_STAFF_ROLE_KEY } from "./constants";
 
 type StaffRole = "doctor" | "nurse" | "hospital_admin";
 
-/** Após cadastro/login: vínculo ao hospital demo; papel sempre gestor (dashboard MVP sem equipa clínica). */
+/** Após cadastro/login: vínculo ao hospital demo; papel sempre gestor (dashboard MVP sem equipe clínica). */
 export async function applyPendingStaffLink(userId: string): Promise<{ error: string | null }> {
   const raw = localStorage.getItem(PENDING_STAFF_ROLE_KEY);
   if (raw !== "doctor" && raw !== "nurse" && raw !== "hospital_admin") {

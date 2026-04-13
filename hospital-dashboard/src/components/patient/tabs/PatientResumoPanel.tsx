@@ -107,7 +107,7 @@ export default function PatientResumoPanel({
         <h3 className="patient-modal__section-title">Risco de suspensão & intercorrências</h3>
         <OncoSuspensionGauge score={suspension.score} reasons={suspension.reasons} />
         <h4 className="patient-modal__micro-label" style={{ marginTop: "1rem" }}>
-          Registos com prioridade (triagem)
+          Registros com prioridade (triagem)
         </h4>
         <InterventionTimeline entries={intercorrencias} />
       </section>
@@ -165,7 +165,7 @@ export default function PatientResumoPanel({
         <h3 className="patient-modal__section-title">Últimas tomas de medicação</h3>
         <p className="patient-modal__micro-label">Requer vínculo aprovado paciente–hospital para ver histórico completo</p>
         {modalMedicationLogs.length === 0 ? (
-          <p className="patient-modal__empty-hint">Nenhum registo visível ou paciente sem vínculo aprovado.</p>
+          <p className="patient-modal__empty-hint">Nenhum registro visível ou paciente sem vínculo aprovado.</p>
         ) : (
           <div className="patient-modal__table-wrap">
             <table className="patient-modal__table patient-modal__table--compact">
@@ -197,7 +197,7 @@ export default function PatientResumoPanel({
         <h3 className="patient-modal__section-title">Preabilitação e nutrição</h3>
         <p className="patient-modal__micro-label">Hidratação, apetite e refeições (app)</p>
         {modalNutritionLogs.length === 0 ? (
-          <p className="patient-modal__empty-hint">Sem registos nutricionais recentes.</p>
+          <p className="patient-modal__empty-hint">Sem registros nutricionais recentes.</p>
         ) : (
           <div className="patient-modal__table-wrap">
             <table className="patient-modal__table patient-modal__table--compact">

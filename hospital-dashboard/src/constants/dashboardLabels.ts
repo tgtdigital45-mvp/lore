@@ -97,6 +97,21 @@ export const SYMPTOM_CATEGORY_PT: Record<string, string> = {
   vomiting: "Vômito",
 };
 
+/** Valores legados ou importados em inglês (categoria livre no registo). */
+export const SYMPTOM_CATEGORY_EN_FALLBACK: Record<string, string> = {
+  hurt: "Dor",
+  burn: "Queimação",
+  burning: "Queimação",
+  ache: "Dor",
+  aches: "Dores",
+  fatigue: "Fadiga",
+  nausea: "Náusea",
+  fever: "Febre",
+  chills: "Calafrios",
+  cough: "Tosse",
+  pain: "Dor",
+};
+
 export const NUTRITION_LOG_TYPE_PT: Record<string, string> = {
   water: "Água",
   coffee: "Café",

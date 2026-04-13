@@ -1,8 +1,9 @@
+import { useEffect } from "react";
 import { Outlet, NavLink, useLocation, useNavigate } from "react-router-dom";
-import { Activity, CalendarDays, LayoutDashboard, LogOut, Search, Users } from "lucide-react";
+import { Activity, CalendarDays, LayoutDashboard, LogOut, Search, Settings, Users } from "lucide-react";
 import { motion } from "framer-motion";
 import { useOncoCare } from "@/context/OncoCareContext";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -16,7 +17,7 @@ const nav = [
 ];
 
 export function OncoCareLayout() {
-  const { staffProfile, patientSearch, setPatientSearch } = useOncoCare();
+  const { staffProfile, staffAvatarBust, reloadStaffProfile, patientSearch, setPatientSearch } = useOncoCare();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -26,6 +27,20 @@ export function OncoCareLayout() {
   }
   const displayName = staffProfile?.full_name?.trim() || "Profissional";
   const initials = initialsFromName(displayName);
+  const staffAvatarRaw = staffProfile?.avatar_url?.trim() ?? "";
+  const staffAvatarUrl = /^https?:\/\//i.test(staffAvatarRaw) ? staffAvatarRaw : null;
+  const staffAvatarSrc =
+    staffAvatarUrl != null
+      ? `${staffAvatarUrl}${staffAvatarUrl.includes("?") ? "&" : "?"}v=${staffAvatarBust}`
+      : null;
+
+  useEffect(() => {
+    const onVis = () => {
+      if (document.visibilityState === "visible") void reloadStaffProfile();
+    };
+    document.addEventListener("visibilitychange", onVis);
+    return () => document.removeEventListener("visibilitychange", onVis);
+  }, [reloadStaffProfile]);
 
   return (
     <TooltipProvider delayDuration={200}>
@@ -58,6 +73,17 @@ export function OncoCareLayout() {
                 {label}
               </NavLink>
             ))}
+            <NavLink
+              to="/conta"
+              className={({ isActive }) =>
+                `flex items-center gap-3 rounded-2xl px-3 py-2.5 text-sm font-semibold transition-colors ${
+                  isActive ? "bg-[#1A1A1A] text-white" : "text-foreground hover:bg-muted"
+                }`
+              }
+            >
+              <Settings className="size-5 shrink-0 opacity-90" />
+              Conta
+            </NavLink>
           </nav>
           <p className="px-2 text-[0.65rem] leading-relaxed text-muted-foreground">
             Monitorização oncológica · triagem e recursos
@@ -88,6 +114,9 @@ export function OncoCareLayout() {
                 <TooltipTrigger asChild>
                   <div className="flex items-center gap-2">
                     <Avatar className="h-11 w-11 border-[3px] border-[#E0E7FF]">
+                      {staffAvatarSrc ? (
+                        <AvatarImage src={staffAvatarSrc} alt="" className="object-cover" />
+                      ) : null}
                       <AvatarFallback className="bg-indigo-100 text-indigo-800">{initials}</AvatarFallback>
                     </Avatar>
                     <div className="hidden text-left sm:block">

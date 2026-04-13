@@ -1,15 +1,27 @@
 import { useMemo, useRef, useState, type DragEvent, type ReactNode } from "react";
 import {
   AlertCircle,
+  AlertTriangle,
   ChevronDown,
   Download,
   Eye,
   FileText,
   Loader2,
+  Sparkles,
   Upload,
 } from "lucide-react";
-import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip as RechartsTooltip, XAxis, YAxis } from "recharts";
 import { DOCUMENT_TYPE_PT } from "../../../constants/dashboardLabels";
+import {
+  examUsesUploadDateOnly,
+  formatExamDayPt,
+  formatProfessionalRegistriesLine,
+  getAiConfidenceNote,
+  getAiSummaryPtBr,
+  getDoctorNameFromJson,
+  getDocumentTitle,
+  getProfessionalRegistriesFromJson,
+} from "@/lib/medicalDocumentMeta";
 import { formatBiomarkerValue, formatPtDateTime } from "../../../lib/dashboardFormat";
 import { buildMetricHistorySeries, type MetricHistoryChartModel } from "@/lib/biomarkerHistoryChart";
 import { examDisplayDateIso } from "@/lib/examDisplayDate";
@@ -17,6 +29,7 @@ import { useBiomarkerHistoryContext } from "@/hooks/useBiomarkerHistoryContext";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import type { BiomarkerModalRow, MedicalDocModalRow } from "../../../types/dashboard";
 
 type ChartPoint = { value: number; label: string; formattedValue: string };
@@ -53,7 +66,7 @@ function MetricTrendChart({
   if (model.kind === "non_numeric") {
     return (
       <div className="rounded-xl bg-[#F8FAFC] px-4 py-3 text-center text-xs text-muted-foreground">
-        Valor não numérico neste e nos outros registos — gráfico indisponível.
+        Valor não numérico neste e nos outros registros — gráfico indisponível.
       </div>
     );
   }
@@ -70,8 +83,8 @@ function MetricTrendChart({
           ? `Evolução com ${model.otherExams} outro(s) exame(s) do mesmo tipo (datas por exame).`
           : "Evolução no tempo (mesmo tipo de exame). Adicione exames anteriores para ver tendência."}
       </p>
-      <div className="h-[170px] w-full min-w-0">
-        <ResponsiveContainer width="100%" height="100%">
+      <div className="w-full min-w-0">
+        <ResponsiveContainer width="100%" height={170} minWidth={0}>
           <AreaChart data={chartData} margin={{ top: 8, right: 10, left: 4, bottom: 4 }}>
             <CartesianGrid strokeDasharray="3 3" className="stroke-[#E8EAED]" />
             <XAxis
@@ -100,7 +113,7 @@ function MetricTrendChart({
               height={32}
             />
             <YAxis tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} width={40} />
-            <Tooltip
+            <RechartsTooltip
               formatter={(v) => {
                 if (v === undefined || v === null) return ["—", "Valor"];
                 const display =
@@ -144,6 +157,79 @@ function SectionTitle({ icon: Icon, children }: { icon: typeof FileText; childre
       <h3 className="text-[0.7rem] font-bold uppercase tracking-[0.12em] text-muted-foreground">{children}</h3>
     </div>
   );
+}
+
+/** Texto vindo do OCR: intervalo no documento + eventual alerta clínico. */
+function biomarkerReferenceTooltipBody(b: BiomarkerModalRow): string | null {
+  const range = b.reference_range?.trim();
+  const alert = b.reference_alert?.trim();
+  if (range && alert) {
+    return `Referência no documento: ${range}\n\n${alert}`;
+  }
+  if (range) return `Referência no documento: ${range}`;
+  return alert ?? null;
+}
+
+function BiomarkerResultValue({
+  b,
+  variant = "card",
+  showUnit = true,
+}: {
+  b: BiomarkerModalRow;
+  variant?: "card" | "table";
+  /** Em tabelas com coluna de unidade separada, use false. */
+  showUnit?: boolean;
+}) {
+  const refText = biomarkerReferenceTooltipBody(b);
+  const valueClass =
+    variant === "card"
+      ? cn("text-lg font-bold tabular-nums", b.is_abnormal ? "text-[#C2410C]" : "text-[#4F46E5]")
+      : cn("font-medium tabular-nums", b.is_abnormal ? "text-[#C2410C]" : "text-foreground");
+  const unitClass =
+    variant === "card" ? "ml-1 text-sm font-medium text-muted-foreground" : "ml-1 text-xs text-muted-foreground";
+
+  const inner = (
+    <span className={valueClass}>
+      {formatBiomarkerValue(b)}
+      {showUnit && b.unit ? <span className={unitClass}>{b.unit}</span> : null}
+    </span>
+  );
+
+  if (!refText) {
+    return variant === "card" ? <div className="shrink-0 text-left sm:text-right">{inner}</div> : <>{inner}</>;
+  }
+
+  const triggerClass =
+    variant === "card"
+      ? cn(
+          "-m-1 rounded-lg p-1 text-left sm:text-right outline-none",
+          "cursor-help border border-transparent hover:border-[#E2E8F0] hover:bg-[#F8FAFC]",
+          "focus-visible:ring-2 focus-visible:ring-[#6366F1] focus-visible:ring-offset-2"
+        )
+      : cn(
+          "cursor-help rounded-md border border-transparent px-0.5 outline-none",
+          "hover:border-[#E2E8F0] hover:bg-[#F8FAFC]",
+          "focus-visible:ring-2 focus-visible:ring-[#6366F1] focus-visible:ring-offset-1"
+        );
+
+  const wrap = (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <button type="button" className={triggerClass} aria-label="Valores de referência do documento">
+          {inner}
+        </button>
+      </TooltipTrigger>
+      <TooltipContent side="left" className="max-w-xs sm:max-w-sm" sideOffset={8}>
+        <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Valores de referência</p>
+        <p className="mt-2 whitespace-pre-wrap text-sm leading-snug text-foreground">{refText}</p>
+      </TooltipContent>
+    </Tooltip>
+  );
+
+  if (variant === "card") {
+    return <div className="shrink-0 text-left sm:text-right">{wrap}</div>;
+  }
+  return wrap;
 }
 
 export default function PatientExamesPanel({
@@ -210,6 +296,7 @@ export default function PatientExamesPanel({
   const pickFile = () => fileInputRef.current?.click();
 
   return (
+    <TooltipProvider delayDuration={250}>
     <div className="space-y-10 font-sans">
       <section className="space-y-4">
         <div>
@@ -217,7 +304,7 @@ export default function PatientExamesPanel({
           <p className="mt-2 max-w-3xl text-sm leading-relaxed text-muted-foreground">
             Clique na linha do exame (ou na seta) para expandir: vê as métricas extraídas do PDF/OCR e, quando existirem vários exames do mesmo
             tipo (ex.: dois hemogramas), gráficos de evolução por data de exame — alinhados à app do paciente. Use Ver ou Baixar quando existir
-            ficheiro no armazenamento.
+            arquivo no armazenamento.
           </p>
         </div>
 
@@ -232,14 +319,14 @@ export default function PatientExamesPanel({
         ) : null}
 
         {modalLoading ? (
-          <div className="space-y-3" aria-busy="true" aria-label="A carregar exames">
+          <div className="space-y-3" aria-busy="true" aria-label="Carregando exames">
             <div className="h-[4.5rem] animate-pulse rounded-2xl bg-[#F1F5F9]" />
             <div className="h-[4.5rem] animate-pulse rounded-2xl bg-[#F1F5F9]" />
           </div>
         ) : modalMedicalDocs.length === 0 && examBiomarkerGroups.orphans.length === 0 ? (
           <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-[#E2E8F0] bg-[#FAFBFC] px-6 py-12 text-center">
             <FileText className="mb-3 size-10 text-muted-foreground/50" strokeWidth={1.25} />
-            <p className="text-sm font-medium text-foreground">Nenhum exame ou marcador registado</p>
+            <p className="text-sm font-medium text-foreground">Nenhum exame ou marcador registrado</p>
             <p className="mt-1 max-w-sm text-xs text-muted-foreground">
               Anexe um resultado abaixo para o OCR extrair biomarcadores automaticamente.
             </p>
@@ -250,6 +337,16 @@ export default function PatientExamesPanel({
               const inlineOnly = d.storage_path.startsWith("inline-ocr/");
               const markers = examBiomarkerGroups.byDoc.get(d.id) ?? [];
               const expanded = expandedExamDocId === d.id;
+              const docTitle = getDocumentTitle(d);
+              const aiJson = d.ai_extracted_json;
+              const doctorLine = getDoctorNameFromJson(aiJson ?? undefined);
+              const registryLine = formatProfessionalRegistriesLine(getProfessionalRegistriesFromJson(aiJson ?? undefined));
+              const examDayIso = examDisplayDateIso(d);
+              const examDayLabel = formatExamDayPt(examDayIso);
+              const uploadFallback = examUsesUploadDateOnly(d);
+              const abnormalAlerts = markers.filter((m) => m.is_abnormal && m.reference_alert?.trim());
+              const aiSummary = getAiSummaryPtBr(aiJson ?? undefined);
+              const aiNote = getAiConfidenceNote(aiJson ?? undefined);
               return (
                 <li key={d.id} className="list-none">
                   <div
@@ -274,14 +371,34 @@ export default function PatientExamesPanel({
                         />
                         <div className="min-w-0 flex-1">
                           <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
-                            <span className="font-semibold text-foreground">
-                              {DOCUMENT_TYPE_PT[d.document_type] ?? d.document_type}
-                            </span>
-                            <Badge variant="outline" className="font-mono text-[0.65rem] font-semibold">
+                            <span className="font-semibold leading-snug text-foreground">{docTitle}</span>
+                            <Badge variant="outline" className="shrink-0 font-mono text-[0.65rem] font-semibold">
                               {markers.length} marcador{markers.length === 1 ? "" : "es"}
                             </Badge>
                           </div>
-                          <p className="mt-1 text-sm text-muted-foreground">{formatPtDateTime(d.uploaded_at)}</p>
+                          <p className="mt-1 text-xs text-muted-foreground">
+                            <span className="font-medium text-foreground/80">
+                              {DOCUMENT_TYPE_PT[d.document_type] ?? d.document_type}
+                            </span>
+                            <span className="text-muted-foreground"> · </span>
+                            <span>Data do exame: {examDayLabel}</span>
+                          </p>
+                          <p className="mt-0.5 text-xs text-muted-foreground">
+                            Médico (documento): <span className="text-foreground/90">{doctorLine}</span>
+                          </p>
+                          {registryLine ? (
+                            <p className="mt-0.5 text-xs text-muted-foreground">
+                              Registos (CRM, CRO…): <span className="text-foreground/90">{registryLine}</span>
+                            </p>
+                          ) : null}
+                          <p className="mt-0.5 text-[0.7rem] text-muted-foreground/90">
+                            Registado na app: {formatPtDateTime(d.uploaded_at)}
+                          </p>
+                          {uploadFallback ? (
+                            <p className="mt-1 text-[0.65rem] leading-snug text-muted-foreground/90">
+                              Não foi possível ler a data do exame no documento — está indicada a data de registo na app.
+                            </p>
+                          ) : null}
                         </div>
                       </button>
 
@@ -289,7 +406,7 @@ export default function PatientExamesPanel({
                         {!backendUrl ? (
                           <span className="px-2 text-xs text-muted-foreground">Configure o backend</span>
                         ) : inlineOnly ? (
-                          <span className="px-2 text-xs text-muted-foreground" title="OCR sem ficheiro no armazenamento">
+                          <span className="px-2 text-xs text-muted-foreground" title="OCR sem arquivo no armazenamento">
                             Só metadados
                           </span>
                         ) : (
@@ -327,11 +444,67 @@ export default function PatientExamesPanel({
 
                     {expanded ? (
                       <div className="border-t border-[#F1F5F9] bg-[#F8FAFC]/80 px-4 py-4">
+                        {abnormalAlerts.length > 0 ? (
+                          <div
+                            className="mb-4 rounded-2xl border border-[#FECACA] bg-[#FEF2F2]/95 px-4 py-3 text-sm"
+                            role="region"
+                            aria-label="Alerta clínico"
+                          >
+                            <div className="flex gap-3">
+                              <AlertTriangle className="mt-0.5 size-5 shrink-0 text-[#DC2626]" aria-hidden />
+                              <div className="min-w-0">
+                                <p className="font-bold text-[#991B1B]">Alerta clínico</p>
+                                <p className="mt-1 text-xs leading-relaxed text-[#7F1D1D]">
+                                  Valores fora do intervalo de referência indicado no próprio documento (não substitui avaliação médica).
+                                </p>
+                                <ul className="mt-3 space-y-3">
+                                  {abnormalAlerts.map((m) => (
+                                    <li
+                                      key={m.id}
+                                      className="border-b border-[#FECACA]/80 pb-3 last:border-0 last:pb-0"
+                                    >
+                                      <p className="font-bold text-[#7F1D1D]">{m.name}</p>
+                                      <p className="mt-1 text-[#991B1B]">
+                                        Valor: {formatBiomarkerValue(m)}
+                                        {m.unit ? ` ${m.unit}` : ""}
+                                      </p>
+                                      {m.reference_range?.trim() ? (
+                                        <p className="mt-1 text-sm text-[#7F1D1D]">
+                                          Referência no documento: {m.reference_range.trim()}
+                                        </p>
+                                      ) : null}
+                                      {m.reference_alert?.trim() ? (
+                                        <p className="mt-2 text-sm leading-relaxed text-[#7F1D1D]">{m.reference_alert.trim()}</p>
+                                      ) : null}
+                                    </li>
+                                  ))}
+                                </ul>
+                              </div>
+                            </div>
+                          </div>
+                        ) : null}
+
+                        <div className="mb-4 rounded-2xl border border-[#E2E8F0] bg-white px-4 py-3 shadow-sm">
+                          <div className="flex items-center gap-2">
+                            <Sparkles className="size-5 shrink-0 text-[#4F46E5]" aria-hidden />
+                            <p className="text-[0.7rem] font-bold uppercase tracking-wide text-[#4F46E5]">Análise da IA</p>
+                          </div>
+                          <p className="mt-2 text-sm leading-relaxed text-foreground">
+                            {aiSummary || "Sem resumo disponível."}
+                          </p>
+                          {aiNote ? (
+                            <div className="mt-3 border-t border-[#F1F5F9] pt-3">
+                              <p className="text-xs font-bold text-muted-foreground">Nota da IA (leitura automática)</p>
+                              <p className="mt-1 text-sm leading-relaxed text-muted-foreground">{aiNote}</p>
+                            </div>
+                          ) : null}
+                        </div>
+
                         {markers.length === 0 ? (
                           <p className="text-sm text-muted-foreground">Sem biomarcadores associados a este exame (ou ainda não extraídos).</p>
                         ) : !historyReady ? (
                           <p className="text-sm text-muted-foreground" aria-busy="true">
-                            A carregar histórico para gráficos…
+                            Carregando histórico para gráficos…
                           </p>
                         ) : (
                           <ul className="space-y-4">
@@ -364,19 +537,7 @@ export default function PatientExamesPanel({
                                       </div>
                                       <p className="mt-1 text-xs text-muted-foreground">{formatPtDateTime(b.logged_at)}</p>
                                     </div>
-                                    <div className="shrink-0 text-left sm:text-right">
-                                      <span
-                                        className={cn(
-                                          "text-lg font-bold tabular-nums",
-                                          b.is_abnormal ? "text-[#C2410C]" : "text-[#4F46E5]"
-                                        )}
-                                      >
-                                        {formatBiomarkerValue(b)}
-                                        {b.unit ? (
-                                          <span className="ml-1 text-sm font-medium text-muted-foreground">{b.unit}</span>
-                                        ) : null}
-                                      </span>
-                                    </div>
+                                    <BiomarkerResultValue b={b} variant="card" />
                                   </div>
                                   <div className="mt-4 border-t border-[#F1F5F9] pt-4">
                                     <MetricTrendChart model={trend} abnormal={b.is_abnormal} unit={b.unit} />
@@ -421,7 +582,9 @@ export default function PatientExamesPanel({
                           </Badge>
                         ) : null}
                       </td>
-                      <td className="px-4 py-2.5 tabular-nums">{formatBiomarkerValue(b)}</td>
+                      <td className="px-4 py-2.5">
+                        <BiomarkerResultValue b={b} variant="table" showUnit={false} />
+                      </td>
                       <td className="px-4 py-2.5 text-muted-foreground">{b.unit ?? "—"}</td>
                     </tr>
                   ))}
@@ -451,7 +614,7 @@ export default function PatientExamesPanel({
               <div
                 className={cn(
                   "rounded-2xl border px-4 py-3 text-sm",
-                  staffUploadMsg.includes("registado")
+                  staffUploadMsg.includes("registrado")
                     ? "border-emerald-200 bg-emerald-50 text-emerald-950"
                     : "border-[#FECACA] bg-[#FEF2F2] text-[#991B1B]"
                 )}
@@ -482,7 +645,7 @@ export default function PatientExamesPanel({
               }}
               role="button"
               tabIndex={0}
-              aria-label="Zona para arrastar ficheiro ou clicar para selecionar"
+              aria-label="Zona para arrastar arquivo ou clicar para selecionar"
             >
               <input
                 ref={fileInputRef}
@@ -502,7 +665,7 @@ export default function PatientExamesPanel({
                 <Upload className="mb-3 size-10 text-muted-foreground/70" strokeWidth={1.25} aria-hidden />
               )}
               <p className="text-sm font-semibold text-foreground">
-                {staffUploadBusy ? "A processar OCR…" : "Arraste um ficheiro ou clique para selecionar"}
+                {staffUploadBusy ? "A processar OCR…" : "Arraste um arquivo ou clique para selecionar"}
               </p>
               <p className="mt-1.5 text-xs text-muted-foreground">JPG, PNG, WebP ou PDF</p>
             </div>
@@ -510,5 +673,6 @@ export default function PatientExamesPanel({
         )}
       </section>
     </div>
+    </TooltipProvider>
   );
 }

@@ -7,7 +7,7 @@ import { supabase } from "@/src/lib/supabase";
 
 /**
  * Conclui OAuth quando a app abre via deep link (cold start ou background).
- * O fluxo principal continua em `openAuthSessionAsync`; este ecrã cobre universal links / scheme.
+ * O fluxo principal continua em `openAuthSessionAsync`; este tela cobre universal links / scheme.
  */
 export default function AuthCallbackScreen() {
   const router = useRouter();
@@ -52,7 +52,7 @@ export default function AuthCallbackScreen() {
         </Text>
       ) : (
         <>
-          <ActivityIndicator size="large" accessibilityLabel="A carregar" />
+          <ActivityIndicator size="large" accessibilityLabel="Carregando" />
           <Text style={{ marginTop: 16 }} accessibilityLiveRegion="polite">
             A concluir sessão…
           </Text>

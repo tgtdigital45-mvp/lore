@@ -58,7 +58,7 @@ function normalizeOcrMime(mime: string | undefined, fileName: string): OcrMime |
   return null;
 }
 
-/** iOS precisa de mais tempo após fechar o modal antes do seletor de ficheiros. */
+/** iOS precisa de mais tempo após fechar o modal antes do seletor de arquivos. */
 function delayForDocumentPicker(): number | undefined {
   if (Platform.OS === "web") return 0;
   if (Platform.OS === "ios") return 520;
@@ -108,7 +108,7 @@ export default function ExamsScreen() {
     if (data) setRows(data as MedicalDocRow[]);
   }, [patient]);
 
-  /** Quando o paciente deixa de carregar (ex.: após restauro de sessão), o ecrã pode já estar focado — useFocusEffect não volta a correr. */
+  /** Quando o paciente deixa de carregar (ex.: após restauro de sessão), o tela pode já estar focado — useFocusEffect não volta a correr. */
   useEffect(() => {
     if (patient?.id) void loadDocs();
   }, [patient?.id, loadDocs]);
@@ -195,7 +195,7 @@ export default function ExamsScreen() {
           if (res.status === 422) {
             Alert.alert(
               "Não analisado",
-              data.message ?? data.error ?? "Este ficheiro não foi aceite para leitura automática (ex.: foto pessoal ou não clínica)."
+              data.message ?? data.error ?? "Este arquivo não foi aceite para leitura automática (ex.: foto pessoal ou não clínica)."
             );
             return null;
           }
@@ -711,7 +711,7 @@ export default function ExamsScreen() {
             >
               <Text style={[theme.typography.title2, { color: theme.colors.text.primary }]}>Filtros avançados</Text>
               <Text style={[theme.typography.body, { color: theme.colors.text.secondary, marginTop: theme.spacing.xs }]}>
-                Ordenação e intervalo de datas (data do exame ou registo).
+                Ordenação e intervalo de datas (data do exame ou registro).
               </Text>
 
               <Text style={{ fontSize: 13, fontWeight: "700", color: theme.colors.text.primary, marginTop: theme.spacing.lg }}>
@@ -911,7 +911,7 @@ export default function ExamsScreen() {
                 <FontAwesome name="folder-open" size={36} color={ACCENT_PURPLE} style={{ marginBottom: theme.spacing.sm }} />
                 <Text style={[theme.typography.headline, { color: theme.colors.text.primary }]}>Procurar arquivo</Text>
                 <Text style={{ fontSize: 14, color: theme.colors.text.secondary, marginTop: 6, textAlign: "center" }}>
-                  PDF ou imagem nos ficheiros
+                  PDF ou imagem nos arquivos
                 </Text>
               </Pressable>
 

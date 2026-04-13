@@ -21,7 +21,9 @@ export function useTriageData(session: Session | null) {
   const [rows, setRows] = useState<RiskRow[]>([]);
   const [triageRules, setTriageRules] = useState<MergedAlertRules>({ fever_celsius_min: 37.8, alert_window_hours: 72 });
   const [busy, setBusy] = useState(false);
-  const [staffProfile, setStaffProfile] = useState<{ full_name: string; role: string } | null>(null);
+  const [staffProfile, setStaffProfile] = useState<{ full_name: string; role: string; avatar_url: string | null } | null>(null);
+  /** Bumps when staff profile is reloaded so repeated public avatar URLs still refresh in the browser. */
+  const [staffAvatarBust, setStaffAvatarBust] = useState(0);
   const [hospitalNames, setHospitalNames] = useState<string[]>([]);
   const [hospitalsMeta, setHospitalsMeta] = useState<HospitalMetaRow[]>([]);
   const [realtimeHospitalKey, setRealtimeHospitalKey] = useState("");
@@ -32,23 +34,31 @@ export function useTriageData(session: Session | null) {
 
   const triageReloadTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  const reloadStaffProfile = useCallback(async () => {
+    const uid = session?.user?.id;
+    if (!uid) {
+      setStaffProfile(null);
+      return;
+    }
+    await ensureStaffIfPending();
+    const { data, error } = await supabase.from("profiles").select("full_name, role, avatar_url").eq("id", uid).single();
+    if (!error && data) {
+      setStaffProfile({
+        full_name: data.full_name ?? "",
+        role: data.role ?? "",
+        avatar_url: typeof data.avatar_url === "string" ? data.avatar_url : null,
+      });
+      setStaffAvatarBust((n) => n + 1);
+    }
+  }, [session?.user?.id]);
+
   useEffect(() => {
     if (!session?.user?.id) {
       setStaffProfile(null);
       return;
     }
-    void (async () => {
-      await ensureStaffIfPending();
-      const { data: auth } = await supabase.auth.getSession();
-      const uid = auth.session?.user?.id;
-      if (!uid) {
-        setStaffProfile(null);
-        return;
-      }
-      const { data, error } = await supabase.from("profiles").select("full_name, role").eq("id", uid).single();
-      if (!error && data) setStaffProfile({ full_name: data.full_name ?? "", role: data.role ?? "" });
-    })();
-  }, [session]);
+    void reloadStaffProfile();
+  }, [session, reloadStaffProfile]);
 
   const loadTriage = useCallback(async () => {
     const { data: auth } = await supabase.auth.getSession();
@@ -139,7 +149,7 @@ export function useTriageData(session: Session | null) {
 
     const { data: legacyPatients, error: lpErr } = await supabase
       .from("patients")
-      .select("id, primary_cancer_type, current_stage, is_in_nadir, patient_code, profiles ( full_name, date_of_birth )")
+      .select("id, primary_cancer_type, current_stage, is_in_nadir, patient_code, profiles ( full_name, date_of_birth, avatar_url )")
       .in("hospital_id", hospitalIds);
     if (lpErr) {
       setLoadError(lpErr.message);
@@ -154,7 +164,7 @@ export function useTriageData(session: Session | null) {
     if (onlyViaLink.length > 0) {
       const { data: extra, error: exErr } = await supabase
         .from("patients")
-        .select("id, primary_cancer_type, current_stage, is_in_nadir, patient_code, profiles ( full_name, date_of_birth )")
+        .select("id, primary_cancer_type, current_stage, is_in_nadir, patient_code, profiles ( full_name, date_of_birth, avatar_url )")
         .in("id", onlyViaLink);
       if (exErr) {
         setLoadError(exErr.message);
@@ -284,6 +294,29 @@ export function useTriageData(session: Session | null) {
   }, [session?.user, realtimeHospitalKey, scheduleTriageReload]);
 
   useEffect(() => {
+    if (!session?.user) return;
+    let t: ReturnType<typeof setTimeout> | null = null;
+    const channel = supabase
+      .channel("triage_profiles_avatar")
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "profiles" },
+        () => {
+          if (t) clearTimeout(t);
+          t = setTimeout(() => {
+            t = null;
+            scheduleTriageReload();
+          }, 1000);
+        }
+      )
+      .subscribe();
+    return () => {
+      if (t) clearTimeout(t);
+      void supabase.removeChannel(channel);
+    };
+  }, [session?.user, scheduleTriageReload]);
+
+  useEffect(() => {
     if (!session) return;
     const id = window.setInterval(() => {
       if (document.visibilityState === "visible") void loadTriage();
@@ -334,6 +367,8 @@ export function useTriageData(session: Session | null) {
     busy,
     loadTriage,
     staffProfile,
+    staffAvatarBust,
+    reloadStaffProfile,
     hospitalNames,
     hospitalsMeta,
     cohortHospitalId,

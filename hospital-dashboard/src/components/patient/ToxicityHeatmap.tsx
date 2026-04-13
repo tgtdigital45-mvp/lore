@@ -155,7 +155,7 @@ export function ToxicityHeatmap({ symptoms, days = 14 }: Props) {
   if (!hasAnyData) {
     return (
       <div className="toxicity-heatmap">
-        <p className="muted text-sm">Sem registos de sintomas neste período.</p>
+        <p className="muted text-sm">Sem registros de sintomas neste período.</p>
       </div>
     );
   }
@@ -163,8 +163,8 @@ export function ToxicityHeatmap({ symptoms, days = 14 }: Props) {
   return (
     <div className="toxicity-heatmap">
       <p className="muted" style={{ fontSize: "0.85rem", marginBottom: "0.35rem" }}>
-        Dias em UTC · PRD 0–10 ou escala legado por categoria. Só aparecem linhas com pelo menos um registo. Célula vazia = sem
-        registo nesse dia.
+        Dias em UTC · PRD 0–10 ou escala legado por categoria. Só aparecem linhas com pelo menos um registro. Célula vazia = sem
+        registro nesse dia.
       </p>
       <div ref={scrollRef} className="max-w-full overflow-x-auto">
         <table className="toxicity-heatmap__table">

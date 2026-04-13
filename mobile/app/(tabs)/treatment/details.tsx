@@ -156,7 +156,7 @@ export default function TreatmentDetailsWizardScreen() {
     setBusy(false);
 
     Alert.alert("Tratamento", "Ciclo criado com check-ins.", [
-      { text: "OK", onPress: () => router.replace(`/treatment/${cycleId}` as Href) },
+      { text: "Concluir", onPress: () => router.replace(`/treatment/${cycleId}` as Href) },
     ]);
   }
 

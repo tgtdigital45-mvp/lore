@@ -97,6 +97,7 @@ async function runOcrPipelineForPatientId(
     confidence_note: extracted.confidence_note,
     title_pt_br: extracted.title_pt_br,
     doctor_name: extracted.doctor_name,
+    professional_registries: extracted.professional_registries,
     markers: extracted.markers,
     metrics: extracted.metrics,
     document_suitability,
@@ -129,6 +130,7 @@ async function runOcrPipelineForPatientId(
       value_numeric: parseLabNumericString(m.value),
       unit: m.unit || null,
       is_abnormal: m.is_abnormal,
+      reference_range: m.reference_range?.trim() ? m.reference_range.trim() : null,
       reference_alert: m.reference_alert?.trim() ? m.reference_alert.trim() : null,
       logged_at: loggedAt,
     }));

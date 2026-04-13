@@ -87,7 +87,7 @@ export function matchesExamFilter(row: MedicalDocRow, filter: ExamFilterPill): b
   return getDocumentListCategory(row) === filter;
 }
 
-/** Ordenação pela data do exame (ou data de registo). */
+/** Ordenação pela data do exame (ou data de registro). */
 export type ExamSortOrder = "recent" | "oldest";
 
 export function compareExamRowsByDate(a: MedicalDocRow, b: MedicalDocRow, order: ExamSortOrder): number {
@@ -124,6 +124,53 @@ export function getDoctorName(j: Record<string, unknown> | null): string {
   if (!j) return "—";
   const v = j.doctor_name ?? j.medico ?? j.doctor;
   return typeof v === "string" && v.trim() ? v.trim() : "—";
+}
+
+/** CRM, CRO, COREN, CRF, etc. — `ai_extracted_json.professional_registries`. */
+export type ProfessionalRegistryRow = { kind: string; number: string; uf?: string };
+
+export function parseProfessionalRegistriesFromJson(j: Record<string, unknown> | null | undefined): ProfessionalRegistryRow[] {
+  const r = j?.professional_registries;
+  if (!Array.isArray(r)) return [];
+  const out: ProfessionalRegistryRow[] = [];
+  for (const item of r) {
+    if (!item || typeof item !== "object") continue;
+    const o = item as Record<string, unknown>;
+    const kind = typeof o.kind === "string" ? o.kind.trim() : "";
+    const number = typeof o.number === "string" ? o.number.trim() : "";
+    if (!kind || !number) continue;
+    const u = o.uf ?? o.UF;
+    const ufRaw = typeof u === "string" ? u.trim().toUpperCase() : "";
+    const uf = /^[A-Z]{2}$/.test(ufRaw) ? ufRaw : undefined;
+    out.push(uf ? { kind, number, uf } : { kind, number });
+  }
+  return out;
+}
+
+export function formatProfessionalRegistriesDisplay(regs: ProfessionalRegistryRow[]): string {
+  if (regs.length === 0) return "";
+  return regs.map((r) => (r.uf ? `${r.kind} ${r.number} · ${r.uf}` : `${r.kind} ${r.number}`)).join("\n");
+}
+
+export type RegistryEditRow = { kind: string; number: string; uf: string };
+
+export function registryEditRowsFromJson(j: Record<string, unknown> | null | undefined): RegistryEditRow[] {
+  const parsed = parseProfessionalRegistriesFromJson(j);
+  if (parsed.length === 0) return [{ kind: "", number: "", uf: "" }];
+  return parsed.map((r) => ({ kind: r.kind, number: r.number, uf: r.uf ?? "" }));
+}
+
+export function registryEditRowsToSave(rows: RegistryEditRow[]): ProfessionalRegistryRow[] {
+  return rows
+    .map((row) => {
+      const kind = row.kind.trim();
+      const number = row.number.trim();
+      const ufRaw = row.uf.trim().toUpperCase();
+      const uf = /^[A-Z]{2}$/.test(ufRaw) ? ufRaw : undefined;
+      if (!kind || !number) return null;
+      return uf ? { kind, number, uf } : { kind, number };
+    })
+    .filter((x): x is ProfessionalRegistryRow => x !== null);
 }
 
 export function getDocumentTitle(row: MedicalDocRow): string {

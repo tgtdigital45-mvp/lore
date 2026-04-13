@@ -41,8 +41,8 @@ export default function PatientTratamentoPanel({ loading, cycles, infusions, med
       <section>
         <h2 className="mb-2 text-lg font-bold text-foreground">Ciclos de tratamento</h2>
         <p className="mb-4 max-w-3xl text-sm text-muted-foreground">
-          Protocolos e sessões registados. Os medicamentos da app são listados abaixo (não estão ligados a um ciclo específico
-          neste registo).
+          Protocolos e sessões registrados. Os medicamentos da app são listados abaixo (não estão ligados a um ciclo específico
+          neste registro).
         </p>
         {sortedCycles.length === 0 ? (
           <p className="rounded-2xl border border-dashed border-[#E2E8F0] bg-[#FAFBFC] px-6 py-10 text-center text-sm text-muted-foreground">
@@ -93,7 +93,7 @@ export default function PatientTratamentoPanel({ loading, cycles, infusions, med
         <h2 className="mb-4 text-lg font-bold text-foreground">Histórico de infusões</h2>
         {sortedInfusions.length === 0 ? (
           <p className="rounded-2xl border border-dashed border-[#E2E8F0] bg-[#FAFBFC] px-6 py-10 text-center text-sm text-muted-foreground">
-            Nenhuma infusão registada.
+            Nenhuma infusão registrada.
           </p>
         ) : (
           <div className="overflow-x-auto rounded-xl border border-[#E8EAED] bg-white">

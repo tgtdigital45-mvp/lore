@@ -158,7 +158,7 @@ export default function MedicationsLandingScreen() {
       setLogOutcome(null);
       await refresh();
     } catch (e: any) {
-      Alert.alert("Erro", e.message ?? "Não foi possível guardar o registo.");
+      Alert.alert("Erro", e.message ?? "Não foi possível guardar o registro.");
     } finally {
       setLoggingDose(false);
     }
@@ -586,7 +586,7 @@ export default function MedicationsLandingScreen() {
                             {med.display_name?.trim() || med.name}
                           </Text>
                           <Text style={{ fontSize: 13, color: theme.colors.text.secondary }} numberOfLines={1}>
-                            {med.dosage ?? "—"} · Toque para registar toma
+                            {med.dosage ?? "—"} · Toque para registrar toma
                           </Text>
                         </View>
                         <View style={{ flexShrink: 0 }}>
@@ -635,7 +635,7 @@ export default function MedicationsLandingScreen() {
                   Seus Medicamentos
                 </Text>
                 <Pressable onPress={() => setEditMode((e) => !e)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                  <Text style={{ color: IOS_HEALTH.blue, fontWeight: "600" }}>{editMode ? "OK" : "Editar"}</Text>
+                  <Text style={{ color: IOS_HEALTH.blue, fontWeight: "600" }}>{editMode ? "Concluir" : "Editar"}</Text>
                 </Pressable>
               </View>
 
@@ -706,7 +706,7 @@ export default function MedicationsLandingScreen() {
                             </Text>
                           </View>
                           <Text style={{ fontSize: 12, color: IOS_HEALTH.blue, marginTop: 6, fontWeight: "600" }}>
-                            Toque para registar toma
+                            Toque para registrar toma
                           </Text>
                         </View>
                         <View style={{ flexShrink: 0, alignSelf: "center" }}>
@@ -828,12 +828,12 @@ export default function MedicationsLandingScreen() {
               contentContainerStyle={{ padding: theme.spacing.lg }}
             >
               <Text style={[theme.typography.title2, { marginBottom: theme.spacing.sm, textAlign: "center" }]}>
-                Registar toma
+                Registrar toma
               </Text>
               <Text
                 style={[theme.typography.body, { color: theme.colors.text.secondary, textAlign: "center", marginBottom: theme.spacing.md }]}
               >
-                Indique se tomou o medicamento e a data/hora do registo.
+                Indique se tomou o medicamento e a data/hora do registro.
               </Text>
 
               {logModalMed ? (

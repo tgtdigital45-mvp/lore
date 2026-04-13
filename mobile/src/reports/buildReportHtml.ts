@@ -52,7 +52,7 @@ export type ReportHtmlPayload = {
   nextInfusionSummary: string | null;
   /** Histórico para tendências / sparklines (não só o período) */
   biomarkerRowsAll: BiomarkerRow[];
-  /** Início do período do relatório (ISO) — filtra métricas com actividade no período */
+  /** Início do período do relatório (ISO) — filtra métricas com atividade no período */
   reportPeriodFromIso: string;
 };
 
@@ -315,7 +315,7 @@ export function buildReportHtml(payload: ReportHtmlPayload): string {
 <body>
 ${bodyInner}
   <div class="pdf-footer">
-    <strong>Confidencial</strong> — Relatório gerado pela app Aura Onco. Destina-se à partilha com a sua equipa de saúde.
+    <strong>Confidencial</strong> — Relatório gerado pela app Aura Onco. Destina-se ao compartilhamento com a sua equipe de saúde.
   </div>
 </body>
 </html>`;

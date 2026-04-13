@@ -17,20 +17,20 @@ const TIMEFRAMES: { key: TimeframeKey; label: string }[] = [
 ];
 
 const ABOUT_DEFAULT =
-  "Sintomas como este são frequentes em contexto oncológico. Registar a intensidade ao longo do tempo ajuda si e a equipa de saúde.";
+  "Sintomas como este são frequentes em contexto oncológico. Registrar a intensidade ao longo do tempo ajuda você e a equipe de saúde.";
 
 const ABOUT_EXTRA: Partial<Record<SymptomDetailKey, string>> = {
-  pain: "A dor pode variar com o tratamento, a posição ou o esforço. Registar ajuda a perceber padrões e a comunicar com a equipa.",
-  fatigue: "A fadiga oncológica é cansaço persistente, não sempre proporcional ao esforço. O registo ajuda a planear o dia e o descanso.",
+  pain: "A dor pode variar com o tratamento, a posição ou o esforço. Registrar ajuda a perceber padrões e a comunicar com a equipe.",
+  fatigue: "A fadiga oncológica é cansaço persistente, não sempre proporcional ao esforço. O registro ajuda a planejar o dia e o descanso.",
   nausea: "A náusea é uma sensação de desconforto no estômago que muitas vezes vem antes do vômito.",
-  fever: "A febre pode ser sinal de infeção. Registe a temperatura e contacte a equipa se estiver no período de maior risco ou com outros sintomas.",
-  diarrhea: "Alterações do hábito intestinal podem estar ligadas ao tratamento ou a outras causas. O registo ajuda o acompanhamento clínico.",
-  hydration: "Manter-se hidratado é importante durante o tratamento. Este registo é orientativo — ajuste com a sua equipa.",
-  vomiting: "O vómito pode acompanhar náusea ou ser efeito do tratamento. Registe para ajudar na hidratação e no ajuste terapêutico.",
-  constipation: "A prisão de ventre é frequente com certos medicamentos. O registo ajuda a perceber o que funciona para si.",
-  cough: "A tosse pode ter várias causas; registe para partilhar padrões com a equipa.",
+  fever: "A febre pode ser sinal de infecção. Registre a temperatura e contate a equipe se estiver no período de maior risco ou com outros sintomas.",
+  diarrhea: "Alterações do hábito intestinal podem estar ligadas ao tratamento ou a outras causas. O registro ajuda o acompanhamento clínico.",
+  hydration: "Manter-se hidratado é importante durante o tratamento. Este registro é orientativo — ajuste com a sua equipe.",
+  vomiting: "O vómito pode acompanhar náusea ou ser efeito do tratamento. Registre para ajudar na hidratação e no ajuste terapêutico.",
+  constipation: "A prisão de ventre é frequente com certos medicamentos. O registro ajuda a perceber o que funciona para si.",
+  cough: "A tosse pode ter várias causas; registre para compartilhar padrões com a equipe.",
   sleep_changes:
-    "Alterações do sono são frequentes com o tratamento ou o stress. Registar ajuda a perceber padrões e a falar com a equipa sobre sono e descanso.",
+    "Alterações do sono são frequentes com o tratamento ou o stress. Registrar ajuda a perceber padrões e a falar com a equipe sobre sono e descanso.",
 };
 
 function aboutFor(key: SymptomDetailKey): string {
@@ -113,7 +113,7 @@ export function SymptomDetailView({ theme, symptomKey, logs, onBack, onAdd }: Pr
           onPress={onAdd}
           hitSlop={12}
           accessibilityRole="button"
-          accessibilityLabel="Novo registo"
+          accessibilityLabel="Novo registro"
           style={{
             width: 40,
             height: 40,
@@ -191,7 +191,7 @@ export function SymptomDetailView({ theme, symptomKey, logs, onBack, onAdd }: Pr
               />
             ) : (
               <Text style={[theme.typography.body, { color: theme.colors.text.secondary, textAlign: "center", paddingVertical: theme.spacing.lg }]}>
-                Sem registos de febre neste período.
+                Sem registros de febre neste período.
               </Text>
             )}
           </View>
@@ -222,7 +222,7 @@ export function SymptomDetailView({ theme, symptomKey, logs, onBack, onAdd }: Pr
               />
             ) : (
               <Text style={[theme.typography.body, { color: theme.colors.text.secondary, textAlign: "center", paddingVertical: theme.spacing.lg }]}>
-                Sem registos neste período para este sintoma.
+                Sem registros neste período para este sintoma.
               </Text>
             )}
           </View>
@@ -244,7 +244,7 @@ export function SymptomDetailView({ theme, symptomKey, logs, onBack, onAdd }: Pr
           alignItems: "center",
         }}
       >
-        <Text style={[theme.typography.headline, { color: "#FFFFFF" }]}>Registar {title.toLowerCase()}</Text>
+        <Text style={[theme.typography.headline, { color: "#FFFFFF" }]}>Registrar {title.toLowerCase()}</Text>
       </Pressable>
     </View>
   );

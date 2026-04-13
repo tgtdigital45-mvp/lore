@@ -41,7 +41,7 @@ export function OncoCareDashboardPage() {
 
   const sidebarAlerts = useMemo(() => rows.filter((r) => r.hasClinicalAlert || r.risk >= 3).slice(0, 8), [rows]);
 
-  const welcome = staffProfile?.full_name?.split(/\s+/)[0] ?? "equipa";
+  const welcome = staffProfile?.full_name?.split(/\s+/)[0] ?? "equipe";
 
   const hospitalOptions = useMemo(
     () => hospitalsMeta.map((h) => ({ id: h.id, name: h.name })),
@@ -109,7 +109,7 @@ export function OncoCareDashboardPage() {
           </div>
 
           {busy ? (
-            <p className="text-sm text-muted-foreground">A carregar pacientes…</p>
+            <p className="text-sm text-muted-foreground">Carregando pacientes…</p>
           ) : triageList.length === 0 ? (
             <p className="rounded-3xl border border-dashed border-[#E2E8F0] p-8 text-center text-muted-foreground">
               Nenhum paciente neste filtro.

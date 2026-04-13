@@ -90,7 +90,7 @@ export default function TreatmentIndexScreen() {
             </Text>
             {cycles.length === 0 ? (
               <Text style={[theme.typography.body, { color: theme.colors.text.secondary }]}>
-                Nenhum ciclo registado. Toque em «Novo ciclo» para começar.
+                Nenhum ciclo registrado. Toque em «Novo ciclo» para começar.
               </Text>
             ) : (
               cycles.map((c) => (

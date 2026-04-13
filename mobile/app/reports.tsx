@@ -10,13 +10,14 @@ import { useStackBack } from "@/src/hooks/useStackBack";
 import { supabase } from "@/src/lib/supabase";
 import { buildReportHtml, DEFAULT_REPORT_FLAGS, type ReportSectionFlags } from "@/src/reports/buildReportHtml";
 import type { BiomarkerRow } from "@/src/reports/reportSections";
+import { nextPendingScheduledInfusion } from "@/src/lib/treatmentInfusionSchedule";
 import type { TreatmentCycleRow, TreatmentInfusionRow } from "@/src/types/treatment";
 import type { NutritionLogRow, VitalLogRow } from "@/src/types/vitalsNutrition";
 
 const PERIODS = [7, 14, 21] as const;
 
 const SECTION_CONFIG: { key: keyof ReportSectionFlags; label: string }[] = [
-  { key: "header", label: "Identificação (nome, cancro, estágio, ID Aura)" },
+  { key: "header", label: "Identificação (nome, câncer, estágio, ID Aura)" },
   { key: "symptoms", label: "Sintomas" },
   { key: "vitals", label: "Sinais vitais" },
   { key: "medsTaken", label: "Medicamentos tomados / agendados" },
@@ -27,15 +28,11 @@ const SECTION_CONFIG: { key: keyof ReportSectionFlags; label: string }[] = [
 ];
 
 function lastNextInfusionSummary(infusions: TreatmentInfusionRow[], cycleLast: string | null) {
-  const now = Date.now();
   const completed = infusions
     .filter((i) => i.status === "completed")
     .sort((a, b) => new Date(b.session_at).getTime() - new Date(a.session_at).getTime());
   const lastIso = completed[0]?.session_at ?? cycleLast;
-  const upcoming = infusions
-    .filter((i) => i.status === "scheduled" && new Date(i.session_at).getTime() > now)
-    .sort((a, b) => new Date(a.session_at).getTime() - new Date(b.session_at).getTime());
-  const next = upcoming[0];
+  const next = nextPendingScheduledInfusion(infusions);
   const nextLabel = next ? new Date(next.session_at).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" }) : "Sem sessão agendada";
   return { lastIso, nextLabel };
 }
@@ -189,14 +186,14 @@ export default function ReportsScreen() {
     try {
       const can = await Sharing.isAvailableAsync();
       if (!can) {
-        Alert.alert("Relatório", "PDF gerado; partilha não disponível neste ambiente.");
+        Alert.alert("Relatório", "PDF gerado; compartilhamento não disponível neste ambiente.");
         return;
       }
       await Promise.race([
         new Promise<void>((resolve) => InteractionManager.runAfterInteractions(() => resolve())),
         new Promise<void>((resolve) => setTimeout(resolve, 120)),
       ]);
-      await Sharing.shareAsync(uri, { mimeType: "application/pdf", dialogTitle: "Partilhar relatório" });
+      await Sharing.shareAsync(uri, { mimeType: "application/pdf", dialogTitle: "Compartilhar relatório" });
     } catch {
       // Utilizador fechou o diálogo ou falha nativa — não bloquear a UI
     }
@@ -218,7 +215,7 @@ export default function ReportsScreen() {
         </Pressable>
         <Text style={[theme.typography.title1, { color: theme.colors.text.primary }]}>Relatórios</Text>
         <Text style={[theme.typography.body, { color: theme.colors.text.secondary, marginTop: theme.spacing.sm }]}>
-          Gere um PDF com marca Aura para partilhar com a sua equipa (WhatsApp, e-mail, etc.). Escolha o período e as secções.
+          Gere um PDF com marca Aura para compartilhar com a sua equipe (WhatsApp, e-mail, etc.). Escolha o período e as seções.
         </Text>
 
         <Text style={[theme.typography.headline, { marginTop: theme.spacing.lg, color: theme.colors.text.primary }]}>Período</Text>
@@ -239,7 +236,7 @@ export default function ReportsScreen() {
           ))}
         </View>
 
-        <Text style={[theme.typography.headline, { marginTop: theme.spacing.lg, color: theme.colors.text.primary }]}>Secções no PDF</Text>
+        <Text style={[theme.typography.headline, { marginTop: theme.spacing.lg, color: theme.colors.text.primary }]}>Seções no PDF</Text>
         <View style={{ marginTop: theme.spacing.sm, gap: theme.spacing.xs }}>
           {SECTION_CONFIG.map(({ key, label }) => (
             <View
@@ -280,7 +277,7 @@ export default function ReportsScreen() {
           }}
         >
           {busy ? <ActivityIndicator color="#fff" /> : null}
-          <Text style={[theme.typography.headline, { color: "#FFFFFF" }]}>Gerar PDF e partilhar</Text>
+          <Text style={[theme.typography.headline, { color: "#FFFFFF" }]}>Gerar PDF e compartilhar</Text>
         </Pressable>
       </ScrollView>
     </ResponsiveScreen>

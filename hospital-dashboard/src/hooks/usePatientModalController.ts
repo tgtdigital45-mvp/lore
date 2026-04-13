@@ -4,6 +4,7 @@ import { buildRiskRow } from "../lib/triage";
 import {
   waProfileFromPatientsJoin,
   profileName,
+  profileAvatarUrl,
   profileDob,
   ageFromDob,
   initialsFromName,
@@ -136,7 +137,7 @@ export function usePatientModalController(
       const sinceFetch = new Date(nowMs - fetchHours * 3600 * 1000);
       const { data: prow, error: pe } = await supabase
         .from("patients")
-        .select("id, primary_cancer_type, current_stage, is_in_nadir, patient_code, profiles ( full_name, date_of_birth )")
+        .select("id, primary_cancer_type, current_stage, is_in_nadir, patient_code, profiles ( full_name, date_of_birth, avatar_url )")
         .eq("id", patientId)
         .maybeSingle();
       if (pe || !prow) return;
@@ -199,18 +200,18 @@ export function usePatientModalController(
           setStaffUploadMsg((j.message as string | undefined) ?? j.error ?? `Erro ${r.status}`);
           return;
         }
-        setStaffUploadMsg("Exame processado e registado no prontuário.");
+        setStaffUploadMsg("Exame processado e registrado no prontuário.");
         const pid = modalPatient.id;
         const [bio, mdocs] = await Promise.all([
           supabase
             .from("biomarker_logs")
-            .select("id, medical_document_id, name, value_numeric, value_text, unit, is_abnormal, reference_alert, logged_at")
+            .select("id, medical_document_id, name, value_numeric, value_text, unit, is_abnormal, reference_range, reference_alert, logged_at")
             .eq("patient_id", pid)
             .order("logged_at", { ascending: false })
             .limit(60),
           supabase
             .from("medical_documents")
-            .select("id, document_type, uploaded_at, exam_performed_at, storage_path, mime_type")
+            .select("id, document_type, uploaded_at, exam_performed_at, storage_path, mime_type, ai_extracted_json")
             .eq("patient_id", pid)
             .order("uploaded_at", { ascending: false })
             .limit(40),
@@ -468,13 +469,13 @@ export function usePatientModalController(
       const [bio, mdocs] = await Promise.all([
         supabase
           .from("biomarker_logs")
-          .select("id, medical_document_id, name, value_numeric, value_text, unit, is_abnormal, reference_alert, logged_at")
+          .select("id, medical_document_id, name, value_numeric, value_text, unit, is_abnormal, reference_range, reference_alert, logged_at")
           .eq("patient_id", pid)
           .order("logged_at", { ascending: false })
           .limit(60),
         supabase
           .from("medical_documents")
-          .select("id, document_type, uploaded_at, exam_performed_at, storage_path, mime_type")
+          .select("id, document_type, uploaded_at, exam_performed_at, storage_path, mime_type, ai_extracted_json")
           .eq("patient_id", pid)
           .order("uploaded_at", { ascending: false })
           .limit(40),
@@ -572,6 +573,7 @@ export function usePatientModalController(
         examesTabLoading,
         displayName: profileName(modalPatient.profiles),
         displayInitials: initialsFromName(profileName(modalPatient.profiles)),
+        displayAvatarUrl: profileAvatarUrl(modalPatient.profiles),
         ageLabel: ageFromDob(profileDob(modalPatient.profiles)) ?? "Idade não informada",
       }
     : null;

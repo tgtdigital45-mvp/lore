@@ -293,7 +293,7 @@ export function EditableMetricsPanel({ staffId, vitals, wearables, biomarkers }:
                   </div>
                   <p className="mt-2 text-xl font-black tracking-tight text-slate-900">{last ? formatVital(last) : "—"}</p>
                   <p className="mt-1 text-xs text-muted-foreground">
-                    {last ? formatPtDateTime(last.logged_at) : "Sem registos"}
+                    {last ? formatPtDateTime(last.logged_at) : "Sem registros"}
                   </p>
                   <MetricMiniChart nums={nums} uid={d.id} theme={theme} />
                 </div>
@@ -315,7 +315,7 @@ export function EditableMetricsPanel({ staffId, vitals, wearables, biomarkers }:
                     {last?.value_numeric != null ? `${last.value_numeric}${last.unit ? ` ${last.unit}` : ""}` : "—"}
                   </p>
                   <p className="mt-1 text-xs text-muted-foreground">
-                    {last ? formatPtDateTime(last.observed_start) : "Sem registos"}
+                    {last ? formatPtDateTime(last.observed_start) : "Sem registros"}
                   </p>
                   <MetricMiniChart nums={nums} uid={d.id} theme={theme} />
                 </div>
@@ -342,7 +342,7 @@ export function EditableMetricsPanel({ staffId, vitals, wearables, biomarkers }:
                     : "—"}
                 </p>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  {last ? formatPtDateTime(last.logged_at) : "Sem registos"}
+                  {last ? formatPtDateTime(last.logged_at) : "Sem registros"}
                 </p>
                 <MetricMiniChart nums={nums} uid={d.id} theme={theme} />
               </div>

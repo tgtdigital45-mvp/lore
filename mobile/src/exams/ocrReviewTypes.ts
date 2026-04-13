@@ -7,6 +7,12 @@ export type OcrMetricExtracted = {
   reference_range?: string;
 };
 
+export type ProfessionalRegistryExtracted = {
+  kind: string;
+  number: string;
+  uf?: string;
+};
+
 /** Corpo `extracted` devolvido por POST /api/ocr/analyze (igual ao `ai_extracted_json` gravado). */
 export type OcrExtractedPayload = {
   summary_pt_br: string;
@@ -14,6 +20,8 @@ export type OcrExtractedPayload = {
   confidence_note: string;
   title_pt_br: string;
   doctor_name: string;
+  /** CRM, CRO, COREN… — omitido em respostas antigas do backend. */
+  professional_registries?: ProfessionalRegistryExtracted[];
   markers: Record<string, unknown>;
   metrics: OcrMetricExtracted[];
   /** Triagem no backend: exame clínico, administrativo/convênio, ou recusado antes de gravar. */

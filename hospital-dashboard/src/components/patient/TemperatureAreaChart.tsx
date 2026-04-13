@@ -27,12 +27,12 @@ export function TemperatureAreaChart({ vitals }: { vitals: VitalLogRow[] }) {
   }, [vitals]);
 
   if (data.length === 0) {
-    return <p className="muted">Sem temperatura registada neste período.</p>;
+    return <p className="muted">Sem temperatura registrada neste período.</p>;
   }
 
   return (
-    <div className="w-full min-w-0 overflow-hidden" style={{ height: 220 }}>
-      <ResponsiveContainer width="100%" height="100%">
+    <div className="h-[220px] w-full min-w-0 overflow-hidden">
+      <ResponsiveContainer width="100%" height={220} minWidth={0}>
         <AreaChart data={data} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
           <defs>
             <linearGradient id="tempFill" x1="0" y1="0" x2="0" y2="1">

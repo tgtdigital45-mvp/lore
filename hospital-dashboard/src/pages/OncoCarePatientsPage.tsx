@@ -72,7 +72,7 @@ export function OncoCarePatientsPage() {
         <p className="mt-4 rounded-2xl border border-[#FECACA] bg-[#FEF2F2] px-4 py-3 text-sm text-[#B91C1C]">{loadError}</p>
       ) : null}
 
-      {busy ? <p className="mt-4 text-sm text-muted-foreground">A carregar…</p> : null}
+      {busy ? <p className="mt-4 text-sm text-muted-foreground">Carregando…</p> : null}
 
       <div className="mt-6 flex flex-col gap-4">
         {list.map((r, i) => (

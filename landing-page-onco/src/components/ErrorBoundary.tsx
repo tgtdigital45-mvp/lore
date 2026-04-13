@@ -33,9 +33,9 @@ export class ErrorBoundary extends Component<Props, State> {
             fontFamily: "system-ui, sans-serif",
           }}
         >
-          <h1 style={{ fontSize: "1.25rem", marginBottom: "0.5rem" }}>Algo correu mal</h1>
+          <h1 style={{ fontSize: "1.25rem", marginBottom: "0.5rem" }}>Algo deu errado</h1>
           <p style={{ color: "#444", textAlign: "center", maxWidth: "28rem" }}>
-            Atualize a página ou volte mais tarde. Se o problema persistir, contacte o suporte.
+            Atualize a página ou volte mais tarde. Se o problema persistir, contate o suporte.
           </p>
           <button
             type="button"

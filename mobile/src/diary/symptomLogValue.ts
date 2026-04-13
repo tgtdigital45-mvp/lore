@@ -1,7 +1,7 @@
 import type { SymptomDetailKey, SymptomLogRow } from "@/src/diary/symptomLogTypes";
 import { scale10FromDbSeverity } from "@/src/diary/verbalSeverity";
 
-/** Valor numérico para o gráfico deste sintoma (ou null se o registo não aplica). */
+/** Valor numérico para o gráfico deste sintoma (ou null se o registro não aplica). */
 export function valueForSymptomDetail(log: SymptomLogRow, key: SymptomDetailKey): number | null {
   if (key === "fever") {
     if (log.entry_kind === "legacy" && log.symptom_category === "fever" && log.body_temperature != null) {

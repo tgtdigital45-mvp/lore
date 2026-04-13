@@ -159,7 +159,7 @@ export function OncoCareResourceDetailPage() {
         <p className="rounded-2xl border-[3px] border-[#FECACA] bg-[#FEF2F2] px-4 py-3 text-sm text-[#B91C1C]">{error}</p>
       ) : null}
       {loading ? (
-        <p className="text-sm text-muted-foreground">A carregar…</p>
+        <p className="text-sm text-muted-foreground">Carregando…</p>
       ) : selected ? (
         <>
           <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
@@ -171,7 +171,7 @@ export function OncoCareResourceDetailPage() {
                 </p>
                 <h1 className="mt-1 text-3xl font-black tracking-tight">{selected.label}</h1>
                 <p className="mt-2 max-w-xl text-sm text-muted-foreground">
-                  {selected.details?.trim() || "Sem notas de equipamento."} Reservas na janela carregada (últimos 7 dias e
+                  {selected.details?.trim() || "Sem notas de equipemento."} Reservas na janela carregada (últimos 7 dias e
                   próximos 45 dias).
                 </p>
               </div>

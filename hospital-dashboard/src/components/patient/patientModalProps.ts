@@ -51,5 +51,6 @@ export type PatientModalProps = {
   examesTabLoading: boolean;
   displayName: string;
   displayInitials: string;
+  displayAvatarUrl: string | null;
   ageLabel: string;
 };

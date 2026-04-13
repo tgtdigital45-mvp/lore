@@ -153,7 +153,7 @@ export default function TreatmentCheckInScreen() {
         <Text style={{ padding: theme.spacing.md, color: theme.colors.text.secondary }}>Sessão não encontrada.</Text>
       ) : infusion.status !== "scheduled" ? (
         <Text style={{ padding: theme.spacing.md, color: theme.colors.text.secondary }}>
-          Esta sessão já foi registada ou não está pendente de check-in.
+          Esta sessão já foi registrada ou não está pendente de check-in.
         </Text>
       ) : (
         <ScrollView

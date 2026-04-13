@@ -144,7 +144,7 @@ export default function NewInfusionScreen() {
         </View>
         {status === "scheduled" ? (
           <Text style={[theme.typography.body, { color: theme.colors.text.tertiary, marginTop: theme.spacing.sm }]}>
-            Para alterar uma sessão agendada mais tarde, abra o registo e mude data e hora (reagendar).
+            Para alterar uma sessão agendada mais tarde, abra o registro e mude data e hora (reagendar).
           </Text>
         ) : null}
 

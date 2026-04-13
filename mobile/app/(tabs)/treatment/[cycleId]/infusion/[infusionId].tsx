@@ -60,7 +60,7 @@ export default function EditInfusionScreen() {
       .maybeSingle();
     setLoading(false);
     if (error || !data) {
-      Alert.alert("Erro", error?.message ?? "Registo não encontrado.");
+      Alert.alert("Erro", error?.message ?? "Registro não encontrado.");
       goBack();
       return;
     }
@@ -111,7 +111,7 @@ export default function EditInfusionScreen() {
 
   function confirmDelete() {
     if (!patient || !infusionId || !cycleId) return;
-    Alert.alert("Eliminar", "Remover este registo de infusão?", [
+    Alert.alert("Eliminar", "Remover este registro de infusão?", [
       { text: "Cancelar", style: "cancel" },
       {
         text: "Eliminar",
@@ -272,7 +272,7 @@ export default function EditInfusionScreen() {
           </Pressable>
 
           <Pressable onPress={confirmDelete} style={{ marginTop: theme.spacing.lg, alignItems: "center", padding: theme.spacing.md }}>
-            <Text style={{ color: theme.colors.semantic.vitals, fontWeight: "600" }}>Eliminar registo</Text>
+            <Text style={{ color: theme.colors.semantic.vitals, fontWeight: "600" }}>Eliminar registro</Text>
           </Pressable>
         </ScrollView>
       )}

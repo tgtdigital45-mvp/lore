@@ -65,7 +65,7 @@ const authStorage =
 if (!supabaseUrl || !supabaseAnonKey) {
   const msg =
     "[supabase] Falta URL ou anon key. Opções: (1) EXPO_PUBLIC_SUPABASE_URL + EXPO_PUBLIC_SUPABASE_ANON_KEY em mobile/.env; " +
-    "(2) SUPABASE_URL + SUPABASE_ANON_KEY em backend/.env (o app.config.js carrega esse ficheiro). " +
+    "(2) SUPABASE_URL + SUPABASE_ANON_KEY em backend/.env (o app.config.js carrega esse arquivo). " +
     "Reinicia o Metro com: npx expo start -c";
   console.error(msg);
   throw new Error(msg);

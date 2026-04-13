@@ -47,7 +47,7 @@ export default function VitalsListScreen() {
   );
 
   function confirmDelete(id: string) {
-    Alert.alert("Eliminar registo", "Remover esta medição?", [
+    Alert.alert("Eliminar registro", "Remover esta medição?", [
       { text: "Cancelar", style: "cancel" },
       {
         text: "Eliminar",
@@ -70,7 +70,7 @@ export default function VitalsListScreen() {
           onPress={() => router.push("/(tabs)/health/vitals/log" as Href)}
           style={{ paddingHorizontal: theme.spacing.sm, paddingVertical: theme.spacing.xs }}
         >
-          <Text style={{ color: theme.colors.semantic.treatment, fontWeight: "700" }}>Registar</Text>
+          <Text style={{ color: theme.colors.semantic.treatment, fontWeight: "700" }}>Registrar</Text>
         </Pressable>
       </View>
 
@@ -86,7 +86,7 @@ export default function VitalsListScreen() {
             <Text style={[theme.typography.body, { color: theme.colors.text.secondary }]}>Perfil de paciente necessário.</Text>
           ) : logs.length === 0 ? (
             <Text style={[theme.typography.body, { color: theme.colors.text.secondary, marginTop: theme.spacing.md }]}>
-              Ainda não há registos. Toque em Registar para adicionar temperatura, pressão, etc.
+              Ainda não há registros. Toque em Registrar para adicionar temperatura, pressão, etc.
             </Text>
           ) : (
             logs.map((r) => (

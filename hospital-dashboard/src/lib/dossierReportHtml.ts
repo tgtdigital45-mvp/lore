@@ -1,12 +1,13 @@
 import {
   CANCER_PT,
-  DOCUMENT_TYPE_PT,
   NUTRITION_LOG_TYPE_PT,
   SEVERITY_PT,
   SYMPTOM_CATEGORY_PT,
   VITAL_TYPE_PT,
 } from "@/constants/dashboardLabels";
 import { formatBiomarkerValue, formatPtDateLong, formatPtDateTime } from "@/lib/dashboardFormat";
+import { examDisplayDateIso } from "@/lib/examDisplayDate";
+import { formatExamDayPt, getDocumentTitle } from "@/lib/medicalDocumentMeta";
 import { medicationLogWhenIso, medicationNameFromLog } from "@/lib/patientModalHelpers";
 import type { SuspensionRiskFactor } from "@/lib/suspensionRisk";
 import type {
@@ -131,8 +132,8 @@ export function buildDossierReportHtml(
     parts.push(
       section(
         `${h2("Sinais vitais")}
-        <p class="note">Últimos registos na app (até 80 linhas).</p>
-        ${rows.length ? table(["Data", "Tipo", "Valor", "Notas"], rows) : "<p>Sem registos.</p>"}`
+        <p class="note">Últimos registros na app (até 80 linhas).</p>
+        ${rows.length ? table(["Data", "Tipo", "Valor", "Notas"], rows) : "<p>Sem registros.</p>"}`
       )
     );
   }
@@ -150,7 +151,7 @@ export function buildDossierReportHtml(
     parts.push(
       section(
         `${h2("Sintomas e toxicidade")}
-        ${rows.length ? table(["Data", "Categoria", "Detalhe"], rows) : "<p>Sem sintomas registados.</p>"}`
+        ${rows.length ? table(["Data", "Categoria", "Detalhe"], rows) : "<p>Sem sintomas registrados.</p>"}`
       )
     );
   }
@@ -187,7 +188,8 @@ export function buildDossierReportHtml(
 
   if (include.exames) {
     const docRows = data.medicalDocs.map((d) => [
-      esc(DOCUMENT_TYPE_PT[d.document_type] ?? d.document_type),
+      esc(getDocumentTitle(d)),
+      esc(formatExamDayPt(examDisplayDateIso(d))),
       esc(formatPtDateTime(d.uploaded_at)),
     ]);
     const bioRows = data.biomarkers.slice(0, 120).map((b) => [
@@ -200,7 +202,7 @@ export function buildDossierReportHtml(
       section(
         `${h2("Exames")}
         <h3>Documentos</h3>
-        ${docRows.length ? table(["Tipo", "Registo"], docRows) : "<p>Sem documentos.</p>"}
+        ${docRows.length ? table(["Documento", "Data do exame", "Registo na app"], docRows) : "<p>Sem documentos.</p>"}
         <h3>Biomarcadores</h3>
         ${bioRows.length ? table(["Data", "Marcador", "Valor", "Un."], bioRows) : "<p>Sem biomarcadores.</p>"}`
       )
@@ -232,7 +234,7 @@ export function buildDossierReportHtml(
         <h3>Cadastro</h3>
         ${catRows.length ? table(["Medicamento", "Dose", "Estado", "Notas"], catRows) : "<p>Sem medicamentos cadastrados.</p>"}
         <h3>Tomas</h3>
-        ${logRows.length ? table(["Quando", "Medicamento", "Qtd", "Notas"], logRows) : "<p>Sem registos de toma.</p>"}`
+        ${logRows.length ? table(["Quando", "Medicamento", "Qtd", "Notas"], logRows) : "<p>Sem registros de toma.</p>"}`
       )
     );
   }
@@ -264,7 +266,7 @@ export function buildDossierReportHtml(
     parts.push(
       section(
         `${h2("Nutrição e hábitos")}
-        ${rows.length ? table(["Data", "Tipo", "Resumo"], rows) : "<p>Sem registos nutricionais.</p>"}`
+        ${rows.length ? table(["Data", "Tipo", "Resumo"], rows) : "<p>Sem registros nutricionais.</p>"}`
       )
     );
   }

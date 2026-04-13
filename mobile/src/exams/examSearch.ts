@@ -83,6 +83,22 @@ function metricsBlob(j: Record<string, unknown> | null): string {
   return parts.join(" ");
 }
 
+function registriesBlob(j: Record<string, unknown> | null): string {
+  if (!j) return "";
+  const r = j.professional_registries;
+  if (!Array.isArray(r)) return "";
+  const parts: string[] = [];
+  for (const item of r) {
+    if (item && typeof item === "object") {
+      const o = item as Record<string, unknown>;
+      if (typeof o.kind === "string") parts.push(o.kind);
+      if (typeof o.number === "string") parts.push(o.number);
+      if (typeof o.uf === "string") parts.push(o.uf);
+    }
+  }
+  return parts.join(" ");
+}
+
 export function buildExamSearchHaystack(row: MedicalDocRow): string {
   const j = row.ai_extracted_json;
   const title = typeof j?.title_pt_br === "string" ? j.title_pt_br : "";
@@ -93,7 +109,8 @@ export function buildExamSearchHaystack(row: MedicalDocRow): string {
   const dt = row.document_type ?? "";
   const dtLabel = documentTypeLabel[dt] ?? dt;
   const metrics = metricsBlob(j);
-  return normalize(`${dt} ${dtLabel} ${suit} ${uiCat} ${title} ${summary} ${doctor} ${metrics}`);
+  const reg = registriesBlob(j);
+  return normalize(`${dt} ${dtLabel} ${suit} ${uiCat} ${title} ${summary} ${doctor} ${reg} ${metrics}`);
 }
 
 /**

@@ -44,7 +44,7 @@ export function symptomLabel(id: SymptomDetailKey): string {
   return row?.label ?? id;
 }
 
-/** Para onde navegar para registar (PRD com região, escala única, temperatura ou legado 0–10). */
+/** Para onde navegar para registrar (PRD com região, escala única, temperatura ou legado 0–10). */
 export type SymptomLogDestination =
   | { type: "pain_region" }
   | { type: "single_intensity"; key: "fatigue" | "nausea" }

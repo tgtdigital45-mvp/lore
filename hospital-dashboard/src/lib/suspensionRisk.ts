@@ -65,7 +65,7 @@ export function calculateSuspensionRisk(
       factors.push({
         label,
         points: 35,
-        detail: `Temperatura registada: ${v.value_numeric.toFixed(1)} °C. Febrile neutropenia risk — avaliar urgentemente.`,
+        detail: `Temperatura registrada: ${v.value_numeric.toFixed(1)} °C. Febrile neutropenia risk — avaliar urgentemente.`,
       });
       break;
     }
@@ -100,7 +100,7 @@ export function calculateSuspensionRisk(
   );
   if (fallEvents.length > 0) {
     score += 22;
-    const label = "Queda(s) registada(s) no período";
+    const label = "Queda(s) registrada(s) no período";
     reasons.push(label);
     factors.push({ label, points: 22, detail: "Eventos de queda nos últimos 7 dias (wearable)." });
   }

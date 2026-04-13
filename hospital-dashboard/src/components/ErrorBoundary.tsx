@@ -19,7 +19,7 @@ export class ErrorBoundary extends Component<Props, State> {
     if (this.state.hasError) {
       return (
         <div role="alert" style={{ padding: "2rem", maxWidth: 560, margin: "2rem auto", fontFamily: "system-ui" }}>
-          <h1 style={{ fontSize: "1.25rem", marginBottom: "0.5rem" }}>{this.props.title ?? "Algo correu mal"}</h1>
+          <h1 style={{ fontSize: "1.25rem", marginBottom: "0.5rem" }}>{this.props.title ?? "Algo deu errado"}</h1>
           <p style={{ color: "#555" }}>{this.state.message ?? "Erro inesperado. Recarregue a página."}</p>
           <button type="button" style={{ marginTop: "1rem" }} onClick={() => window.location.reload()}>
             Recarregar

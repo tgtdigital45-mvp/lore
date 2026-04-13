@@ -1,4 +1,10 @@
-import { NUTRITION_LOG_TYPE_PT, SEVERITY_PT, SYMPTOM_CATEGORY_PT, VITAL_TYPE_PT } from "../constants/dashboardLabels";
+import {
+  NUTRITION_LOG_TYPE_PT,
+  SEVERITY_PT,
+  SYMPTOM_CATEGORY_PT,
+  SYMPTOM_CATEGORY_EN_FALLBACK,
+  VITAL_TYPE_PT,
+} from "../constants/dashboardLabels";
 import type { MedicationLogRow, NutritionLogRow, SymptomLogDetail, TreatmentCycleRow, VitalLogRow } from "../types/dashboard";
 import { pillClassForSeverity } from "./riskUi";
 
@@ -8,7 +14,7 @@ export function medicationNameFromLog(log: MedicationLogRow): string {
   return o?.name?.trim() || "Medicamento";
 }
 
-/** Data/hora a mostrar para um registo de toma (wizard ou esquema antigo). */
+/** Data/hora a mostrar para um registro de toma (wizard ou esquema antigo). */
 export function medicationLogWhenIso(log: MedicationLogRow): string | null {
   const t = log.taken_at ?? log.taken_time ?? log.scheduled_time;
   return t && String(t).trim() !== "" ? t : null;
@@ -30,7 +36,7 @@ export function countCompletedInProtocol(cycles: TreatmentCycleRow[], protocolNa
   return cycles.filter((c) => c.protocol_name === protocolName && c.status === "completed").length;
 }
 
-/** Data/hora estimada da próxima infusão: última sessão registada + N dias corridos (intervalo entre infusões). */
+/** Data/hora estimada da próxima infusão: última sessão registrada + N dias corridos (intervalo entre infusões). */
 export function nextInfusionIsoFromCycle(cycle: TreatmentCycleRow | null): string | null {
   if (!cycle) return null;
   const days = cycle.infusion_interval_days;
@@ -50,13 +56,29 @@ export function symptomLogsForClinicalHistory(logs: SymptomLogDetail[]): Symptom
   return logs.filter((s) => !EXCLUDE_FROM_SYMPTOM_HISTORY.has((s.symptom_category ?? "").toLowerCase()));
 }
 
+function mapSymptomCategoryDisplay(raw: string): string {
+  const t = raw.trim();
+  if (!t) return "—";
+  if (SYMPTOM_CATEGORY_PT[t]) return SYMPTOM_CATEGORY_PT[t];
+  const lower = t.toLowerCase();
+  if (SYMPTOM_CATEGORY_PT[lower]) return SYMPTOM_CATEGORY_PT[lower];
+  const snake = lower.replace(/\s+/g, "_");
+  if (SYMPTOM_CATEGORY_PT[snake]) return SYMPTOM_CATEGORY_PT[snake];
+  if (SYMPTOM_CATEGORY_EN_FALLBACK[lower]) return SYMPTOM_CATEGORY_EN_FALLBACK[lower];
+  if (t.includes(",")) {
+    return t
+      .split(",")
+      .map((p) => mapSymptomCategoryDisplay(p.trim()))
+      .join(" · ");
+  }
+  return t;
+}
+
 export function symptomCategoryLabel(s: SymptomLogDetail): string {
   if (s.entry_kind === "prd") {
     return "Escala (dor · náusea · fadiga)";
   }
-  const raw = (s.symptom_category ?? "").trim();
-  if (!raw) return "—";
-  return SYMPTOM_CATEGORY_PT[raw] ?? raw;
+  return mapSymptomCategoryDisplay(s.symptom_category ?? "");
 }
 
 export function symptomSeverityPillClass(s: SymptomLogDetail): string {
@@ -75,7 +97,10 @@ export function symptomSeverityLabel(s: SymptomLogDetail): string {
   if (s.entry_kind === "prd") {
     return `Dor ${s.pain_level ?? "—"}/10 · Náusea ${s.nausea_level ?? "—"}/10 · Fadiga ${s.fatigue_level ?? "—"}/10`;
   }
-  return SEVERITY_PT[s.severity ?? ""] ?? s.severity ?? "—";
+  const sev = (s.severity ?? "").trim();
+  if (!sev) return "—";
+  const k = sev.toLowerCase();
+  return SEVERITY_PT[k] ?? SEVERITY_PT[sev] ?? sev;
 }
 
 /** Texto curto para cartão «Resumo» (evita parágrafo no pill). */
@@ -84,7 +109,10 @@ export function symptomSeverityShort(s: SymptomLogDetail): string {
     const mx = Math.max(s.pain_level ?? 0, s.nausea_level ?? 0, s.fatigue_level ?? 0);
     return `Máx. ${mx}/10`;
   }
-  return SEVERITY_PT[s.severity ?? ""] ?? s.severity ?? "—";
+  const sev = (s.severity ?? "").trim();
+  if (!sev) return "—";
+  const k = sev.toLowerCase();
+  return SEVERITY_PT[k] ?? sev;
 }
 
 export function nutritionLogTypeLabel(logType: string): string {

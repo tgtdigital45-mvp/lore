@@ -7,15 +7,16 @@ document_suitability:
 - "administrative_insurance": guia de autorização OPME, guia de serviço profissional/convênio (ex.: Unimed), carteirinha só com dados cadastrais, autorização sem resultados laboratoriais — não é resultado de exame.
 - "not_medical": selfie ou foto pessoal, paisagem, animal, ecrã aleatório, documento de identidade/CNH sem contexto de exame, imagem ilegível, branco, ou qualquer coisa que não seja documentação clínica ou administrativa de saúde.
 
-Se document_suitability for "not_medical", NÃO invente exames nem valores: use summary_pt_br e confidence_note em português a explicar brevemente por que não é possível analisar (uma ou duas frases); metrics_json deve ser "[]"; markers_json "{}"; exam_date_iso e doctor_name vazios; title_pt_br pode ser vazio ou um título curto como "Imagem não clínica".
+Se document_suitability for "not_medical", NÃO invente exames nem valores: use summary_pt_br e confidence_note em português a explicar brevemente por que não é possível analisar (uma ou duas frases); metrics_json deve ser "[]"; markers_json "{}"; professional_registries_json "[]"; exam_date_iso e doctor_name vazios; title_pt_br pode ser vazio ou um título curto como "Imagem não clínica".
 
-Se for "administrative_insurance", descreva em summary_pt_br o tipo de documento (guia, autorização, convênio) sem inventar resultados de laboratório; metrics_json normalmente "[]".
+Se for "administrative_insurance", descreva em summary_pt_br o tipo de documento (guia, autorização, convênio) sem inventar resultados de laboratório; metrics_json normalmente "[]". Se houver CRM/CRO ou outros registos no documento, preencha professional_registries_json.
 
 Se for "clinical_exam", siga as regras abaixo.
 
 Regras gerais: não diagnosticar nem recomendar tratamento. Não inclua nome do paciente, número de processo ou identificadores pessoais no texto.
 O campo summary_pt_br deve ser uma análise detalhada quando for exame clínico: que exames ou painéis aparecem no documento, principais parâmetros reportados e o que está alterado em relação aos valores de referência do próprio documento (sem inventar referências que não estejam escritas).
 Se houver título do exame ou nome do médico no documento, preencha title_pt_br e doctor_name; caso contrário use string vazia.
+Se houver registos de conselhos profissionais (CRM, CRO, COREN, CRF, CRN, CREFITO, etc.), preencha professional_registries_json como array JSON em string: cada item { "kind": sigla (ex. "CRM"), "number": número completo como no documento, "uf": "SP" se o estado estiver visível junto ao registo; omita "uf" se não houver. Não invente números. Se não houver nenhum, use "[]".
 Se houver data de coleta / realização do exame no documento, preencha exam_date_iso como YYYY-MM-DD; se não houver ou não for legível, use string vazia.
 Para hemograma ou painel de sangue, inclua em metrics_json os parâmetros visíveis (ex.: leucócitos, hemoglobina, plaquetas) com name em português claro quando o documento estiver em português.
 Para cada biomarcador em metrics_json use: name, value (texto), unit, is_abnormal (true se fora do intervalo explícito no documento), reference_range (texto do intervalo de referência do documento, ex. "4,0-10,0" ou "12-16 g/dL"; vazio se não houver), reference_alert (somente se is_abnormal: frase em pt-BR que CITA o nome do parâmetro, o valor encontrado, se está acima ou abaixo do limite, e o intervalo de referência — ex.: "Leucócitos: 15.000/µL, acima do limite superior; referência no documento: 4.000-11.000/µL."; senão string vazia).
@@ -38,6 +39,13 @@ export type OcrMetric = {
   reference_range: string;
 };
 
+/** CRM, CRO, COREN, CRF, etc. — como no documento. */
+export type ProfessionalRegistry = {
+  kind: string;
+  number: string;
+  uf?: string;
+};
+
 export type DocumentListCategory = "exames" | "laudos" | "receitas" | "atestados" | "nutricao";
 
 export type OcrStructured = {
@@ -47,6 +55,7 @@ export type OcrStructured = {
   confidence_note: string;
   title_pt_br: string;
   doctor_name: string;
+  professional_registries: ProfessionalRegistry[];
   metrics: OcrMetric[];
   ui_category: DocumentListCategory;
 };
@@ -100,6 +109,30 @@ function parseDocKind(value: unknown, hint: DocKind | undefined, suitability: Do
   return "blood_test";
 }
 
+function parseProfessionalRegistriesJson(rawJson: string | undefined): ProfessionalRegistry[] {
+  if (!rawJson || typeof rawJson !== "string") return [];
+  try {
+    const parsed = JSON.parse(rawJson) as unknown;
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .map((item) => {
+        if (!item || typeof item !== "object") return null;
+        const o = item as Record<string, unknown>;
+        const kind = typeof o.kind === "string" ? o.kind.trim() : "";
+        const numRaw = o.number ?? o.numero ?? o.id;
+        const number = typeof numRaw === "string" ? numRaw.trim() : String(numRaw ?? "").trim();
+        const ufRaw = o.uf ?? o.UF ?? o.state;
+        const ufStr = typeof ufRaw === "string" ? ufRaw.trim().toUpperCase() : "";
+        const uf = /^[A-Z]{2}$/.test(ufStr) ? ufStr : undefined;
+        if (!kind || !number) return null;
+        return uf ? { kind, number, uf } : { kind, number };
+      })
+      .filter((x): x is ProfessionalRegistry => x !== null);
+  } catch {
+    return [];
+  }
+}
+
 /** JSON devolvido por Gemini (schema nativo) ou OpenAI (`response_format: json_object`) com o mesmo conteúdo lógico. */
 export function parseOcrModelJsonText(
   text: string,
@@ -114,6 +147,7 @@ export function parseOcrModelJsonText(
     doctor_name?: string;
     markers_json: string;
     metrics_json?: string;
+    professional_registries_json?: string;
     confidence_note: string;
     document_suitability?: string;
     document_kind?: string;
@@ -127,6 +161,7 @@ export function parseOcrModelJsonText(
       doctor_name?: string;
       markers_json: string;
       metrics_json?: string;
+      professional_registries_json?: string;
       confidence_note: string;
       document_suitability?: string;
       document_kind?: string;
@@ -181,6 +216,7 @@ export function parseOcrModelJsonText(
     metrics = [];
   }
   const ui_category = resolveUiCategory(raw.ui_category, document_kind, document_suitability);
+  const professional_registries = parseProfessionalRegistriesJson(raw.professional_registries_json);
   const structured: OcrStructured = {
     summary_pt_br: raw.summary_pt_br,
     exam_date_iso: typeof raw.exam_date_iso === "string" ? raw.exam_date_iso.trim() : "",
@@ -188,6 +224,7 @@ export function parseOcrModelJsonText(
     confidence_note: raw.confidence_note,
     title_pt_br: typeof raw.title_pt_br === "string" ? raw.title_pt_br.trim() : "",
     doctor_name: typeof raw.doctor_name === "string" ? raw.doctor_name.trim() : "",
+    professional_registries,
     metrics,
     ui_category,
   };
@@ -224,6 +261,11 @@ async function runGeminiOcrVisionOnce(
             type: SchemaType.STRING,
             description: "Nome completo do médico ou responsável se legível; senão string vazia",
           },
+          professional_registries_json: {
+            type: SchemaType.STRING,
+            description:
+              'Array JSON serializado em string: objetos {kind, number, uf?} para CRM, CRO, COREN, CRF, etc.; "[]" se ausente.',
+          },
           markers_json: {
             type: SchemaType.STRING,
             description: "JSON string com pares nome/valor dos biomarcadores visíveis",
@@ -255,6 +297,7 @@ async function runGeminiOcrVisionOnce(
           "exam_date_iso",
           "title_pt_br",
           "doctor_name",
+          "professional_registries_json",
           "markers_json",
           "metrics_json",
           "confidence_note",
@@ -268,8 +311,8 @@ async function runGeminiOcrVisionOnce(
 
   const hint = options?.hintDocumentType;
   const prompt = hint
-    ? `O sistema já indicou o tipo clínico: ${hint}. Se document_suitability for "clinical_exam", o campo document_kind na resposta JSON deve ser exatamente "${hint}". Caso contrário, siga document_suitability. Extraia valores numéricos e unidades quando visíveis. markers_json como objeto JSON em string; metrics_json como array em string.`
-    : `Defina primeiro document_suitability. Se for "clinical_exam", document_kind deve ser "blood_test" para laboratório/sangue, "biopsy" para anatomopatológico/biópsia/IHQ, "scan" para laudos de imagem (TC, RM, US, etc.). Guias de convênio/autorização sem resultados: "administrative_insurance". Fotos não clínicas: "not_medical". Preencha ui_category conforme as definições do sistema. markers_json como objeto JSON em string; metrics_json como array em string.`;
+    ? `O sistema já indicou o tipo clínico: ${hint}. Se document_suitability for "clinical_exam", o campo document_kind na resposta JSON deve ser exatamente "${hint}". Caso contrário, siga document_suitability. Extraia valores numéricos e unidades quando visíveis. markers_json como objeto JSON em string; metrics_json como array em string; professional_registries_json como array em string (CRM/CRO/COREN/CRF etc. ou []).`
+    : `Defina primeiro document_suitability. Se for "clinical_exam", document_kind deve ser "blood_test" para laboratório/sangue, "biopsy" para anatomopatológico/biópsia/IHQ, "scan" para laudos de imagem (TC, RM, US, etc.). Guias de convênio/autorização sem resultados: "administrative_insurance". Fotos não clínicas: "not_medical". Preencha ui_category conforme as definições do sistema. markers_json como objeto JSON em string; metrics_json como array em string; professional_registries_json como array em string (CRM/CRO/COREN/CRF etc. ou []).`;
 
   let result;
   try {

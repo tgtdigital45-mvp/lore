@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useFocusEffect } from "@react-navigation/native";
-import { Alert, Image, Pressable, ScrollView, Text, View } from "react-native";
+import { Alert, Pressable, ScrollView, Text, View } from "react-native";
+import { Image } from "expo-image";
 import type { Href } from "expo-router";
 import { Link, useRouter } from "expo-router";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
@@ -19,6 +20,7 @@ import { useMedications } from "@/src/hooks/useMedications";
 import { usePatient } from "@/src/hooks/usePatient";
 import { useTreatmentCycles } from "@/src/hooks/useTreatmentCycles";
 import { nextMedicationSlot } from "@/src/lib/medicationNotifications";
+import { nextPendingScheduledInfusion } from "@/src/lib/treatmentInfusionSchedule";
 import { labelTreatmentKind } from "@/src/i18n/treatment";
 import { documentTypeLabel, labelCancerType, labelSymptomCategory } from "@/src/i18n/ui";
 import { supabase } from "@/src/lib/supabase";
@@ -50,15 +52,11 @@ function cycleDayNumber(startDate: string): number {
 }
 
 function lastNextInfusion(infusions: TreatmentInfusionRow[], cycleLast: string | null) {
-  const now = Date.now();
   const completed = infusions
     .filter((i) => i.status === "completed")
     .sort((a, b) => new Date(b.session_at).getTime() - new Date(a.session_at).getTime());
   const lastIso = completed[0]?.session_at ?? cycleLast;
-  const upcoming = infusions
-    .filter((i) => i.status === "scheduled" && new Date(i.session_at).getTime() > now)
-    .sort((a, b) => new Date(a.session_at).getTime() - new Date(b.session_at).getTime());
-  const next = upcoming[0];
+  const next = nextPendingScheduledInfusion(infusions);
   return { lastIso, next };
 }
 
@@ -110,6 +108,7 @@ export default function HomeScreen() {
   const [widgetPickerOpen, setWidgetPickerOpen] = useState(false);
   const [pinnedIds, setPinnedIds] = useState<string[]>([]);
   const [avatarUri, setAvatarUri] = useState<string | null>(null);
+  const [avatarEpoch, setAvatarEpoch] = useState(0);
   const [infusions, setInfusions] = useState<TreatmentInfusionRow[]>([]);
 
   const firstName = useMemo(() => {
@@ -223,11 +222,20 @@ export default function HomeScreen() {
               justifyContent: "center",
             }}
           >
-            {profileAvatarUrl || avatarUri ? (
+            {profileAvatarUrl || patient?.profiles?.avatar_url || avatarUri ? (
               <Image
-                source={{ uri: profileAvatarUrl ?? avatarUri ?? "" }}
+                key={`${profileAvatarUrl ?? patient?.profiles?.avatar_url ?? avatarUri}-${avatarEpoch}`}
+                source={{
+                  uri: (() => {
+                    const raw = profileAvatarUrl ?? patient?.profiles?.avatar_url ?? avatarUri ?? "";
+                    if (!raw.startsWith("http")) return raw;
+                    const sep = raw.includes("?") ? "&" : "?";
+                    return `${raw}${sep}v=${avatarEpoch}`;
+                  })(),
+                }}
                 style={{ width: 48, height: 48 }}
-                resizeMode="cover"
+                contentFit="cover"
+                cachePolicy="none"
               />
             ) : (
               <Text style={{ fontSize: 20, fontWeight: "700", color: "#FFFFFF" }}>{initials}</Text>
@@ -378,7 +386,7 @@ export default function HomeScreen() {
                       ) : null}
                       {target ? (
                         <Text style={{ fontSize: 11, color: theme.colors.semantic.respiratory, marginTop: 6, fontWeight: "600" }}>
-                          Toque para registar
+                          Toque para registrar
                         </Text>
                       ) : null}
                     </View>
@@ -405,7 +413,7 @@ export default function HomeScreen() {
                   <FontAwesome name="chevron-right" size={14} color={theme.colors.text.tertiary} />
                 </View>
                 <Text style={[theme.typography.body, { color: theme.colors.text.secondary, marginTop: theme.spacing.xs }]}>
-                  Registe água, café, refeições, calorias e apetite. Os resumos também aparecem em Métricas em foco.
+                  Registre água, café, refeições, calorias e apetite. Os resumos também aparecem em Métricas em foco.
                 </Text>
                 <Text style={{ fontSize: 13, fontWeight: "600", color: theme.colors.semantic.respiratory, marginTop: theme.spacing.sm }}>Abrir nutrição</Text>
               </OncoCard>
@@ -479,7 +487,7 @@ export default function HomeScreen() {
                 </View>
               ) : hasSosMedication ? (
                 <Text style={[theme.typography.body, { color: theme.colors.text.secondary, marginTop: theme.spacing.sm }]}>
-                  Medicamentos SOS não têm horário fixo. Abra Medicamentos e use &quot;Registar dose&quot; no item para marcar como tomado.
+                  Medicamentos SOS não têm horário fixo. Abra Medicamentos e use &quot;Registrar dose&quot; no item para marcar como tomado.
                 </Text>
               ) : (
                 <Text style={[theme.typography.body, { color: theme.colors.text.secondary, marginTop: theme.spacing.sm }]}>
@@ -640,8 +648,9 @@ export default function HomeScreen() {
         localAvatarUri={avatarUri}
         remoteAvatarUrl={profileAvatarUrl}
         onSignOut={() => void signOut()}
-        onProfileSaved={() => {
-          void refreshSummary();
+        onProfileSaved={async () => {
+          setAvatarEpoch((n) => n + 1);
+          await refreshSummary();
         }}
       />
 

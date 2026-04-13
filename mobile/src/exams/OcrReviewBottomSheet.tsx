@@ -6,7 +6,7 @@ import { BottomSheetModal } from "@/src/components/BottomSheetModal";
 import { useAppTheme } from "@/src/hooks/useAppTheme";
 import { supabase } from "@/src/lib/supabase";
 import type { OcrExtractedPayload } from "@/src/exams/ocrReviewTypes";
-import { dateInputToExamPerformedAt } from "@/src/exams/examHelpers";
+import { dateInputToExamPerformedAt, formatProfessionalRegistriesDisplay, parseProfessionalRegistriesFromJson } from "@/src/exams/examHelpers";
 
 type Props = {
   visible: boolean;
@@ -51,6 +51,7 @@ export function OcrReviewBottomSheet({
         ...extracted,
         title_pt_br: title.trim(),
         doctor_name: doctor.trim(),
+        professional_registries: extracted.professional_registries ?? [],
         exam_date_iso: /^\d{4}-\d{2}-\d{2}$/.test(dateIso) ? dateIso : "",
       };
       const examPerformedAt = /^\d{4}-\d{2}-\d{2}$/.test(dateIso) ? dateInputToExamPerformedAt(dateIso) : null;
@@ -74,6 +75,10 @@ export function OcrReviewBottomSheet({
   }, [patientId, documentId, extracted, title, doctor, examDate, onClose, onSaved]);
 
   if (!extracted) return null;
+
+  const registriesDisplay = formatProfessionalRegistriesDisplay(
+    parseProfessionalRegistriesFromJson(extracted as unknown as Record<string, unknown>)
+  );
 
   return (
     <BottomSheetModal visible={visible} onClose={onClose} maxHeightFraction={0.92}>
@@ -145,6 +150,15 @@ export function OcrReviewBottomSheet({
                 color: theme.colors.text.primary,
               }}
             />
+
+            {registriesDisplay ? (
+              <View style={{ marginTop: theme.spacing.md }}>
+                <Text style={{ fontSize: 12, fontWeight: "700", color: "#007AFF", marginBottom: 6 }}>
+                  Registos profissionais (CRM, CRO…)
+                </Text>
+                <Text style={{ fontSize: 15, color: theme.colors.text.primary, lineHeight: 22 }}>{registriesDisplay}</Text>
+              </View>
+            ) : null}
 
             <Text style={{ fontSize: 12, fontWeight: "700", color: "#007AFF", marginTop: theme.spacing.md, marginBottom: 6 }}>
               Data do exame (AAAA-MM-DD, opcional)

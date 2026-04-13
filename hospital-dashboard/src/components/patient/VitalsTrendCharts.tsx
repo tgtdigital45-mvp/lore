@@ -85,7 +85,7 @@ export function VitalsTrendCharts({ vitals, hideTemperature }: Props) {
   }, [vitals, hideTemperature]);
 
   if (seriesList.length === 0) {
-    return <p className="muted">Sem sinais vitais registados pelo paciente neste período.</p>;
+    return <p className="muted">Sem sinais vitais registrados pelo paciente neste período.</p>;
   }
 
   const w = 340;

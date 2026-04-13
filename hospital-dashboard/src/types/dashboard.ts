@@ -8,6 +8,8 @@ export type EmergencyContactEmbed = {
 
 export type PatientRow = {
   id: string;
+  /** auth.users / profiles.id do titular (útil para subscrições em tempo real) */
+  profile_id?: string;
   primary_cancer_type: string;
   current_stage: string | null;
   is_in_nadir: boolean;
@@ -104,7 +106,7 @@ export type SymptomLogDetail = {
   symptom_ended_at?: string | null;
 };
 
-/** Sinais vitais registados na app (temperatura, PA, etc.). */
+/** Sinais vitais registrados na app (temperatura, PA, etc.). */
 export type VitalLogRow = {
   id: string;
   logged_at: string;
@@ -116,7 +118,7 @@ export type VitalLogRow = {
   notes: string | null;
 };
 
-/** Registos do diário de nutrição (água, refeições, apetite) — não confundir com exames anexados. */
+/** Registros do diário de nutrição (água, refeições, apetite) — não confundir com exames anexados. */
 export type NutritionLogRow = {
   id: string;
   logged_at: string;
@@ -152,6 +154,8 @@ export type BiomarkerModalRow = {
   value_text: string | null;
   unit: string | null;
   is_abnormal: boolean;
+  /** Intervalo de referência tal como no documento (ex.: hemograma). */
+  reference_range: string | null;
   reference_alert: string | null;
   logged_at: string;
 };
@@ -163,6 +167,8 @@ export type MedicalDocModalRow = {
   exam_performed_at: string | null;
   storage_path: string;
   mime_type: string | null;
+  /** Metadados extraídos pela IA (título, resumo, médico, etc.) — alinhado à app móvel. */
+  ai_extracted_json: Record<string, unknown> | null;
 };
 
 export type SymptomLogTriage = {

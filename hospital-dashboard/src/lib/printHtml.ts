@@ -6,7 +6,7 @@ export function printHtmlDocument(html: string): boolean {
   const iframe = document.createElement("iframe");
   iframe.setAttribute("title", "Relatório para impressão");
   iframe.setAttribute("aria-hidden", "true");
-  /* Fora do ecrã mas o documento interior imprime normalmente (evitar visibility:hidden — pode sair em branco). */
+  /* Fora do tela mas o documento interior imprime normalmente (evitar visibility:hidden — pode sair em branco). */
   iframe.style.cssText = "position:fixed;left:-9999px;top:0;width:1px;height:1px;border:0;margin:0;padding:0;overflow:hidden";
   document.body.appendChild(iframe);
 

@@ -26,7 +26,7 @@ export function VerbalIntensityStep({
   accent,
   onBack,
   onSubmit,
-  submitLabel = "Registar",
+  submitLabel = "Registrar",
   busy,
 }: Props) {
   return (

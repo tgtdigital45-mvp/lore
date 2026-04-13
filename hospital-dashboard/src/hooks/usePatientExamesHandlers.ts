@@ -62,7 +62,7 @@ export function usePatientExamesHandlers(
           setStaffUploadMsg((j.message as string | undefined) ?? j.error ?? `Erro ${r.status}`);
           return;
         }
-        setStaffUploadMsg("Exame processado e registado no prontuário.");
+        setStaffUploadMsg("Exame processado e registrado no prontuário.");
         await refreshExames();
       } catch (e) {
         setStaffUploadMsg(e instanceof Error ? e.message : "Falha no envio");

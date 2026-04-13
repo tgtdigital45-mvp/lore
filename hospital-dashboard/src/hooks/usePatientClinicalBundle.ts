@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { buildRiskRow, mergeAlertRulesFromAssignments } from "@/lib/triage";
 import { supabase } from "@/lib/supabase";
 import type {
@@ -23,6 +23,9 @@ import type {
 const DEFAULT_RULES: MergedAlertRules = { fever_celsius_min: 37.8, alert_window_hours: 72 };
 
 export function usePatientClinicalBundle(patientId: string | undefined) {
+  const prevPatientIdRef = useRef<string | undefined>(undefined);
+  const [profileRefreshNonce, setProfileRefreshNonce] = useState(0);
+  const [watchProfileId, setWatchProfileId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [riskRow, setRiskRow] = useState<RiskRow | null>(null);
@@ -43,13 +46,13 @@ export function usePatientClinicalBundle(patientId: string | undefined) {
     const [bio, mdocs, medLogs, medCatalog] = await Promise.all([
       supabase
         .from("biomarker_logs")
-        .select("id, medical_document_id, name, value_numeric, value_text, unit, is_abnormal, reference_alert, logged_at")
+        .select("id, medical_document_id, name, value_numeric, value_text, unit, is_abnormal, reference_range, reference_alert, logged_at")
         .eq("patient_id", pid)
         .order("logged_at", { ascending: false })
         .limit(60),
       supabase
         .from("medical_documents")
-        .select("id, document_type, uploaded_at, exam_performed_at, storage_path, mime_type")
+        .select("id, document_type, uploaded_at, exam_performed_at, storage_path, mime_type, ai_extracted_json")
         .eq("patient_id", pid)
         .order("uploaded_at", { ascending: false })
         .limit(40),
@@ -82,6 +85,8 @@ export function usePatientClinicalBundle(patientId: string | undefined) {
 
   useEffect(() => {
     if (!patientId) {
+      prevPatientIdRef.current = undefined;
+      setWatchProfileId(null);
       setLoading(false);
       setRiskRow(null);
       setBiomarkers([]);
@@ -91,8 +96,10 @@ export function usePatientClinicalBundle(patientId: string | undefined) {
       setEmergencyContacts([]);
       return;
     }
+    const patientChanged = prevPatientIdRef.current !== patientId;
+    prevPatientIdRef.current = patientId;
     let cancelled = false;
-    setLoading(true);
+    if (patientChanged) setLoading(true);
     setError(null);
     void (async () => {
       const { data: assigns } = await supabase.from("staff_assignments").select("hospital_id, hospitals ( name, alert_rules )");
@@ -109,7 +116,7 @@ export function usePatientClinicalBundle(patientId: string | undefined) {
       const { data: prow, error: pe } = await supabase
         .from("patients")
         .select(
-          "id, primary_cancer_type, current_stage, is_in_nadir, patient_code, is_pregnant, uses_continuous_medication, continuous_medication_notes, medical_history, allergies, height_cm, weight_kg, clinical_notes, profiles ( full_name, date_of_birth )"
+          "id, profile_id, primary_cancer_type, current_stage, is_in_nadir, patient_code, is_pregnant, uses_continuous_medication, continuous_medication_notes, medical_history, allergies, height_cm, weight_kg, clinical_notes, profiles ( full_name, date_of_birth, avatar_url )"
         )
         .eq("id", patientId)
         .maybeSingle();
@@ -117,9 +124,12 @@ export function usePatientClinicalBundle(patientId: string | undefined) {
       if (pe || !prow) {
         setError(pe?.message ?? "Paciente não encontrado.");
         setRiskRow(null);
+        setWatchProfileId(null);
         setLoading(false);
         return;
       }
+      const rawPid = (prow as { profile_id?: unknown }).profile_id;
+      setWatchProfileId(typeof rawPid === "string" ? rawPid : null);
       const p = prow as PatientRow;
       const { data: logs, error: le } = await supabase
         .from("symptom_logs")
@@ -190,13 +200,13 @@ export function usePatientClinicalBundle(patientId: string | undefined) {
           .limit(40),
         supabase
           .from("biomarker_logs")
-          .select("id, medical_document_id, name, value_numeric, value_text, unit, is_abnormal, reference_alert, logged_at")
+          .select("id, medical_document_id, name, value_numeric, value_text, unit, is_abnormal, reference_range, reference_alert, logged_at")
           .eq("patient_id", patientId)
           .order("logged_at", { ascending: false })
           .limit(60),
         supabase
           .from("medical_documents")
-          .select("id, document_type, uploaded_at, exam_performed_at, storage_path, mime_type")
+          .select("id, document_type, uploaded_at, exam_performed_at, storage_path, mime_type, ai_extracted_json")
           .eq("patient_id", patientId)
           .order("uploaded_at", { ascending: false })
           .limit(40),
@@ -245,7 +255,22 @@ export function usePatientClinicalBundle(patientId: string | undefined) {
     return () => {
       cancelled = true;
     };
-  }, [patientId]);
+  }, [patientId, profileRefreshNonce]);
+
+  useEffect(() => {
+    if (!watchProfileId) return;
+    const ch = supabase
+      .channel(`dossier_profile_${watchProfileId}`)
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "profiles", filter: `id=eq.${watchProfileId}` },
+        () => setProfileRefreshNonce((n) => n + 1)
+      )
+      .subscribe();
+    return () => {
+      void supabase.removeChannel(ch);
+    };
+  }, [watchProfileId]);
 
   const refreshExames = useCallback(() => {
     if (!patientId) return Promise.resolve();

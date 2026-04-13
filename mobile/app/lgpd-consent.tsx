@@ -62,7 +62,7 @@ export default function LgpdConsentScreen() {
         >
           <Text style={[theme.typography.headline, { color: theme.colors.text.primary }]}>Dados clínicos e de conta</Text>
           <Text style={[theme.typography.body, { color: theme.colors.text.secondary, marginTop: theme.spacing.xs }]}>
-            Obrigatório: registo de sintomas, medicamentos e perfil associados à sua conta, com encriptação em trânsito e
+            Obrigatório: registro de sintomas, medicamentos e perfil associados à sua conta, com encriptação em trânsito e
             acesso restrito por RLS no Supabase.
           </Text>
         </View>
@@ -90,7 +90,7 @@ export default function LgpdConsentScreen() {
 
         <View style={{ marginTop: theme.spacing.md, flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
           <Text style={[theme.typography.body, { flex: 1, paddingRight: theme.spacing.md, color: theme.colors.text.primary }]}>
-            Partilhar resumos com a equipa de cuidados ligada ao hospital (quando existir vínculo)
+            Compartilhar resumos com a equipe de cuidados ligada ao hospital (quando existir vínculo)
           </Text>
           <Switch value={shareTeam} onValueChange={setShareTeam} />
         </View>

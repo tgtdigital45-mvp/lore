@@ -51,3 +51,25 @@ export function nextSuggestedInfusionDate(
 export function formatPtDateShort(d: Date): string {
   return d.toLocaleDateString("pt-BR", { day: "2-digit", month: "short", year: "numeric" });
 }
+
+/** Comparador de dia civil local: data prevista antes de hoje (sessão ainda não confirmada). */
+export function isPastPredictedCalendarDay(sessionAtIso: string): boolean {
+  const t = new Date(sessionAtIso);
+  const n = new Date();
+  const ts = t.getFullYear() * 10000 + (t.getMonth() + 1) * 100 + t.getDate();
+  const ns = n.getFullYear() * 10000 + (n.getMonth() + 1) * 100 + n.getDate();
+  return ts < ns;
+}
+
+/**
+ * Próximo check-in pendente: primeira sessão com status `scheduled`, pela data prevista.
+ * Inclui sessões com data já passada (para não saltar o cartão na home).
+ */
+export function nextPendingScheduledInfusion<T extends Pick<TreatmentInfusionRow, "session_at" | "status">>(
+  infusions: T[]
+): T | null {
+  const pending = infusions
+    .filter((i) => i.status === "scheduled")
+    .sort((a, b) => new Date(a.session_at).getTime() - new Date(b.session_at).getTime());
+  return pending[0] ?? null;
+}

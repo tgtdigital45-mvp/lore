@@ -59,7 +59,7 @@ export default function PatientMedicamentosPanel({ loading, medications, medicat
         <div>
           <SectionTitle>Cadastro na app</SectionTitle>
           <p className="mt-2 max-w-3xl text-sm leading-relaxed text-muted-foreground">
-            Medicamentos que o paciente registou na Aura (nome, dose e plano). Itens inativos podem ser histórico ou interrupções.
+            Medicamentos que o paciente registrou na Aura (nome, dose e plano). Itens inativos podem ser histórico ou interrupções.
           </p>
         </div>
 
@@ -123,9 +123,9 @@ export default function PatientMedicamentosPanel({ loading, medications, medicat
 
       <section className="space-y-4">
         <div>
-          <SectionTitle>Registos de toma (app)</SectionTitle>
+          <SectionTitle>Registros de toma (app)</SectionTitle>
           <p className="mt-2 max-w-3xl text-sm leading-relaxed text-muted-foreground">
-            O que o paciente marcou como tomado (ou pendente) no lembrete — espelha o registo na aplicação.
+            O que o paciente marcou como tomado (ou pendente) no lembrete — espelha o registro na aplicação.
           </p>
         </div>
 
@@ -133,7 +133,7 @@ export default function PatientMedicamentosPanel({ loading, medications, medicat
           <div className="h-32 animate-pulse rounded-2xl bg-[#F1F5F9]" aria-busy="true" />
         ) : medicationLogs.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-[#E2E8F0] bg-[#FAFBFC] px-6 py-10 text-center text-sm text-muted-foreground">
-            Sem registos de medicação visíveis. Confirme vínculo aprovado com o hospital ou peça ao paciente para registar tomas na app.
+            Sem registros de medicação visíveis. Confirme vínculo aprovado com o hospital ou peça ao paciente para registrar tomas na app.
           </div>
         ) : (
           <div className="overflow-x-auto rounded-xl border border-[#E8EAED] bg-white">

@@ -158,7 +158,7 @@ export default function MedicationReviewScreen() {
     await scheduleMedicationNotifications(full);
     await refresh();
     Alert.alert("Medicamento", "Guardado. Lembretes locais agendados quando aplicável.", [
-      { text: "OK", onPress: () => router.replace("/(tabs)/health/medications" as Href) },
+      { text: "Concluir", onPress: () => router.replace("/(tabs)/health/medications" as Href) },
     ]);
   }
 

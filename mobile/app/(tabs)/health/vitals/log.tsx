@@ -94,7 +94,7 @@ export default function VitalLogScreen() {
         <Pressable onPress={goBack} hitSlop={12}>
           <FontAwesome name="chevron-left" size={22} color={theme.colors.semantic.respiratory} />
         </Pressable>
-        <Text style={[theme.typography.title2, { color: theme.colors.text.primary, marginLeft: theme.spacing.sm }]}>Novo registo</Text>
+        <Text style={[theme.typography.title2, { color: theme.colors.text.primary, marginLeft: theme.spacing.sm }]}>Novo registro</Text>
       </View>
 
       <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingBottom: theme.spacing.xl }}>

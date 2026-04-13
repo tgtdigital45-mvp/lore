@@ -57,7 +57,7 @@ export function sectionPatientIdentification(p: PatientIdentification): string {
   <h2 class="section-title">Identificação</h2>
   <table class="info-grid">
     <tr><th>Nome</th><td>${esc(name)}</td></tr>
-    <tr><th>Tipo de cancro</th><td>${cancer}</td></tr>
+    <tr><th>Tipo de câncer</th><td>${cancer}</td></tr>
     <tr><th>Estágio</th><td>${stage}</td></tr>
     <tr><th>ID Aura</th><td>${code}</td></tr>
   </table>
@@ -66,7 +66,7 @@ export function sectionPatientIdentification(p: PatientIdentification): string {
 
 export function sectionSymptoms(symRows: Record<string, unknown>[]): string {
   if (symRows.length === 0) {
-    return `<div class="section"><h2 class="section-title">Sintomas</h2><p class="muted">Sem registos no período.</p></div>`;
+    return `<div class="section"><h2 class="section-title">Sintomas</h2><p class="muted">Sem registros no período.</p></div>`;
   }
   const total = symRows.length;
   const slice = symRows.slice(0, LIMIT_SYMPTOMS);
@@ -85,7 +85,7 @@ export function sectionSymptoms(symRows: Record<string, unknown>[]): string {
     }
     rows += `<tr><td>${esc(logged)}</td><td>${esc(kind)}</td><td>${detail}</td></tr>`;
   }
-  const more = total > LIMIT_SYMPTOMS ? `<p class="truncated">… e mais ${total - LIMIT_SYMPTOMS} registo(s) no período</p>` : "";
+  const more = total > LIMIT_SYMPTOMS ? `<p class="truncated">… e mais ${total - LIMIT_SYMPTOMS} registro(s) no período</p>` : "";
   return `
 <div class="section">
   <h2 class="section-title section-symptoms">Sintomas</h2>
@@ -96,7 +96,7 @@ export function sectionSymptoms(symRows: Record<string, unknown>[]): string {
 
 export function sectionVitals(rows: VitalLogRow[]): string {
   if (rows.length === 0) {
-    return `<div class="section"><h2 class="section-title">Sinais vitais</h2><p class="muted">Sem registos no período.</p></div>`;
+    return `<div class="section"><h2 class="section-title">Sinais vitais</h2><p class="muted">Sem registros no período.</p></div>`;
   }
   const total = rows.length;
   const slice = rows.slice(0, LIMIT_VITALS);
@@ -111,7 +111,7 @@ export function sectionVitals(rows: VitalLogRow[]): string {
     }
     body += `<tr><td>${esc(formatDt(r.logged_at))}</td><td>${esc(t)}</td><td>${esc(val)}</td><td>${r.notes ? esc(r.notes) : "—"}</td></tr>`;
   }
-  const more = total > LIMIT_VITALS ? `<p class="truncated">… e mais ${total - LIMIT_VITALS} registo(s) no período</p>` : "";
+  const more = total > LIMIT_VITALS ? `<p class="truncated">… e mais ${total - LIMIT_VITALS} registro(s) no período</p>` : "";
   return `
 <div class="section">
   <h2 class="section-title section-vitals">Sinais vitais</h2>
@@ -132,7 +132,7 @@ export function sectionMedicationLogs(
   medMeta: Map<string, { name: string; dosage: string | null }>
 ): string {
   if (medRows.length === 0) {
-    return `<div class="section"><h2 class="section-title">Medicamentos (tomados / agendados)</h2><p class="muted">Sem registos no período.</p></div>`;
+    return `<div class="section"><h2 class="section-title">Medicamentos (tomados / agendados)</h2><p class="muted">Sem registros no período.</p></div>`;
   }
   const byMed = new Map<
     string,
@@ -173,16 +173,16 @@ export function sectionMedicationLogs(
   }
   const moreDetail =
     medRows.length > LIMIT_MED_DETAIL
-      ? `<p class="truncated">… e mais ${medRows.length - LIMIT_MED_DETAIL} registo(s) detalhados no período</p>`
+      ? `<p class="truncated">… e mais ${medRows.length - LIMIT_MED_DETAIL} registro(s) detalhados no período</p>`
       : "";
 
   return `
 <div class="section">
   <h2 class="section-title section-meds">Medicamentos (tomados / agendados)</h2>
-  <p class="muted small">Resumo por medicamento no período (frequência de registos).</p>
+  <p class="muted small">Resumo por medicamento no período (frequência de registros).</p>
   <div class="chart-wrap">${barSvg}</div>
   <table class="compact"><thead><tr><th>Medicamento</th><th>Tomados</th><th>Total</th><th>Adesão</th></tr></thead><tbody>${summaryRows}</tbody></table>
-  <h3 class="subsection section-meds-sub">Últimos registos (detalhe)</h3>
+  <h3 class="subsection section-meds-sub">Últimos registros (detalhe)</h3>
   <table class="compact"><thead><tr><th>Agendado</th><th>Tomado</th><th>Estado</th><th>Medicamento</th></tr></thead><tbody>${detailBody}</tbody></table>
   ${moreDetail}
 </div>`;
@@ -206,7 +206,7 @@ export function sectionActiveMedications(meds: { name?: string; dosage?: string 
 
 export function sectionNutrition(rows: NutritionLogRow[]): string {
   if (rows.length === 0) {
-    return `<div class="section"><h2 class="section-title">Nutrição</h2><p class="muted">Sem registos no período.</p></div>`;
+    return `<div class="section"><h2 class="section-title">Nutrição</h2><p class="muted">Sem registros no período.</p></div>`;
   }
   const total = rows.length;
   const slice = rows.slice(0, LIMIT_NUTRITION);
@@ -221,7 +221,7 @@ export function sectionNutrition(rows: NutritionLogRow[]): string {
     else if (r.log_type === "appetite") detail = r.appetite_level != null ? `${r.appetite_level}/10` : "—";
     body += `<tr><td>${esc(formatDt(r.logged_at))}</td><td>${esc(type)}</td><td>${esc(detail)}</td><td>${r.notes ? esc(r.notes) : "—"}</td></tr>`;
   }
-  const more = total > LIMIT_NUTRITION ? `<p class="truncated">… e mais ${total - LIMIT_NUTRITION} registo(s) no período</p>` : "";
+  const more = total > LIMIT_NUTRITION ? `<p class="truncated">… e mais ${total - LIMIT_NUTRITION} registro(s) no período</p>` : "";
   return `
 <div class="section">
   <h2 class="section-title section-nutrition">Nutrição</h2>
@@ -250,7 +250,7 @@ export function sectionTreatment(
   nextScheduledSummary: string | null
 ): string {
   if (!cycle) {
-    return `<div class="section"><h2 class="section-title">Tratamento</h2><p class="muted">Sem ciclo de tratamento activo.</p></div>`;
+    return `<div class="section"><h2 class="section-title">Tratamento</h2><p class="muted">Sem ciclo de tratamento ativo.</p></div>`;
   }
   const kind = esc(labelTreatmentKind(cycle.treatment_kind ?? "chemotherapy"));
   const protocol = esc(cycle.protocol_name);
@@ -275,7 +275,7 @@ export function sectionTreatment(
   const infMore = infTotal > LIMIT_INFUSIONS ? `<p class="truncated">… e mais ${infTotal - LIMIT_INFUSIONS} infusão(ões) no período</p>` : "";
   const infTable =
     infTotal === 0
-      ? `<p class="muted">Sem infusões registadas no período.</p>`
+      ? `<p class="muted">Sem infusões registradas no período.</p>`
       : `<table class="compact"><thead><tr><th>Data sessão</th><th>Estado</th><th>Peso (kg)</th></tr></thead><tbody>${infRows}</tbody></table>${infMore}`;
 
   return `
@@ -315,7 +315,7 @@ function numericFromRow(r: BiomarkerRow): number | null {
 
 export function sectionBiomarkers(rowsAll: BiomarkerRow[], periodFromIso: string): string {
   if (rowsAll.length === 0) {
-    return `<div class="section"><h2 class="section-title">Biomarcadores / exames</h2><p class="muted">Sem registos.</p></div>`;
+    return `<div class="section"><h2 class="section-title">Biomarcadores / exames</h2><p class="muted">Sem registros.</p></div>`;
   }
   const periodMs = new Date(periodFromIso).getTime();
   const byName = new Map<string, BiomarkerRow[]>();
@@ -332,7 +332,7 @@ export function sectionBiomarkers(rowsAll: BiomarkerRow[], periodFromIso: string
   }
 
   if (inPeriodKeys.size === 0) {
-    return `<div class="section"><h2 class="section-title section-bio">Biomarcadores / exames de sangue</h2><p class="muted">Sem registos no período seleccionado (histórico disponível para tendências).</p></div>`;
+    return `<div class="section"><h2 class="section-title section-bio">Biomarcadores / exames de sangue</h2><p class="muted">Sem registros no período selecionado (histórico disponível para tendências).</p></div>`;
   }
 
   const scored = [...inPeriodKeys].map((k) => {
@@ -386,7 +386,7 @@ export function sectionBiomarkers(rowsAll: BiomarkerRow[], periodFromIso: string
   return `
 <div class="section">
   <h2 class="section-title section-bio">Biomarcadores / exames de sangue</h2>
-  <p class="muted small">Tendências com base no histórico registado; destaque às métricas com actividade no período do relatório.</p>
+  <p class="muted small">Tendências com base no histórico registrado; destaque às métricas com atividade no período do relatório.</p>
   <div class="bio-grid">${bioRows}</div>
 </div>`;
 }

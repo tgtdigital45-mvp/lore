@@ -260,7 +260,7 @@ export function LegacySymptomLogStep({ theme, symptomKey, accent, onBack, busy, 
           opacity: busy ? 0.55 : 1,
         }}
       >
-        <Text style={[theme.typography.headline, { color: "#FFFFFF" }]}>Registar</Text>
+        <Text style={[theme.typography.headline, { color: "#FFFFFF" }]}>Registrar</Text>
       </Pressable>
     </View>
   );

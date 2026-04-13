@@ -31,8 +31,13 @@ import {
   examDisplayDateIso,
   examPerformedAtToDateInput,
   formatExamDate,
+  formatProfessionalRegistriesDisplay,
   getDocumentTitle,
   kindBadge,
+  parseProfessionalRegistriesFromJson,
+  registryEditRowsFromJson,
+  registryEditRowsToSave,
+  type RegistryEditRow,
 } from "@/src/exams/examHelpers";
 import type { MedicalDocRow } from "@/src/exams/examHelpers";
 import { documentTypeLabel } from "@/src/i18n/ui";
@@ -96,6 +101,7 @@ export default function ExamDetailScreen() {
   const [metrics, setMetrics] = useState<ExamMetric[]>([]);
   const [editTitle, setEditTitle] = useState("");
   const [editDoctor, setEditDoctor] = useState("");
+  const [editRegistries, setEditRegistries] = useState<RegistryEditRow[]>([{ kind: "", number: "", uf: "" }]);
   const [editExamDate, setEditExamDate] = useState("");
   const [metaEditing, setMetaEditing] = useState(false);
   const [savingMeta, setSavingMeta] = useState(false);
@@ -159,11 +165,13 @@ export default function ExamDetailScreen() {
     if (!row?.ai_extracted_json) {
       setEditTitle("");
       setEditDoctor("");
+      setEditRegistries([{ kind: "", number: "", uf: "" }]);
       return;
     }
     const j = row.ai_extracted_json as Record<string, unknown>;
     setEditTitle(typeof j.title_pt_br === "string" ? j.title_pt_br : "");
     setEditDoctor(typeof j.doctor_name === "string" ? j.doctor_name : "");
+    setEditRegistries(registryEditRowsFromJson(j));
   }, [row?.id, row?.ai_extracted_json]);
 
   useEffect(() => {
@@ -196,6 +204,13 @@ export default function ExamDetailScreen() {
       ? (row.ai_extracted_json as { confidence_note: string }).confidence_note.trim()
       : "";
   const badge = row ? kindBadge(row.document_type) : "";
+
+  const registriesDisplayLine = useMemo(() => {
+    if (!row?.ai_extracted_json) return "";
+    return formatProfessionalRegistriesDisplay(
+      parseProfessionalRegistriesFromJson(row.ai_extracted_json as Record<string, unknown>)
+    );
+  }, [row]);
 
   const abnormalAlerts = useMemo(
     () => metrics.filter((m) => m.isAbnormal && m.referenceAlert.trim()),
@@ -230,7 +245,7 @@ export default function ExamDetailScreen() {
   useLayoutEffect(() => {
     navigation.setOptions({
       headerRight: () => (
-        <Pressable onPress={() => void shareExam()} hitSlop={12} accessibilityLabel="Partilhar">
+        <Pressable onPress={() => void shareExam()} hitSlop={12} accessibilityLabel="Compartilhar">
           <FontAwesome name="share-alt" size={22} color="#007AFF" />
         </Pressable>
       ),
@@ -241,12 +256,14 @@ export default function ExamDetailScreen() {
     if (!row?.ai_extracted_json) {
       setEditTitle("");
       setEditDoctor("");
+      setEditRegistries([{ kind: "", number: "", uf: "" }]);
       setEditExamDate("");
       return;
     }
     const j = row.ai_extracted_json as Record<string, unknown>;
     setEditTitle(typeof j.title_pt_br === "string" ? j.title_pt_br : "");
     setEditDoctor(typeof j.doctor_name === "string" ? j.doctor_name : "");
+    setEditRegistries(registryEditRowsFromJson(j));
     setEditExamDate(examPerformedAtToDateInput(examDisplayDateIso(row)));
   }
 
@@ -262,6 +279,7 @@ export default function ExamDetailScreen() {
         ...prev,
         title_pt_br: editTitle.trim(),
         doctor_name: editDoctor.trim(),
+        professional_registries: registryEditRowsToSave(editRegistries),
         exam_date_iso: hasValidDate ? dateSlice : "",
       };
       const { error } = await supabase
@@ -289,7 +307,7 @@ export default function ExamDetailScreen() {
       });
       const data = (await res.json()) as { url?: string; message?: string; error?: string };
       if (!res.ok) {
-        Alert.alert("Documento", data.message ?? data.error ?? "Não foi possível abrir o ficheiro.");
+        Alert.alert("Documento", data.message ?? data.error ?? "Não foi possível abrir o arquivo.");
         return;
       }
       if (data.url) {
@@ -304,7 +322,7 @@ export default function ExamDetailScreen() {
   function confirmDelete() {
     Alert.alert(
       "Excluir exame",
-      "O registo e o ficheiro associado serão removidos. Esta ação não pode ser desfeita.",
+      "O registro e o arquivo associado serão removidos. Esta ação não pode ser desfeita.",
       [
         { text: "Cancelar", style: "cancel" },
         {
@@ -433,7 +451,7 @@ export default function ExamDetailScreen() {
           {!metaEditing ? (
             <>
               <Text style={{ fontSize: 12, color: theme.colors.text.secondary, marginBottom: theme.spacing.sm }}>
-                Toque em Editar para alterar título, médico ou data do exame.
+                Toque em Editar para alterar título, médico, registos profissionais (CRM, CRO…) ou data do exame.
               </Text>
               <Text style={{ fontSize: 12, color: theme.colors.text.secondary, marginBottom: 4 }}>Título</Text>
               <Text style={{ fontSize: 17, fontWeight: "700", color: theme.colors.text.primary, marginBottom: theme.spacing.md }}>
@@ -443,6 +461,19 @@ export default function ExamDetailScreen() {
               <Text style={{ fontSize: 16, color: theme.colors.text.primary, marginBottom: theme.spacing.md }}>
                 {editDoctor.trim() || "—"}
               </Text>
+              <Text style={{ fontSize: 12, color: theme.colors.text.secondary, marginBottom: 4 }}>
+                Registos profissionais (CRM, CRO…)
+              </Text>
+              <Text
+                style={{
+                  fontSize: 15,
+                  color: theme.colors.text.primary,
+                  marginBottom: theme.spacing.md,
+                  lineHeight: 22,
+                }}
+              >
+                {registriesDisplayLine || "—"}
+              </Text>
               <View style={{ flexDirection: "row", justifyContent: "space-between", paddingVertical: theme.spacing.xs }}>
                 <Text style={{ color: theme.colors.text.secondary, fontSize: 15 }}>Data do exame</Text>
                 <Text style={{ fontWeight: "700", color: theme.colors.text.primary }}>
@@ -451,7 +482,7 @@ export default function ExamDetailScreen() {
               </View>
               {usedUploadFallback ? (
                 <Text style={{ fontSize: 12, color: theme.colors.text.tertiary, lineHeight: 18, marginTop: 8 }}>
-                  Não foi possível ler a data do exame no documento — está indicada a data de registo na app.
+                  Não foi possível ler a data do exame no documento — está indicada a data de registro na app.
                 </Text>
               ) : null}
             </>
@@ -496,7 +527,102 @@ export default function ExamDetailScreen() {
                   color: theme.colors.text.primary,
                 }}
               />
-              <Text style={{ fontSize: 12, color: theme.colors.text.secondary, marginTop: theme.spacing.md, marginBottom: 4 }}>
+              <Text style={{ fontSize: 12, color: theme.colors.text.secondary, marginTop: theme.spacing.md, marginBottom: 6 }}>
+                Registos profissionais (CRM, CRO, COREN…)
+              </Text>
+              {editRegistries.map((reg, idx) => (
+                <View key={`reg-${idx}`} style={{ marginBottom: theme.spacing.md }}>
+                  <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
+                    <Text style={{ fontSize: 11, fontWeight: "700", color: theme.colors.text.secondary }}>
+                      Registo {idx + 1}
+                    </Text>
+                    {editRegistries.length > 1 ? (
+                      <Pressable
+                        onPress={() => setEditRegistries((prev) => prev.filter((_, i) => i !== idx))}
+                        hitSlop={8}
+                        accessibilityLabel="Remover registo"
+                      >
+                        <Text style={{ fontSize: 14, fontWeight: "600", color: "#FF3B30" }}>Remover</Text>
+                      </Pressable>
+                    ) : null}
+                  </View>
+                  <TextInput
+                    value={reg.kind}
+                    onChangeText={(t) =>
+                      setEditRegistries((prev) => {
+                        const next = [...prev];
+                        next[idx] = { ...next[idx], kind: t };
+                        return next;
+                      })
+                    }
+                    placeholder="Tipo (ex.: CRM)"
+                    placeholderTextColor={theme.colors.text.tertiary}
+                    autoCapitalize="characters"
+                    style={{
+                      borderWidth: 1,
+                      borderColor: theme.colors.border.divider,
+                      borderRadius: 12,
+                      padding: theme.spacing.md,
+                      fontSize: 16,
+                      color: theme.colors.text.primary,
+                      marginBottom: theme.spacing.sm,
+                    }}
+                  />
+                  <TextInput
+                    value={reg.number}
+                    onChangeText={(t) =>
+                      setEditRegistries((prev) => {
+                        const next = [...prev];
+                        next[idx] = { ...next[idx], number: t };
+                        return next;
+                      })
+                    }
+                    placeholder="Número"
+                    placeholderTextColor={theme.colors.text.tertiary}
+                    style={{
+                      borderWidth: 1,
+                      borderColor: theme.colors.border.divider,
+                      borderRadius: 12,
+                      padding: theme.spacing.md,
+                      fontSize: 16,
+                      color: theme.colors.text.primary,
+                      marginBottom: theme.spacing.sm,
+                    }}
+                  />
+                  <TextInput
+                    value={reg.uf}
+                    onChangeText={(t) =>
+                      setEditRegistries((prev) => {
+                        const next = [...prev];
+                        next[idx] = { ...next[idx], uf: t.slice(0, 2) };
+                        return next;
+                      })
+                    }
+                    placeholder="UF (opcional, 2 letras)"
+                    placeholderTextColor={theme.colors.text.tertiary}
+                    autoCapitalize="characters"
+                    maxLength={2}
+                    style={{
+                      borderWidth: 1,
+                      borderColor: theme.colors.border.divider,
+                      borderRadius: 12,
+                      padding: theme.spacing.md,
+                      fontSize: 16,
+                      color: theme.colors.text.primary,
+                    }}
+                  />
+                </View>
+              ))}
+              <Pressable
+                onPress={() => setEditRegistries((prev) => [...prev, { kind: "", number: "", uf: "" }])}
+                style={{ alignSelf: "flex-start", marginBottom: theme.spacing.sm }}
+              >
+                <Text style={{ fontSize: 16, fontWeight: "600", color: "#007AFF" }}>+ Adicionar registo</Text>
+              </Pressable>
+              <Text style={{ fontSize: 12, color: theme.colors.text.tertiary, marginBottom: theme.spacing.md, lineHeight: 18 }}>
+                Só são gravados os registos com tipo e número preenchidos. A UF é opcional (ex.: SP).
+              </Text>
+              <Text style={{ fontSize: 12, color: theme.colors.text.secondary, marginBottom: 4 }}>
                 Data do exame (AAAA-MM-DD)
               </Text>
               <TextInput
@@ -588,7 +714,7 @@ export default function ExamDetailScreen() {
             }}
           >
             <FontAwesome name="share-alt" size={18} color="#007AFF" />
-            <Text style={{ fontSize: 11, fontWeight: "600", color: "#007AFF", marginTop: 4 }}>Partilhar</Text>
+            <Text style={{ fontSize: 11, fontWeight: "600", color: "#007AFF", marginTop: 4 }}>Compartilhar</Text>
           </Pressable>
           <Pressable
             onPress={confirmDelete}
@@ -764,7 +890,7 @@ export default function ExamDetailScreen() {
                       }}
                     >
                       <Text style={{ fontSize: 12, color: theme.colors.text.secondary, textAlign: "center" }}>
-                        Valor não numérico neste e nos outros registos — gráfico indisponível.
+                        Valor não numérico neste e nos outros registros — gráfico indisponível.
                       </Text>
                     </View>
                   ) : histModel?.kind === "empty" ? (

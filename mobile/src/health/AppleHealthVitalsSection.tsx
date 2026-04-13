@@ -97,7 +97,7 @@ export function AppleHealthVitalsSection({ theme }: Props) {
         icon="ambulance"
         iconTint={theme.colors.semantic.vitals}
         title="Quedas (Apple Saúde)"
-        subtitle="N.º de quedas no intervalo registado"
+        subtitle="N.º de quedas no intervalo registrado"
         value={display(falls)}
         showDivider
       />

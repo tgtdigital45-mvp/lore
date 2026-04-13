@@ -2,7 +2,15 @@ import { Text, View } from "react-native";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import type { AppTheme } from "@/src/theme/theme";
 import type { MedicalDocRow } from "./examHelpers";
-import { examDisplayDateIso, formatExamDate, getDoctorName, getDocumentTitle, kindBadge } from "./examHelpers";
+import {
+  examDisplayDateIso,
+  formatExamDate,
+  formatProfessionalRegistriesDisplay,
+  getDoctorName,
+  getDocumentTitle,
+  kindBadge,
+  parseProfessionalRegistriesFromJson,
+} from "./examHelpers";
 
 const IA_BLUE = "#007AFF";
 
@@ -16,6 +24,7 @@ export function ExamDocumentCard({ theme, row }: Props) {
   const summary = typeof j?.summary_pt_br === "string" ? j.summary_pt_br : "";
   const title = getDocumentTitle(row);
   const doctor = getDoctorName(j);
+  const registriesLine = formatProfessionalRegistriesDisplay(parseProfessionalRegistriesFromJson(j));
   const dateStr = formatExamDate(examDisplayDateIso(row));
   const badge = kindBadge(row.document_type);
 
@@ -66,6 +75,20 @@ export function ExamDocumentCard({ theme, row }: Props) {
           </Text>
         </View>
       </View>
+
+      {registriesLine ? (
+        <Text
+          style={{
+            fontSize: 11,
+            color: theme.colors.text.tertiary,
+            marginTop: theme.spacing.sm,
+            lineHeight: 16,
+          }}
+          numberOfLines={3}
+        >
+          {registriesLine.split("\n").join(" · ")}
+        </Text>
+      ) : null}
 
       <View style={{ height: 1, backgroundColor: theme.colors.border.divider, marginVertical: theme.spacing.md }} />
 

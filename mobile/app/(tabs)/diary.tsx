@@ -196,7 +196,7 @@ export default function DiaryScreen() {
         <View style={{ flex: 1, paddingVertical: theme.spacing.md }}>
           <Text style={[theme.typography.title2, { color: theme.colors.text.primary }]}>Sintomas</Text>
           <Text style={[theme.typography.body, { color: theme.colors.text.secondary, marginTop: theme.spacing.sm }]}>
-            Complete o cadastro em Resumo para registar sintomas.
+            Complete o cadastro em Resumo para registrar sintomas.
           </Text>
         </View>
       </ResponsiveScreen>
@@ -213,7 +213,7 @@ export default function DiaryScreen() {
         <View style={{ paddingTop: theme.spacing.sm, marginBottom: theme.spacing.md }}>
           <Text style={[theme.typography.largeTitle, { color: theme.colors.text.primary }]}>Sintomas</Text>
           <Text style={[theme.typography.body, { color: theme.colors.text.secondary, marginTop: theme.spacing.xs }]}>
-            Os gráficos ficam no ecrã de cada sintoma. Abaixo, a lista completa — toque para histórico e registo.
+            Os gráficos ficam no tela de cada sintoma. Abaixo, a lista completa — toque para histórico e registro.
           </Text>
         </View>
 
@@ -251,7 +251,7 @@ export default function DiaryScreen() {
             </Pressable>
 
             <Text style={[theme.typography.title2, { color: theme.colors.text.primary, marginBottom: theme.spacing.sm }]}>
-              Últimos registos
+              Últimos registros
             </Text>
             <View
               style={{
@@ -325,7 +325,7 @@ export default function DiaryScreen() {
           </View>
           <ScrollView style={{ marginTop: theme.spacing.lg }} keyboardShouldPersistTaps="handled">
             <Text style={[theme.typography.body, { color: theme.colors.text.secondary }]}>
-              Escolha a intensidade (não presente a grave) para cada sintoma. Útil quando quer registar tudo de uma vez.
+              Escolha a intensidade (não presente a grave) para cada sintoma. Útil quando quer registrar tudo de uma vez.
             </Text>
             <CheckInVerbalBlock label="Dor" value={painV} onChange={setPainV} theme={theme} />
             <CheckInVerbalBlock label="Náusea" value={nauseaV} onChange={setNauseaV} theme={theme} />

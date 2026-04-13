@@ -1,4 +1,8 @@
-import { Line, LineChart, ResponsiveContainer, YAxis } from "recharts";
+import { Line, LineChart, YAxis } from "recharts";
+
+/** Fixed pixel size avoids ResponsiveContainer measuring -1 in flex layouts (Recharts warning / throw). */
+const SPARK_W = 112;
+const SPARK_H = 40;
 
 type Props = {
   data: { iso: string; v: number }[];
@@ -19,14 +23,12 @@ export function VitalMicroSpark({ data, color, unit, label }: Props) {
           {last != null ? last.toFixed(last >= 10 ? 0 : 1) : "—"}
           {unit ? <span className="text-xs font-medium text-muted-foreground"> {unit}</span> : null}
         </span>
-        <div className="h-10 min-w-[72px] flex-1 overflow-hidden">
+        <div className="flex h-10 shrink-0 items-center overflow-hidden" style={{ width: SPARK_W }}>
           {chartData.length > 1 ? (
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={chartData} margin={{ top: 2, right: 2, left: 2, bottom: 2 }}>
-                <YAxis hide domain={["auto", "auto"]} />
-                <Line type="monotone" dataKey="v" stroke={color} strokeWidth={2} dot={false} isAnimationActive={false} />
-              </LineChart>
-            </ResponsiveContainer>
+            <LineChart width={SPARK_W} height={SPARK_H} data={chartData} margin={{ top: 2, right: 2, left: 2, bottom: 2 }}>
+              <YAxis hide domain={["auto", "auto"]} />
+              <Line type="monotone" dataKey="v" stroke={color} strokeWidth={2} dot={false} isAnimationActive={false} />
+            </LineChart>
           ) : (
             <div className="text-[0.7rem] text-muted-foreground">Sem série 24h</div>
           )}

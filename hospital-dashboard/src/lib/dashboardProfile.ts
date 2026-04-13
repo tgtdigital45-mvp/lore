@@ -39,7 +39,12 @@ export function profileAvatarUrl(p: PatientRow["profiles"]): string | null {
   if (!p) return null;
   const row = Array.isArray(p) ? p[0] : p;
   const u = row?.avatar_url;
-  return typeof u === "string" && u.trim() !== "" ? u : null;
+  if (typeof u !== "string") return null;
+  let t = u.trim();
+  if (t === "") return null;
+  if (t.startsWith("//")) t = `https:${t}`;
+  if (!/^https?:\/\//i.test(t)) return null;
+  return t;
 }
 
 export function normalizeEmergencyContacts(raw: PatientRow["patient_emergency_contacts"]): EmergencyContactEmbed[] {

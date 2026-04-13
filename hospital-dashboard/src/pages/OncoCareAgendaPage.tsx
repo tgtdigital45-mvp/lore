@@ -150,7 +150,7 @@ export function OncoCareAgendaPage() {
       {error ? (
         <p className="rounded-2xl border-[3px] border-[#FECACA] bg-[#FEF2F2] px-4 py-3 text-sm text-[#B91C1C]">{error}</p>
       ) : null}
-      {loading ? <p className="text-sm text-muted-foreground">A carregar recursos…</p> : null}
+      {loading ? <p className="text-sm text-muted-foreground">Carregando recursos…</p> : null}
 
       <div className="flex flex-col gap-8 xl:flex-row xl:items-start">
         <div className="min-w-0 flex-1">
@@ -204,7 +204,7 @@ export function OncoCareAgendaPage() {
                       </div>
 
                       <p className="mt-3 line-clamp-2 text-xs leading-relaxed text-muted-foreground">
-                        {c.details?.trim() || "Sem notas de equipamento."}
+                        {c.details?.trim() || "Sem notas de equipemento."}
                       </p>
                     </Card>
                   </Link>

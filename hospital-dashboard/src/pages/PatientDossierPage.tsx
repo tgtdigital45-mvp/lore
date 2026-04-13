@@ -7,7 +7,8 @@ import { usePatientExamesHandlers } from "@/hooks/usePatientExamesHandlers";
 import { calculateSuspensionRisk } from "@/lib/suspensionRisk";
 import { computeClinicalNadirSummary, firstInfusionSessionAtInCycle } from "@/lib/clinicalNadir";
 import { CANCER_PT } from "@/constants/dashboardLabels";
-import { profileName, profileDob, ageFromDob, initialsFromName } from "@/lib/dashboardProfile";
+import { symptomCategoryLabel, symptomSeverityLabel } from "@/lib/patientModalHelpers";
+import { profileName, profileDob, profileAvatarUrl, ageFromDob, initialsFromName } from "@/lib/dashboardProfile";
 import { formatPatientCodeDisplay } from "@/lib/patientCode";
 import { formatPtDateTime, formatPtShort } from "@/lib/dashboardFormat";
 import { refreshSupabaseSessionIfStale } from "@/lib/authSession";
@@ -15,7 +16,7 @@ import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { TemperatureAreaChart } from "@/components/patient/TemperatureAreaChart";
 import { ToxicityHeatmap } from "@/components/patient/ToxicityHeatmap";
 import PatientExamesPanel from "@/components/patient/tabs/PatientExamesPanel";
@@ -103,7 +104,7 @@ export function PatientDossierPage() {
   if (loading && !riskRow) {
     return (
       <div className="flex min-h-[50vh] items-center justify-center text-muted-foreground">
-        A carregar dossiê…
+        Carregando dossiê…
       </div>
     );
   }
@@ -129,6 +130,7 @@ export function PatientDossierPage() {
   const cycleLabel = active ? `${completed} / ${planned}` : "—";
 
   const name = profileName(riskRow.profiles);
+  const avatarUrl = profileAvatarUrl(riskRow.profiles);
   const age = ageFromDob(profileDob(riskRow.profiles));
   const code = formatPatientCodeDisplay(riskRow.patient_code) ?? `PR-${riskRow.id.slice(0, 8).toUpperCase()}`;
 
@@ -189,6 +191,9 @@ export function PatientDossierPage() {
         <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
           <div className="flex min-w-0 gap-4">
             <Avatar className="size-16 rounded-2xl border border-[#E8EAED]">
+              {avatarUrl ? (
+                <AvatarImage src={avatarUrl} alt="" referrerPolicy="no-referrer" className="rounded-2xl object-cover" />
+              ) : null}
               <AvatarFallback className="rounded-2xl text-lg font-black">{initialsFromName(name)}</AvatarFallback>
             </Avatar>
             <div>
@@ -241,7 +246,7 @@ export function PatientDossierPage() {
         </div>
       </Card>
 
-      <div className="patient-modal__tabs mb-6" role="tablist" aria-label="Secções do prontuário">
+      <div className="patient-modal__tabs mb-6" role="tablist" aria-label="Seções do prontuário">
         <button
           type="button"
           role="tab"
@@ -408,7 +413,7 @@ export function PatientDossierPage() {
                   alerts.map((a) => (
                     <li key={a.id} className="rounded-2xl bg-[#FEF2F2] px-3 py-2 text-sm">
                       <span className="font-semibold text-[#B91C1C]">
-                        {a.symptom_category ?? "Sintoma"} · {a.severity ?? "—"}
+                        {symptomCategoryLabel(a)} · {symptomSeverityLabel(a)}
                       </span>
                       <p className="text-[0.65rem] text-muted-foreground">{formatPtDateTime(a.logged_at)}</p>
                     </li>
@@ -485,7 +490,7 @@ export function PatientDossierPage() {
         <Card className="rounded-3xl border border-[#E8EAED] p-6 shadow-sm">
           <PatientMedicamentosPanel loading={loading} medications={medications} medicationLogs={medicationLogs} />
           <p className="mt-6 text-center text-xs leading-relaxed text-muted-foreground">
-            Dados registados pelo paciente na app; requer vínculo aprovado para visualização completa.
+            Dados registrados pelo paciente na app; requer vínculo aprovado para visualização completa.
           </p>
         </Card>
       ) : null}

@@ -313,7 +313,7 @@ export function SymptomQuickLog({ theme, patientId, logs, onLogged, onSymptomDet
             opacity: busy ? 0.55 : 1,
           }}
         >
-          <Text style={[theme.typography.headline, { color: "#FFFFFF" }]}>Registar</Text>
+          <Text style={[theme.typography.headline, { color: "#FFFFFF" }]}>Registrar</Text>
         </Pressable>
       </View>
     );

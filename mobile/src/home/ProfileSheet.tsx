@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ElementRef } fr
 import {
   ActivityIndicator,
   Alert,
-  Image,
   Platform,
   Pressable,
   ScrollView,
@@ -12,6 +11,7 @@ import {
   TextInput,
   View,
 } from "react-native";
+import { Image } from "expo-image";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import {
   BottomSheetBackdrop,
@@ -46,11 +46,17 @@ type Props = {
   localAvatarUri: string | null;
   remoteAvatarUrl: string | null;
   onSignOut: () => void;
-  onProfileSaved?: () => void;
+  onProfileSaved?: () => void | Promise<void>;
 };
 
-const TERMS_URL = "https://www.gov.br/saude/pt-br/canais-atendimento/ouvidoria";
-const PRIVACY_URL = "https://www.gov.br/governodigital/pt-br/privacidade-e-seguranca";
+const TERMS_URL = "https://lore-kd37.vercel.app/termos";
+const PRIVACY_URL = "https://lore-kd37.vercel.app/privacidade";
+
+function cacheBustHttp(uri: string, epoch: number): string {
+  if (!uri.startsWith("http")) return uri;
+  const sep = uri.includes("?") ? "&" : "?";
+  return `${uri}${sep}v=${epoch}`;
+}
 
 /** Rótulos curtos na barra horizontal para o ícone não ser cortado; o conteúdo de cada separador mantém o título completo. */
 const TABS: { key: TabKey; label: string; icon: string }[] = [
@@ -122,6 +128,7 @@ export function ProfileSheet({
   const [contactsDraft, setContactsDraft] = useState<ContactDraft[]>([]);
   const [fichaBusy, setFichaBusy] = useState(false);
   const [avatarBusy, setAvatarBusy] = useState(false);
+  const [avatarEpoch, setAvatarEpoch] = useState(0);
 
   useEffect(() => {
     if (!visible) return;
@@ -185,7 +192,8 @@ export function ProfileSheet({
     return `${parts[0].slice(0, 1)}${parts[parts.length - 1].slice(0, 1)}`.toUpperCase();
   }, [nameDraft, profileName]);
 
-  const displayAvatarUri = remoteAvatarUrl ?? localAvatarUri;
+  const remoteFromProfile = remoteAvatarUrl ?? patient?.profiles?.avatar_url ?? null;
+  const displayAvatarUri = remoteFromProfile ?? localAvatarUri;
 
   const cardBg = theme.colors.background.secondary;
   const radius = theme.radius.md;
@@ -270,7 +278,7 @@ export function ProfileSheet({
       invalidatePatient();
       await qc.invalidateQueries({ queryKey: emergencyContactsQueryKey(patient.id) });
       await refresh();
-      onProfileSaved?.();
+      await Promise.resolve(onProfileSaved?.());
       Alert.alert("Guardado", "A ficha médica foi atualizada.");
     } catch (e) {
       Alert.alert("Não foi possível guardar", e instanceof Error ? e.message : "Erro desconhecido");
@@ -307,10 +315,16 @@ export function ProfileSheet({
       const uri = result.assets[0].uri;
       setAvatarBusy(true);
       const res = await fetch(uri);
-      const blob = await res.blob();
+      const buf = await res.arrayBuffer();
+      const lower = uri.toLowerCase();
+      const contentType = lower.includes("png")
+        ? "image/png"
+        : lower.includes("webp")
+          ? "image/webp"
+          : "image/jpeg";
       const path = `${uid}/avatar.jpg`;
-      const { error: upErr } = await supabase.storage.from("avatars").upload(path, blob, {
-        contentType: blob.type || "image/jpeg",
+      const { error: upErr } = await supabase.storage.from("avatars").upload(path, buf, {
+        contentType,
         upsert: true,
       });
       if (upErr) throw upErr;
@@ -319,7 +333,10 @@ export function ProfileSheet({
       const { error: prErr } = await supabase.from("profiles").update({ avatar_url: publicUrl }).eq("id", uid);
       if (prErr) throw prErr;
       invalidatePatient();
-      onProfileSaved?.();
+      if (uid) await qc.refetchQueries({ queryKey: ["patient", uid] });
+      await refresh();
+      setAvatarEpoch((n) => n + 1);
+      await Promise.resolve(onProfileSaved?.());
     } catch (e) {
       console.warn("[avatar upload]", e);
       Alert.alert("Foto de perfil", e instanceof Error ? e.message : "Não foi possível enviar a imagem.");
@@ -367,13 +384,16 @@ export function ProfileSheet({
             >
               {displayAvatarUri ? (
                 <Image
-                  source={{ uri: displayAvatarUri }}
+                  key={`${displayAvatarUri}-${avatarEpoch}`}
+                  source={{ uri: cacheBustHttp(displayAvatarUri, avatarEpoch) }}
                   style={{
                     width: 80,
                     height: 80,
                     borderRadius: 40,
                     backgroundColor: theme.colors.background.secondary,
                   }}
+                  contentFit="cover"
+                  cachePolicy="none"
                 />
               ) : (
                 <View
@@ -526,7 +546,7 @@ export function ProfileSheet({
                           }}
                         >
                           <FontAwesome name="share-alt" size={16} color={theme.colors.semantic.treatment} />
-                          <Text style={{ fontWeight: "600", color: theme.colors.semantic.treatment }}>Partilhar código</Text>
+                          <Text style={{ fontWeight: "600", color: theme.colors.semantic.treatment }}>Compartilhar código</Text>
                         </Pressable>
                       ) : null}
                     </>
@@ -759,7 +779,7 @@ export function ProfileSheet({
                       <TextInput
                         value={clinicalNotes}
                         onChangeText={setClinicalNotes}
-                        placeholder="Observações para a equipa ou para si…"
+                        placeholder="Observações para a equipe ou para si…"
                         placeholderTextColor={theme.colors.text.tertiary}
                         multiline
                         style={{
@@ -912,7 +932,7 @@ export function ProfileSheet({
             {tab === "notificacoes" && (
               <View style={{ gap: theme.spacing.md }}>
                 <Text style={[theme.typography.body, { color: theme.colors.text.secondary }]}>
-                  Escolha que tipo de lembretes quer. O telemóvel também precisa de permissão para notificações.
+                  Escolha que tipo de lembretes quer. O celular também precisa de permissão para notificações.
                 </Text>
                 {notifLoading ? (
                   <ActivityIndicator />
@@ -958,7 +978,7 @@ export function ProfileSheet({
                       cardBg={cardBg}
                       radius={radius}
                       title="Sintomas e diário"
-                      subtitle="Lembretes para registar o diário."
+                      subtitle="Lembretes para registrar o diário."
                       value={notifPrefs.notify_symptoms}
                       onValue={(v) => void updatePrefs.mutateAsync({ notify_symptoms: v })}
                       disabled={updatePrefs.isPending}
@@ -983,7 +1003,7 @@ export function ProfileSheet({
                   <View style={{ height: 1, backgroundColor: theme.colors.border.divider, marginLeft: 52 }} />
                   <ConfigRow
                     icon="lock"
-                    label="Privacidade (gov.br)"
+                    label="Política de privacidade"
                     onPress={() => void WebBrowser.openBrowserAsync(PRIVACY_URL)}
                     theme={theme}
                   />

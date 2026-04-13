@@ -42,7 +42,7 @@ export async function signInWithOAuthGoogle(): Promise<{ error?: string }> {
 
   const result = await WebBrowser.openAuthSessionAsync(data.url, redirectTo);
   if (result.type !== "success" || !result.url) {
-    return result.type === "cancel" ? {} : { error: "Login Google cancelado ou falhou." };
+    return result.type === "cancel" ? {} : { error: "Entrada com Google cancelada ou falhou." };
   }
   const p = parseAuthParamsFromUrl(result.url);
   const access_token = p.access_token;
@@ -58,9 +58,9 @@ export async function signInWithOAuthGoogle(): Promise<{ error?: string }> {
 }
 
 export async function signInWithAppleNative(): Promise<{ error?: string }> {
-  if (Platform.OS !== "ios") return { error: "Sign in with Apple só está disponível no iOS." };
+  if (Platform.OS !== "ios") return { error: "Entrar com a Apple só está disponível no iOS." };
   const available = await AppleAuthentication.isAvailableAsync();
-  if (!available) return { error: "Apple Sign-In não disponível neste dispositivo." };
+  if (!available) return { error: "Entrada com a Apple não disponível neste dispositivo." };
 
   const rawNonce = Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
   const hashedNonce = await Crypto.digestStringAsync(Crypto.CryptoDigestAlgorithm.SHA256, rawNonce);
@@ -77,7 +77,7 @@ export async function signInWithAppleNative(): Promise<{ error?: string }> {
   } catch (e: unknown) {
     const code = e && typeof e === "object" && "code" in e ? String((e as { code?: string }).code) : "";
     if (code === "ERR_CANCELED" || code === "ERR_REQUEST_CANCELED") return {};
-    const msg = e instanceof Error ? e.message : "Apple Sign-In falhou.";
+    const msg = e instanceof Error ? e.message : "Falha na entrada com a Apple.";
     return { error: msg };
   }
 

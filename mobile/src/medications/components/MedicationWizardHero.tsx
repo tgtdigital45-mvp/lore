@@ -60,7 +60,7 @@ export function MedicationWizardHero({ variant, theme }: Props) {
               </View>
               <View style={{ alignItems: "center", marginHorizontal: theme.spacing.md }}>
                 <MaterialCommunityIcons name="clipboard-list-outline" size={26} color={theme.colors.text.secondary} />
-                <Text style={{ fontSize: 11, color: theme.colors.text.tertiary, marginTop: 4 }}>Registo</Text>
+                <Text style={{ fontSize: 11, color: theme.colors.text.tertiary, marginTop: 4 }}>Registro</Text>
               </View>
             </View>
           </>

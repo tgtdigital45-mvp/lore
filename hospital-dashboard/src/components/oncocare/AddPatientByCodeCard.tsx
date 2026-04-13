@@ -117,7 +117,7 @@ export function AddPatientByCodeCard({ loadTriage, hospitalId, hospitalOptions }
             <h3 className="text-sm font-bold uppercase tracking-wide text-muted-foreground">Adicionar paciente</h3>
           </div>
           <p className="mt-2 max-w-xl text-sm text-muted-foreground">
-            Introduza o código público do paciente (Aura). Será criado um pedido de vínculo; após aprovação no telemóvel, o dossiê passa a aparecer na triagem.
+            Digite o código público do paciente (Aura). Será criado um pedido de vínculo; após aprovação no celular, o dossiê passa a aparecer na triagem.
           </p>
           {hospitalOptions.length === 1 ? (
             <p className="mt-2 text-xs text-muted-foreground">

@@ -29,7 +29,7 @@ export function ClinicalHeader({ patient, cycles, infusions, loading }: Props) {
 
   return (
     <div className="clinical-header">
-      {loading ? <p className="clinical-header__hint muted">A carregar dados clínicos…</p> : null}
+      {loading ? <p className="clinical-header__hint muted">Carregando dados clínicos…</p> : null}
       <div className="clinical-header__row">
         {stage ? (
           <span className="clinical-header__chip clinical-header__chip--stage" title="Estadiamento">

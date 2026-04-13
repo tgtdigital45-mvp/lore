@@ -73,7 +73,7 @@ export function DossierReportModal({ open, onOpenChange, payload }: Props) {
               Gerar relatório (PDF)
             </h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              Marque as secções a incluir. Segue-se o diálogo de impressão (não usa pop-ups) — escolha «Guardar como PDF» ou a
+              Marque as seções a incluir. Segue-se o diálogo de impressão (não usa pop-ups) — escolha «Guardar como PDF» ou a
               impressora.
             </p>
           </div>

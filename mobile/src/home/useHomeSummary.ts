@@ -263,12 +263,12 @@ export function useHomeSummary(patient: PatientRow | null) {
       }
       const fever = lastBySymptom.get("fever");
       if (fever?.body_temperature != null) {
-        return { title: "Temperatura", subtitle: `${fever.body_temperature} °C`, hint: "Último registo no diário" };
+        return { title: "Temperatura", subtitle: `${fever.body_temperature} °C`, hint: "Último registro no diário" };
       }
-      return { title: "Temperatura", subtitle: "Sem registro", hint: "Registe em Saúde → Sinais vitais" };
+      return { title: "Temperatura", subtitle: "Sem registro", hint: "Registre em Saúde → Sinais vitais" };
     }
     const row = latestVitalByType.get(vt);
-    if (!row) return { title: getWidgetLabel(widgetId), subtitle: "Sem registro", hint: "Registe em Saúde → Sinais vitais" };
+    if (!row) return { title: getWidgetLabel(widgetId), subtitle: "Sem registro", hint: "Registre em Saúde → Sinais vitais" };
     if (vt === "blood_pressure") {
       const sys = row.value_systolic;
       const dia = row.value_diastolic;
@@ -318,13 +318,13 @@ export function useHomeSummary(patient: PatientRow | null) {
       if (nutritionAgg.waterToday > 0) {
         return { title: "Água", subtitle: `${nutritionAgg.waterToday} copo(s) hoje` };
       }
-      return { title: "Água", subtitle: "Sem registro", hint: "Registe em Saúde → Nutrição" };
+      return { title: "Água", subtitle: "Sem registro", hint: "Registre em Saúde → Nutrição" };
     }
     if (def === "nutrition:coffee") {
       if (nutritionAgg.coffeeToday > 0) {
         return { title: "Café", subtitle: `${nutritionAgg.coffeeToday} hoje` };
       }
-      return { title: "Café", subtitle: "Sem registro", hint: "Registe em Saúde → Nutrição" };
+      return { title: "Café", subtitle: "Sem registro", hint: "Registre em Saúde → Nutrição" };
     }
     if (def === "nutrition:meals") {
       if (nutritionAgg.mealCountToday > 0) {

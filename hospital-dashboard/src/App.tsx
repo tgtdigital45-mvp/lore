@@ -12,6 +12,7 @@ import { OncoCarePatientsPage } from "./pages/OncoCarePatientsPage";
 import { OncoCareAgendaPage } from "./pages/OncoCareAgendaPage";
 import { OncoCareResourceDetailPage } from "./pages/OncoCareResourceDetailPage";
 import { PatientDossierPage } from "./pages/PatientDossierPage";
+import { StaffSettingsPage } from "./pages/StaffSettingsPage";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./components/ui/card";
 import { Button } from "./components/ui/button";
 import { Input } from "./components/ui/input";
@@ -85,7 +86,7 @@ function OncoCareAuthScreen() {
       </div>
       <Card id="login-card" className="w-full max-w-md rounded-[32px] border-[3px] border-[#F3F4F6] shadow-xl">
         <CardHeader>
-          <CardTitle className="text-2xl font-black">Acesso à equipa</CardTitle>
+          <CardTitle className="text-2xl font-black">Acesso à equipe</CardTitle>
           <CardDescription>Triagem e prontuário — ambiente hospitalar demo Aura.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -198,6 +199,7 @@ export default function App() {
           <Route path="agenda" element={<OncoCareAgendaPage />} />
           <Route path="agenda/recurso/:resourceId" element={<OncoCareResourceDetailPage />} />
           <Route path="paciente/:patientId" element={<PatientDossierPage />} />
+          <Route path="conta" element={<StaffSettingsPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
       </Routes>

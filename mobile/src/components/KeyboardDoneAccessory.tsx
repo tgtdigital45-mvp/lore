@@ -1,6 +1,6 @@
 import { InputAccessoryView, Keyboard, Platform, Pressable, StyleSheet, Text, View } from "react-native";
 
-/** Partilhado por vários TextInput no mesmo ecrã (iOS). */
+/** Partilhado por vários TextInput no mesmo tela (iOS). */
 export const KEYBOARD_DONE_ACCESSORY_ID = "aura_keyboard_done";
 
 /**
