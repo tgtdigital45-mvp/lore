@@ -11,6 +11,7 @@ import { createServiceSupabase } from "./supabase.js";
 const sendBody = z.object({
   patient_id: z.string().uuid(),
   message: z.string().min(1).max(4096),
+  symptom_log_id: z.string().uuid().optional(),
 });
 
 function digitsOnly(phone: string | null | undefined): string | null {
@@ -137,11 +138,24 @@ export function mountWhatsappRoutes(app: Express, env: Env, limiter: RateLimitRe
 
     const supabase = req.authUser!.supabase;
     const userId = req.authUser!.userId;
-    const { patient_id: patientId, message } = parsed.data;
+    const { patient_id: patientId, message, symptom_log_id: symptomLogId } = parsed.data;
+
+    if (symptomLogId) {
+      const { data: sl, error: slErr } = await supabase
+        .from("symptom_logs")
+        .select("id")
+        .eq("id", symptomLogId)
+        .eq("patient_id", patientId)
+        .maybeSingle();
+      if (slErr || !sl) {
+        res.status(400).json({ error: "invalid_symptom_log", message: "Sintoma não pertence a este paciente." });
+        return;
+      }
+    }
 
     const { data: patientRow, error: pErr } = await supabase
       .from("patients")
-      .select("id, hospital_id, profiles ( phone_e164, whatsapp_opt_in_at, whatsapp_opt_in_revoked_at )")
+      .select("id, hospital_id, profiles!patients_profile_id_fkey ( phone_e164, whatsapp_opt_in_at, whatsapp_opt_in_revoked_at )")
       .eq("id", patientId)
       .single();
 
@@ -205,6 +219,7 @@ export function mountWhatsappRoutes(app: Express, env: Env, limiter: RateLimitRe
           status: "failed",
           error_detail: detail.slice(0, 2000),
           metadata: { graph_status: r.status },
+          symptom_log_id: symptomLogId ?? null,
         });
         res.status(502).json({
           error: "whatsapp_send_failed",
@@ -224,6 +239,7 @@ export function mountWhatsappRoutes(app: Express, env: Env, limiter: RateLimitRe
         status: "failed",
         error_detail: msg.slice(0, 2000),
         metadata: {},
+        symptom_log_id: symptomLogId ?? null,
       });
       res.status(502).json({
         error: "whatsapp_network_error",
@@ -244,7 +260,8 @@ export function mountWhatsappRoutes(app: Express, env: Env, limiter: RateLimitRe
         body: message,
         status: "sent",
         provider_message_id: wamid,
-        metadata: {},
+        metadata: symptomLogId ? { symptom_log_id: symptomLogId } : {},
+        symptom_log_id: symptomLogId ?? null,
       })
       .select("id")
       .single();

@@ -11,7 +11,7 @@ import { firstName, initialsFromName } from "@/lib/dashboardProfile";
 import { supabase } from "@/lib/supabase";
 
 const nav = [
-  { to: "/", label: "Dashboard", icon: LayoutDashboard, end: true },
+  { to: "/", label: "Painel", icon: LayoutDashboard, end: true },
   { to: "/pacientes", label: "Pacientes", icon: Users, end: false },
   { to: "/agenda", label: "Agenda", icon: CalendarDays, end: false },
 ];
@@ -121,7 +121,7 @@ export function OncoCareLayout() {
                     </Avatar>
                     <div className="hidden text-left sm:block">
                       <p className="text-sm font-bold leading-tight">{firstName(displayName)}</p>
-                      <p className="text-xs text-muted-foreground">{staffProfile?.role ?? "Staff"}</p>
+                      <p className="text-xs text-muted-foreground">{staffProfile?.role ?? "Equipe"}</p>
                     </div>
                   </div>
                 </TooltipTrigger>

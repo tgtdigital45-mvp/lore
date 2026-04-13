@@ -3,7 +3,7 @@ import { ActivityIndicator, Alert, Keyboard, Platform, Pressable, ScrollView, Te
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import type { Href } from "expo-router";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { KeyboardDoneAccessory, KEYBOARD_DONE_ACCESSORY_ID } from "@/src/components/KeyboardDoneAccessory";
+import { KeyboardAccessoryDone, KEYBOARD_ACCESSORY_ID } from "@/src/components/KeyboardAccessoryDone";
 import { ResponsiveScreen } from "@/src/components/ResponsiveScreen";
 import { CircleChromeButton } from "@/src/health/components/MedicationChromeButtons";
 import { IOS_HEALTH } from "@/src/health/iosHealthTokens";
@@ -151,7 +151,7 @@ export default function TreatmentCycleEditScreen() {
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode="on-drag"
         >
-          <KeyboardDoneAccessory />
+          <KeyboardAccessoryDone />
           <Text style={[theme.typography.body, { color: theme.colors.text.secondary }]}>Nome do ciclo</Text>
           <TextInput
             value={protocolName}
@@ -177,7 +177,7 @@ export default function TreatmentCycleEditScreen() {
             value={notes}
             onChangeText={setNotes}
             multiline
-            inputAccessoryViewID={Platform.OS === "ios" ? KEYBOARD_DONE_ACCESSORY_ID : undefined}
+            inputAccessoryViewID={Platform.OS === "ios" ? KEYBOARD_ACCESSORY_ID : undefined}
             style={{
               marginTop: theme.spacing.xs,
               minHeight: 80,
@@ -201,7 +201,7 @@ export default function TreatmentCycleEditScreen() {
             onChangeText={setInfusionIntervalDays}
             placeholder="Ex.: 7, 14, 21…"
             keyboardType="number-pad"
-            inputAccessoryViewID={Platform.OS === "ios" ? KEYBOARD_DONE_ACCESSORY_ID : undefined}
+            inputAccessoryViewID={Platform.OS === "ios" ? KEYBOARD_ACCESSORY_ID : undefined}
             returnKeyType="next"
             blurOnSubmit={false}
             onSubmitEditing={() => Keyboard.dismiss()}
@@ -225,7 +225,7 @@ export default function TreatmentCycleEditScreen() {
               onChangeText={setPlanned}
               placeholder="Planejadas"
               keyboardType="number-pad"
-              inputAccessoryViewID={Platform.OS === "ios" ? KEYBOARD_DONE_ACCESSORY_ID : undefined}
+              inputAccessoryViewID={Platform.OS === "ios" ? KEYBOARD_ACCESSORY_ID : undefined}
               returnKeyType="next"
               onSubmitEditing={() => Keyboard.dismiss()}
               style={{
@@ -243,7 +243,7 @@ export default function TreatmentCycleEditScreen() {
               onChangeText={setCompleted}
               placeholder="Realizadas"
               keyboardType="number-pad"
-              inputAccessoryViewID={Platform.OS === "ios" ? KEYBOARD_DONE_ACCESSORY_ID : undefined}
+              inputAccessoryViewID={Platform.OS === "ios" ? KEYBOARD_ACCESSORY_ID : undefined}
               returnKeyType="done"
               blurOnSubmit
               onSubmitEditing={() => Keyboard.dismiss()}

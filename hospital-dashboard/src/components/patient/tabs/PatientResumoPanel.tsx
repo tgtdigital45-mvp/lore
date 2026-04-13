@@ -1,6 +1,7 @@
 import { CANCER_PT, CYCLE_STATUS_PT } from "../../../constants/dashboardLabels";
 import type { MergedAlertRules } from "../../../types/dashboard";
 import type {
+  CycleReadinessRow,
   MedicationLogRow,
   NutritionLogRow,
   RiskRow,
@@ -33,6 +34,7 @@ type Props = {
   modalWearables: WearableSampleRow[];
   modalMedicationLogs: MedicationLogRow[];
   modalNutritionLogs: NutritionLogRow[];
+  modalCycleReadiness: CycleReadinessRow | null;
 };
 
 export default function PatientResumoPanel({
@@ -47,6 +49,7 @@ export default function PatientResumoPanel({
   modalWearables,
   modalMedicationLogs,
   modalNutritionLogs,
+  modalCycleReadiness,
 }: Props) {
   const suspension = calculateSuspensionRisk(
     modalPatient,
@@ -96,6 +99,48 @@ export default function PatientResumoPanel({
             )}
           </p>
         </div>
+        {modalCycleReadiness ? (
+          <div
+            className="patient-modal__card"
+            style={{
+              borderColor:
+                modalCycleReadiness.readiness_status === "hold"
+                  ? "color-mix(in srgb, var(--risk-critical) 35%, transparent)"
+                  : modalCycleReadiness.readiness_status === "likely_ok"
+                    ? "color-mix(in srgb, var(--status-ok) 35%, transparent)"
+                    : undefined,
+            }}
+          >
+            <h3 className="patient-modal__label">Próximo ciclo (heurística)</h3>
+            <p className="patient-modal__value">
+              <span
+                className={`pill ${
+                  modalCycleReadiness.readiness_status === "hold"
+                    ? "risk-critical"
+                    : modalCycleReadiness.readiness_status === "likely_ok"
+                      ? "risk-low"
+                      : "risk-mid"
+                }`}
+              >
+                {modalCycleReadiness.readiness_status === "hold"
+                  ? "Aguardar / rever"
+                  : modalCycleReadiness.readiness_status === "likely_ok"
+                    ? "Provável apto"
+                    : "Rever com equipa"}
+              </span>
+              {modalCycleReadiness.protocol_name ? (
+                <span className="muted" style={{ display: "block", marginTop: "0.35rem", fontSize: "0.85rem" }}>
+                  Protocolo: {modalCycleReadiness.protocol_name}
+                </span>
+              ) : null}
+              {modalCycleReadiness.readiness_reasons?.length ? (
+                <span className="muted" style={{ display: "block", marginTop: "0.35rem", fontSize: "0.85rem" }}>
+                  {modalCycleReadiness.readiness_reasons.join(" · ")}
+                </span>
+              ) : null}
+            </p>
+          </div>
+        ) : null}
       </div>
 
       <section className="patient-modal__section">

@@ -39,7 +39,7 @@ export default function LoginScreen() {
     >
       <Text style={[theme.typography.largeTitle, { color: theme.colors.text.primary }]}>Aura Onco</Text>
       <Text style={[theme.typography.body, { color: theme.colors.text.secondary, marginTop: theme.spacing.sm }]}>
-        Um dia de cada vez
+        Um dia de cada vez. Após criar conta, pode escolher paciente ou cuidador.
       </Text>
 
       {mode === "signup" && (

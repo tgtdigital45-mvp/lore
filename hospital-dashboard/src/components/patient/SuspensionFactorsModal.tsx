@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { X } from "lucide-react";
 import type { SuspensionRiskFactor } from "@/lib/suspensionRisk";
 import { cn } from "@/lib/utils";
@@ -11,6 +12,15 @@ type Props = {
 };
 
 export function SuspensionFactorsModal({ open, onOpenChange, score, factors }: Props) {
+  useEffect(() => {
+    if (!open) return;
+    function handleEscape(e: KeyboardEvent) {
+      if (e.key === "Escape") onOpenChange(false);
+    }
+    document.addEventListener("keydown", handleEscape);
+    return () => document.removeEventListener("keydown", handleEscape);
+  }, [open, onOpenChange]);
+
   if (!open) return null;
 
   return (

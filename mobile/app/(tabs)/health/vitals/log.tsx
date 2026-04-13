@@ -1,9 +1,11 @@
-import { useState } from "react";
-import { Alert, Pressable, ScrollView, Text, TextInput, View } from "react-native";
+import { useEffect, useMemo, useState } from "react";
+import { Alert, Platform, Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
+import DateTimePicker from "@react-native-community/datetimepicker";
 import type { Href } from "expo-router";
-import { useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import { ResponsiveScreen } from "@/src/components/ResponsiveScreen";
+import { isVitalType } from "@/src/health/vitalsConfig";
 import { useAppTheme } from "@/src/hooks/useAppTheme";
 import { usePatient } from "@/src/hooks/usePatient";
 import { useStackBack } from "@/src/hooks/useStackBack";
@@ -22,7 +24,7 @@ const TYPES: { key: VitalType; label: string }[] = [
 export default function VitalLogScreen() {
   const { theme } = useAppTheme();
   const router = useRouter();
-  const goBack = useStackBack("/(tabs)/health/vitals" as Href);
+  const { type: typeParam } = useLocalSearchParams<{ type?: string }>();
   const { patient } = usePatient();
   const { insertLog } = useVitalLogs(patient);
 
@@ -33,6 +35,20 @@ export default function VitalLogScreen() {
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
 
+  const [sessionAt, setSessionAt] = useState(() => {
+    const d = new Date();
+    d.setSeconds(0, 0);
+    return d;
+  });
+  const [showPicker, setShowPicker] = useState(false);
+
+  const fallback = useMemo(() => `/(tabs)/health/vitals/${vitalType}` as Href, [vitalType]);
+  const goBack = useStackBack(fallback);
+
+  useEffect(() => {
+    if (isVitalType(typeParam)) setVitalType(typeParam);
+  }, [typeParam]);
+
   async function onSave() {
     if (!patient) {
       Alert.alert("Sinais vitais", "Perfil de paciente necessário.");
@@ -40,6 +56,7 @@ export default function VitalLogScreen() {
     }
     setSaving(true);
     try {
+      const loggedAtIso = sessionAt.toISOString();
       if (vitalType === "blood_pressure") {
         const s = parseInt(sys, 10);
         const d = parseInt(dia, 10);
@@ -54,9 +71,10 @@ export default function VitalLogScreen() {
           value_diastolic: d,
           unit: "mmHg",
           notes: notes.trim() || null,
+          logged_at: loggedAtIso,
         });
         if (error) Alert.alert("Erro", error.message);
-        else router.replace("/(tabs)/health/vitals" as Href);
+        else router.replace(fallback);
       } else {
         const v = parseFloat(valueNum.replace(",", "."));
         if (!Number.isFinite(v)) {
@@ -79,9 +97,10 @@ export default function VitalLogScreen() {
           value_numeric: v,
           unit,
           notes: notes.trim() || null,
+          logged_at: loggedAtIso,
         });
         if (error) Alert.alert("Erro", error.message);
-        else router.replace("/(tabs)/health/vitals" as Href);
+        else router.replace(fallback);
       }
     } finally {
       setSaving(false);
@@ -119,8 +138,32 @@ export default function VitalLogScreen() {
           })}
         </View>
 
+        <Text style={[theme.typography.headline, { color: theme.colors.text.secondary, marginBottom: theme.spacing.sm }]}>Dia e hora</Text>
+        <Text style={[theme.typography.body, { color: theme.colors.text.tertiary, marginBottom: theme.spacing.xs, fontSize: 13 }]}>
+          O registro fica associado ao instante escolhido (por padrão: agora).
+        </Text>
+        {Platform.OS === "ios" ? (
+          <DateTimePicker value={sessionAt} mode="datetime" display="spinner" onChange={(_, d) => d && setSessionAt(d)} />
+        ) : showPicker ? (
+          <DateTimePicker
+            value={sessionAt}
+            mode="datetime"
+            display="default"
+            onChange={(_, d) => {
+              setShowPicker(false);
+              if (d) setSessionAt(d);
+            }}
+          />
+        ) : (
+          <Pressable onPress={() => setShowPicker(true)} style={{ marginTop: theme.spacing.xs }}>
+            <Text style={{ color: theme.colors.semantic.treatment, fontSize: 17 }}>
+              {sessionAt.toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}
+            </Text>
+          </Pressable>
+        )}
+
         {vitalType === "blood_pressure" ? (
-          <View style={{ flexDirection: "row", gap: theme.spacing.md, marginBottom: theme.spacing.md }}>
+          <View style={{ flexDirection: "row", gap: theme.spacing.md, marginTop: theme.spacing.lg, marginBottom: theme.spacing.md }}>
             <View style={{ flex: 1 }}>
               <Text style={{ color: theme.colors.text.secondary, marginBottom: 4 }}>Sistólica</Text>
               <TextInput
@@ -159,7 +202,7 @@ export default function VitalLogScreen() {
             </View>
           </View>
         ) : (
-          <View style={{ marginBottom: theme.spacing.md }}>
+          <View style={{ marginTop: theme.spacing.lg, marginBottom: theme.spacing.md }}>
             <Text style={{ color: theme.colors.text.secondary, marginBottom: 4 }}>Valor</Text>
             <TextInput
               value={valueNum}

@@ -21,15 +21,17 @@ import { TemperatureAreaChart } from "@/components/patient/TemperatureAreaChart"
 import { ToxicityHeatmap } from "@/components/patient/ToxicityHeatmap";
 import PatientExamesPanel from "@/components/patient/tabs/PatientExamesPanel";
 import PatientDiarioPanel from "@/components/patient/tabs/PatientDiarioPanel";
+import { PatientMensagensDossierPanel } from "@/components/patient/tabs/PatientMensagensDossierPanel";
 import PatientMedicamentosPanel from "@/components/patient/tabs/PatientMedicamentosPanel";
 import PatientFichaMedicaPanel from "@/components/patient/tabs/PatientFichaMedicaPanel";
 import PatientTratamentoPanel from "@/components/patient/tabs/PatientTratamentoPanel";
 import { EditableMetricsPanel } from "@/components/patient/EditableMetricsPanel";
 import { DossierReportModal } from "@/components/patient/DossierReportModal";
+import { FhirExportButton } from "@/components/oncocare/FhirExportButton";
 import { SuspensionFactorsModal } from "@/components/patient/SuspensionFactorsModal";
 import type { DossierReportPayload } from "@/lib/dossierReportHtml";
 
-type DossierTab = "resumo" | "ficha" | "tratamento" | "exames" | "medicamentos" | "diario";
+type DossierTab = "resumo" | "ficha" | "tratamento" | "exames" | "medicamentos" | "diario" | "mensagens";
 
 export function PatientDossierPage() {
   const { patientId } = useParams<{ patientId: string }>();
@@ -44,7 +46,8 @@ export function PatientDossierPage() {
     tabParam === "diario" ||
     tabParam === "medicamentos" ||
     tabParam === "ficha" ||
-    tabParam === "tratamento"
+    tabParam === "tratamento" ||
+    tabParam === "mensagens"
       ? tabParam
       : "resumo";
 
@@ -69,6 +72,7 @@ export function PatientDossierPage() {
     medications,
     nutritionLogs,
     emergencyContacts,
+    cycleReadiness,
     refreshExames,
   } = usePatientClinicalBundle(patientId);
 
@@ -184,6 +188,7 @@ export function PatientDossierPage() {
             <FileOutput className="mr-2 size-4" />
             Gerar relatório
           </Button>
+          {patientId ? <FhirExportButton patientId={patientId} /> : null}
         </div>
       </div>
 
@@ -301,6 +306,15 @@ export function PatientDossierPage() {
         >
           Diário
         </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={tab === "mensagens"}
+          className={`patient-modal__tab ${tab === "mensagens" ? "is-active" : ""}`}
+          onClick={() => setTab("mensagens")}
+        >
+          Mensagens
+        </button>
       </div>
 
       {tab === "resumo" ? (
@@ -367,6 +381,37 @@ export function PatientDossierPage() {
           </div>
 
           <aside className="space-y-6 lg:col-span-2">
+            {cycleReadiness ? (
+              <Card className="rounded-3xl border border-[#E8EAED] p-6 shadow-sm">
+                <h2 className="mb-2 flex items-center gap-2 text-lg font-bold">
+                  <Stethoscope className="size-5 text-[#6366F1]" />
+                  Próximo ciclo (heurística)
+                </h2>
+                <Badge
+                  className={
+                    cycleReadiness.readiness_status === "hold"
+                      ? "mb-2 bg-red-100 text-red-900"
+                      : cycleReadiness.readiness_status === "likely_ok"
+                        ? "mb-2 bg-emerald-100 text-emerald-900"
+                        : "mb-2 bg-amber-50 text-amber-950"
+                  }
+                >
+                  {cycleReadiness.readiness_status === "hold"
+                    ? "Aguardar / rever"
+                    : cycleReadiness.readiness_status === "likely_ok"
+                      ? "Provável apto"
+                      : "Rever com equipa"}
+                </Badge>
+                {cycleReadiness.protocol_name ? (
+                  <p className="text-xs text-muted-foreground">Protocolo: {cycleReadiness.protocol_name}</p>
+                ) : null}
+                {cycleReadiness.readiness_reasons?.length ? (
+                  <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
+                    {cycleReadiness.readiness_reasons.join(" · ")}
+                  </p>
+                ) : null}
+              </Card>
+            ) : null}
             <Card className="rounded-3xl border border-[#E8EAED] p-6 shadow-sm">
               <h2 className="mb-4 flex items-center gap-2 text-lg font-bold">
                 <Zap className="size-5 text-[#F59E0B]" />
@@ -498,6 +543,13 @@ export function PatientDossierPage() {
       {tab === "diario" ? (
         <Card className="rounded-3xl border border-[#E8EAED] p-6 shadow-sm">
           <PatientDiarioPanel modalLoading={loading} modalSymptoms={symptoms} />
+        </Card>
+      ) : null}
+
+      {tab === "mensagens" && patientId ? (
+        <Card className="rounded-3xl border border-[#E8EAED] p-6 shadow-sm">
+          <h2 className="mb-4 text-lg font-bold">WhatsApp com contexto</h2>
+          <PatientMensagensDossierPanel session={session} patientId={patientId} />
         </Card>
       ) : null}
 

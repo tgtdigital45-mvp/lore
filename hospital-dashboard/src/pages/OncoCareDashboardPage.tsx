@@ -1,11 +1,12 @@
 import { useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { useOncoCare } from "@/context/OncoCareContext";
-import { AddPatientByCodeCard } from "@/components/oncocare/AddPatientByCodeCard";
 import { DashboardKpiStrip, type DashboardKpiModel } from "@/components/oncocare/DashboardKpiStrip";
 import { DashboardSidebar } from "@/components/oncocare/DashboardSidebar";
+import { ClinicalTasksPanel } from "@/components/oncocare/ClinicalTasksPanel";
 import { TriagePatientCard } from "@/components/oncocare/TriagePatientCard";
 import { useBulkVitals } from "@/hooks/useBulkVitals";
+import { useClinicalTasks } from "@/hooks/useClinicalTasks";
 import { clinicalTier } from "@/lib/clinicalTier";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -28,11 +29,11 @@ export function OncoCareDashboardPage() {
     const nadirMonitoring = rows.filter((r) => r.is_in_nadir).length;
     return {
       activePatients: rows.length,
-      activeTrendLabel: "+12% vs. trimestre anterior",
+      activeTrendLabel: rows.length > 0 ? "" : "",
       criticalAlerts,
       nadirMonitoring,
-      adherencePct: 82,
-      adherenceTrendLabel: "+5% vs. ontem",
+      adherencePct: null,
+      adherenceTrendLabel: "",
     };
   }, [rows]);
 
@@ -48,6 +49,7 @@ export function OncoCareDashboardPage() {
     [hospitalsMeta]
   );
   const defaultHospitalId = cohortHospitalId ?? hospitalOptions[0]?.id ?? null;
+  const { tasks: clinicalTasks, loading: clinicalTasksLoading, load: loadClinicalTasks } = useClinicalTasks(defaultHospitalId);
 
   return (
     <div className="mx-auto max-w-[1600px] pb-8">
@@ -70,14 +72,6 @@ export function OncoCareDashboardPage() {
 
       <div className="mt-8 grid gap-8 lg:grid-cols-10 lg:items-start">
         <div className="min-w-0 space-y-4 lg:col-span-7">
-          {hospitalOptions.length > 0 ? (
-            <AddPatientByCodeCard
-              loadTriage={loadTriage}
-              hospitalId={defaultHospitalId}
-              hospitalOptions={hospitalOptions}
-            />
-          ) : null}
-
           <div className="flex flex-wrap items-center justify-between gap-4">
             <h2 className="text-xl font-black tracking-tight">Triagem de pacientes</h2>
             <div className="flex flex-wrap gap-2 rounded-2xl bg-[#F1F5F9] p-1">
@@ -130,7 +124,8 @@ export function OncoCareDashboardPage() {
           )}
         </div>
 
-        <aside className="min-w-0 lg:col-span-3">
+        <aside className="min-w-0 space-y-4 lg:col-span-3">
+          <ClinicalTasksPanel tasks={clinicalTasks} loading={clinicalTasksLoading} onRefresh={loadClinicalTasks} />
           <DashboardSidebar alertRows={sidebarAlerts} busy={busy} />
         </aside>
       </div>

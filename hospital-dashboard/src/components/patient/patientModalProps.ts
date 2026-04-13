@@ -1,5 +1,6 @@
 import type {
   BiomarkerModalRow,
+  CycleReadinessRow,
   MedicalDocModalRow,
   MedicationLogRow,
   MergedAlertRules,
@@ -30,6 +31,7 @@ export type PatientModalProps = {
   modalWearables: WearableSampleRow[];
   modalMedicationLogs: MedicationLogRow[];
   modalNutritionLogs: NutritionLogRow[];
+  modalCycleReadiness: CycleReadinessRow | null;
   modalBiomarkers: BiomarkerModalRow[];
   modalMedicalDocs: MedicalDocModalRow[];
   modalOutbound: OutboundMessageRow[];

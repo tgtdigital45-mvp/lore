@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Alert, Pressable, ScrollView, Switch, Text, View } from "react-native";
+import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { useRouter } from "expo-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/src/auth/AuthContext";
@@ -29,7 +30,7 @@ export default function LgpdConsentScreen() {
         consent_research: research,
         consent_share_care_team: shareTeam,
         consent_notifications: notifications,
-        policy_version: "2026-04",
+        policy_version: "2026-04b",
         accepted_at: new Date().toISOString(),
       },
       { onConflict: "profile_id" }
@@ -46,6 +47,15 @@ export default function LgpdConsentScreen() {
   return (
     <ResponsiveScreen>
       <ScrollView contentContainerStyle={{ paddingVertical: theme.spacing.lg, paddingBottom: theme.spacing.xl }}>
+        <Pressable
+          onPress={() => router.back()}
+          style={{ flexDirection: "row", alignItems: "center", marginBottom: theme.spacing.md }}
+          accessibilityRole="button"
+          accessibilityLabel="Voltar"
+        >
+          <FontAwesome name="chevron-left" size={16} color={theme.colors.semantic.treatment} />
+          <Text style={[theme.typography.body, { color: theme.colors.semantic.treatment, marginLeft: theme.spacing.xs }]}>Voltar</Text>
+        </Pressable>
         <Text style={[theme.typography.title1, { color: theme.colors.text.primary }]}>Privacidade e consentimento</Text>
         <Text style={[theme.typography.body, { color: theme.colors.text.secondary, marginTop: theme.spacing.sm }]}>
           Conforme a LGPD, escolha o uso dos seus dados. O tratamento mínimo necessário para o funcionamento do Onco está
@@ -90,7 +100,7 @@ export default function LgpdConsentScreen() {
 
         <View style={{ marginTop: theme.spacing.md, flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
           <Text style={[theme.typography.body, { flex: 1, paddingRight: theme.spacing.md, color: theme.colors.text.primary }]}>
-            Compartilhar resumos com a equipe de cuidados ligada ao hospital (quando existir vínculo)
+            Compartilhar resumos com a equipe de cuidados do hospital ou da operadora/cooperativa vinculada (auditoria e gestão de crônicos, quando houver vínculo e política aplicável)
           </Text>
           <Switch value={shareTeam} onValueChange={setShareTeam} />
         </View>

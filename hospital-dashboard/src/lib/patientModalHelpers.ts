@@ -78,6 +78,9 @@ export function symptomCategoryLabel(s: SymptomLogDetail): string {
   if (s.entry_kind === "prd") {
     return "Escala (dor · náusea · fadiga)";
   }
+  if (s.entry_kind === "ae_flow") {
+    return "ePROM CTCAE";
+  }
   return mapSymptomCategoryDisplay(s.symptom_category ?? "");
 }
 
@@ -90,12 +93,23 @@ export function symptomSeverityPillClass(s: SymptomLogDetail): string {
     if (mx >= 1) return "risk-low";
     return "risk-none";
   }
+  if (s.entry_kind === "ae_flow" && s.ae_max_grade != null) {
+    const g = s.ae_max_grade;
+    if (g >= 4) return "risk-critical";
+    if (g >= 3) return "risk-high";
+    if (g >= 2) return "risk-mid";
+    if (g >= 1) return "risk-low";
+    return "risk-none";
+  }
   return pillClassForSeverity(s.severity ?? "");
 }
 
 export function symptomSeverityLabel(s: SymptomLogDetail): string {
   if (s.entry_kind === "prd") {
     return `Dor ${s.pain_level ?? "—"}/10 · Náusea ${s.nausea_level ?? "—"}/10 · Fadiga ${s.fatigue_level ?? "—"}/10`;
+  }
+  if (s.entry_kind === "ae_flow" && s.ae_max_grade != null) {
+    return `Grau CTCAE (máx.): ${s.ae_max_grade}/5`;
   }
   const sev = (s.severity ?? "").trim();
   if (!sev) return "—";
@@ -108,6 +122,9 @@ export function symptomSeverityShort(s: SymptomLogDetail): string {
   if (s.entry_kind === "prd") {
     const mx = Math.max(s.pain_level ?? 0, s.nausea_level ?? 0, s.fatigue_level ?? 0);
     return `Máx. ${mx}/10`;
+  }
+  if (s.entry_kind === "ae_flow" && s.ae_max_grade != null) {
+    return `CTCAE ${s.ae_max_grade}/5`;
   }
   const sev = (s.severity ?? "").trim();
   if (!sev) return "—";

@@ -14,7 +14,7 @@ import FontAwesome from "@expo/vector-icons/FontAwesome";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import type { Href } from "expo-router";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { KeyboardDoneAccessory, KEYBOARD_DONE_ACCESSORY_ID } from "@/src/components/KeyboardDoneAccessory";
+import { KeyboardAccessoryDone, KEYBOARD_ACCESSORY_ID } from "@/src/components/KeyboardAccessoryDone";
 import { ResponsiveScreen } from "@/src/components/ResponsiveScreen";
 import { CircleChromeButton } from "@/src/health/components/MedicationChromeButtons";
 import { IOS_HEALTH } from "@/src/health/iosHealthTokens";
@@ -165,7 +165,7 @@ export default function EditInfusionScreen() {
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode="on-drag"
         >
-          <KeyboardDoneAccessory />
+          <KeyboardAccessoryDone />
           {headerSubtitle ? (
             <Text style={[theme.typography.body, { color: IOS_HEALTH.blue, marginBottom: theme.spacing.sm }]}>{headerSubtitle}</Text>
           ) : null}
@@ -223,7 +223,7 @@ export default function EditInfusionScreen() {
             value={weight}
             onChangeText={setWeight}
             keyboardType="decimal-pad"
-            inputAccessoryViewID={Platform.OS === "ios" ? KEYBOARD_DONE_ACCESSORY_ID : undefined}
+            inputAccessoryViewID={Platform.OS === "ios" ? KEYBOARD_ACCESSORY_ID : undefined}
             returnKeyType="next"
             onSubmitEditing={() => Keyboard.dismiss()}
             style={{
@@ -244,7 +244,7 @@ export default function EditInfusionScreen() {
             value={notes}
             onChangeText={setNotes}
             multiline
-            inputAccessoryViewID={Platform.OS === "ios" ? KEYBOARD_DONE_ACCESSORY_ID : undefined}
+            inputAccessoryViewID={Platform.OS === "ios" ? KEYBOARD_ACCESSORY_ID : undefined}
             style={{
               marginTop: theme.spacing.xs,
               minHeight: 80,

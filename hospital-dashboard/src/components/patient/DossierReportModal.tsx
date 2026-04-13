@@ -34,6 +34,15 @@ export function DossierReportModal({ open, onOpenChange, payload }: Props) {
     if (open) setSel({ ...ALL_TRUE });
   }, [open]);
 
+  useEffect(() => {
+    if (!open) return;
+    function handleEscape(e: KeyboardEvent) {
+      if (e.key === "Escape") onOpenChange(false);
+    }
+    document.addEventListener("keydown", handleEscape);
+    return () => document.removeEventListener("keydown", handleEscape);
+  }, [open, onOpenChange]);
+
   if (!open) return null;
 
   function toggle(id: DossierReportSectionId) {

@@ -7,10 +7,12 @@ import type {
   SymptomLogTriage,
 } from "../types/dashboard";
 
-/** Febrile alerta clínico: ≥ 37,8 °C (grave). */
+/** Febrile alerta clínico: ≥ 37,8 °C (grave). CTCAE: defaults alinhados a `ctcae_triage_thresholds` no Supabase. */
 export const DEFAULT_ALERT_RULES: MergedAlertRules = {
   fever_celsius_min: 37.8,
   alert_window_hours: 72,
+  ctcae_yellow_min_grade: 2,
+  ctcae_red_min_grade: 3,
 };
 
 export function mergeAlertRulesFromAssignments(
@@ -18,6 +20,8 @@ export function mergeAlertRulesFromAssignments(
 ): MergedAlertRules {
   let feverMin = Infinity;
   let windowH = 0;
+  let yellowG = Infinity;
+  let redG = 0;
   for (const row of assigns) {
     const h = row.hospitals;
     const list = !h ? [] : Array.isArray(h) ? h : [h];
@@ -26,18 +30,24 @@ export function mergeAlertRulesFromAssignments(
       const r = typeof raw === "object" && raw !== null ? (raw as Record<string, unknown>) : {};
       const f = r.fever_celsius_min;
       const w = r.alert_window_hours;
+      const cy = r.ctcae_yellow_min_grade;
+      const cr = r.ctcae_red_min_grade;
       if (typeof f === "number" && Number.isFinite(f)) feverMin = Math.min(feverMin, f);
       if (typeof w === "number" && w > 0) windowH = Math.max(windowH, w);
+      if (typeof cy === "number" && Number.isFinite(cy)) yellowG = Math.min(yellowG, cy);
+      if (typeof cr === "number" && Number.isFinite(cr)) redG = Math.max(redG, cr);
     }
   }
   if (!Number.isFinite(feverMin)) feverMin = DEFAULT_ALERT_RULES.fever_celsius_min;
   if (windowH <= 0) windowH = DEFAULT_ALERT_RULES.alert_window_hours;
   /** Nunca acima de 37,8 °C: febre grave considera-se a partir deste limiar. */
   const fever_celsius_min = Math.min(feverMin, 37.8);
-  return { fever_celsius_min, alert_window_hours: windowH };
+  const ctcae_yellow_min_grade = Number.isFinite(yellowG) ? yellowG : DEFAULT_ALERT_RULES.ctcae_yellow_min_grade!;
+  const ctcae_red_min_grade = redG > 0 ? redG : DEFAULT_ALERT_RULES.ctcae_red_min_grade!;
+  return { fever_celsius_min, alert_window_hours: windowH, ctcae_yellow_min_grade, ctcae_red_min_grade };
 }
 
-/** Grau numérico para triagem (0–4), incluindo diário PRD (dor/náusea/fadiga 0–10). */
+/** Grau numérico para triagem (0–4), incluindo diário PRD (dor/náusea/fadiga 0–10) e ePROM CTCAE (ae_flow). */
 export function symptomLogTriageRank(l: SymptomLogTriage): number {
   if (l.entry_kind === "prd") {
     const mx = Math.max(l.pain_level ?? 0, l.nausea_level ?? 0, l.fatigue_level ?? 0);
@@ -45,6 +55,14 @@ export function symptomLogTriageRank(l: SymptomLogTriage): number {
     if (mx >= 8) return 3;
     if (mx >= 6) return 2;
     if (mx >= 3) return 1;
+    return 0;
+  }
+  if (l.entry_kind === "ae_flow" && l.ae_max_grade != null) {
+    const g = l.ae_max_grade;
+    if (g >= 4) return 4;
+    if (g >= 3) return 3;
+    if (g >= 2) return 2;
+    if (g >= 1) return 1;
     return 0;
   }
   const sev = (l.severity ?? "") as string;
@@ -71,6 +89,12 @@ export function patientClinicalAlert(
       if (mx >= 8 && !hasSeverityReason) {
         hasSeverityReason = true;
         reasons.push("Escala PRD elevada (≥8)");
+      }
+    } else if (l.entry_kind === "ae_flow" && l.ae_max_grade != null) {
+      const redMin = rules.ctcae_red_min_grade ?? 3;
+      if (l.ae_max_grade >= redMin && !hasSeverityReason) {
+        hasSeverityReason = true;
+        reasons.push(`Toxicidade AE grau ≥${redMin} (ePROM)`);
       }
     } else {
       const sev = l.severity as string;
@@ -103,6 +127,26 @@ function riskFromRank(n: number, inNadir: boolean): { label: string; cls: string
   return { label: "Sem registros recentes", cls: "risk-none" };
 }
 
+function worstUrgencySemaphore(
+  logRows: SymptomLogTriage[],
+  patientId: string,
+  sinceRiskMs: number
+): "red" | "yellow" | "green" | null {
+  let score = 0;
+  let result: "red" | "yellow" | "green" | null = null;
+  for (const l of logRows) {
+    if (l.patient_id !== patientId) continue;
+    if (new Date(l.logged_at).getTime() < sinceRiskMs) continue;
+    const s = l.triage_semaphore;
+    const sc = s === "red" ? 3 : s === "yellow" ? 2 : s === "green" ? 1 : 0;
+    if (sc > score) {
+      score = sc;
+      if (s === "red" || s === "yellow" || s === "green") result = s;
+    }
+  }
+  return result;
+}
+
 export function buildRiskRow(
   p: PatientRow,
   logRows: SymptomLogTriage[],
@@ -122,7 +166,12 @@ export function buildRiskRow(
   }
   const { label, cls } = riskFromRank(maxRank, p.is_in_nadir);
   const { hasAlert, reasons } = patientClinicalAlert(logRows, p.id, rules, nowMs);
-  const rules24h: MergedAlertRules = { fever_celsius_min: rules.fever_celsius_min, alert_window_hours: 24 };
+  const rules24h: MergedAlertRules = {
+    fever_celsius_min: rules.fever_celsius_min,
+    alert_window_hours: 24,
+    ctcae_yellow_min_grade: rules.ctcae_yellow_min_grade,
+    ctcae_red_min_grade: rules.ctcae_red_min_grade,
+  };
   const { hasAlert: hasAlert24h } = patientClinicalAlert(logRows, p.id, rules24h, nowMs);
   return {
     ...p,
@@ -133,5 +182,6 @@ export function buildRiskRow(
     hasClinicalAlert: hasAlert,
     alertReasons: reasons,
     hasAlert24h,
+    urgencySemaphore: worstUrgencySemaphore(logRows, p.id, sinceRiskMs),
   };
 }

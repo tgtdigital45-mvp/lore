@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Modal,
   Pressable,
@@ -58,6 +58,8 @@ export function OnboardingWalkthrough() {
   const [visible, setVisible] = useState(false);
   const [step, setStep] = useState(0);
   const [checking, setChecking] = useState(true);
+  /** Evita que uma leitura assíncrona antiga reabra o modal depois de "Pular" / "Começar". */
+  const visibilityGateRef = useRef(0);
 
   const cardW = Math.min(winW - 24, 440);
   const heroH = Math.min(Math.max(cardW * 0.58, 220), 320);
@@ -75,8 +77,10 @@ export function OnboardingWalkthrough() {
       setChecking(false);
       return;
     }
+    const token = ++visibilityGateRef.current;
     setChecking(true);
     const show = await shouldShowOnboarding(userId);
+    if (token !== visibilityGateRef.current) return;
     setVisible(show);
     setChecking(false);
   }, [userId]);
@@ -89,10 +93,12 @@ export function OnboardingWalkthrough() {
     setStep(0);
   }, [userId]);
 
-  const finish = async () => {
+  const finish = useCallback(async () => {
+    visibilityGateRef.current += 1;
     if (userId) await appStorage.setItem(onboardingKeyForUser(userId), "1");
     setVisible(false);
-  };
+    setChecking(false);
+  }, [userId]);
 
   if (authLoading || checking || !userId) return null;
   if (!visible) return null;

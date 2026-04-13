@@ -52,6 +52,7 @@ export default function TabLayout() {
         <Tabs.Screen name="diary" options={{ title: "Sintomas", href: null }} />
         <Tabs.Screen name="agent" options={{ title: "Assistente", href: null }} />
         <Tabs.Screen name="health" options={{ title: "Buscar", href: null }} />
+        <Tabs.Screen name="education" options={{ title: "Apoio", href: null }} />
       </Tabs>
     </TabBarInsetContext.Provider>
   );

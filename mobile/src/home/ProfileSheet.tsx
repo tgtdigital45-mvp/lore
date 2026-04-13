@@ -129,6 +129,8 @@ export function ProfileSheet({
   const [fichaBusy, setFichaBusy] = useState(false);
   const [avatarBusy, setAvatarBusy] = useState(false);
   const [avatarEpoch, setAvatarEpoch] = useState(0);
+  const [caregiverCodeBusy, setCaregiverCodeBusy] = useState(false);
+  const [caregiverPairCode, setCaregiverPairCode] = useState<string | null>(null);
 
   useEffect(() => {
     if (!visible) return;
@@ -575,6 +577,63 @@ export function ProfileSheet({
                   </Pressable>
                 </View>
 
+                <View style={{ backgroundColor: cardBg, borderRadius: radius, overflow: "hidden" }}>
+                  <SectionTitle theme={theme} color={theme.colors.semantic.treatment}>
+                    Cuidador
+                  </SectionTitle>
+                  <Text
+                    style={{
+                      paddingHorizontal: theme.spacing.md,
+                      paddingBottom: theme.spacing.sm,
+                      color: theme.colors.text.secondary,
+                      fontSize: 13,
+                    }}
+                  >
+                    Gere um código de 6 caracteres para um familiar o introduzir na conta dele (Ajustes → Emparelhar como cuidador).
+                  </Text>
+                  {caregiverPairCode ? (
+                    <Text
+                      selectable
+                      style={{
+                        paddingHorizontal: theme.spacing.md,
+                        paddingBottom: theme.spacing.sm,
+                        fontSize: 22,
+                        fontWeight: "700",
+                        letterSpacing: 2,
+                        color: theme.colors.text.primary,
+                      }}
+                    >
+                      {caregiverPairCode}
+                    </Text>
+                  ) : null}
+                  <Pressable
+                    disabled={caregiverCodeBusy || !patient}
+                    onPress={() => {
+                      void (async () => {
+                        setCaregiverCodeBusy(true);
+                        const { data, error } = await supabase.rpc("regenerate_caregiver_pairing_code");
+                        setCaregiverCodeBusy(false);
+                        if (error) {
+                          Alert.alert("Código", error.message);
+                          return;
+                        }
+                        if (data != null) setCaregiverPairCode(String(data));
+                      })();
+                    }}
+                    style={{
+                      paddingVertical: theme.spacing.md,
+                      paddingHorizontal: theme.spacing.md,
+                      borderTopWidth: 1,
+                      borderTopColor: theme.colors.border.divider,
+                      opacity: caregiverCodeBusy || !patient ? 0.55 : 1,
+                    }}
+                  >
+                    <Text style={{ fontWeight: "700", color: theme.colors.semantic.treatment }}>
+                      {caregiverCodeBusy ? "A gerar…" : "Gerar novo código"}
+                    </Text>
+                  </Pressable>
+                </View>
+
                 <Pressable
                   onPress={onClose}
                   style={{
@@ -1005,6 +1064,16 @@ export function ProfileSheet({
                     icon="lock"
                     label="Política de privacidade"
                     onPress={() => void WebBrowser.openBrowserAsync(PRIVACY_URL)}
+                    theme={theme}
+                  />
+                  <View style={{ height: 1, backgroundColor: theme.colors.border.divider, marginLeft: 52 }} />
+                  <ConfigRow
+                    icon="users"
+                    label="Emparelhar como cuidador"
+                    onPress={() => {
+                      onClose();
+                      router.push("/caregiver-claim");
+                    }}
                     theme={theme}
                   />
                 </View>

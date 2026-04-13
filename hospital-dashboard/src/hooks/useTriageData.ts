@@ -33,6 +33,7 @@ export function useTriageData(session: Session | null) {
   const [cohortError, setCohortError] = useState<string | null>(null);
 
   const triageReloadTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const loadVersion = useRef(0);
 
   const reloadStaffProfile = useCallback(async () => {
     const uid = session?.user?.id;
@@ -61,17 +62,21 @@ export function useTriageData(session: Session | null) {
   }, [session, reloadStaffProfile]);
 
   const loadTriage = useCallback(async () => {
-    const { data: auth } = await supabase.auth.getSession();
-    const fresh = await refreshSupabaseSessionIfStale(auth.session);
-    if (!fresh?.user) {
-      setBusy(false);
-      return;
-    }
-    setLoadError(null);
-    setBusy(true);
+    const version = ++loadVersion.current;
+    try {
+      const { data: auth } = await supabase.auth.getSession();
+      const fresh = await refreshSupabaseSessionIfStale(auth.session);
+      if (!fresh?.user) {
+        if (version === loadVersion.current) setBusy(false);
+        return;
+      }
+      if (version !== loadVersion.current) return;
+      setLoadError(null);
+      setBusy(true);
     const { data: assigns, error: aErr } = await supabase
       .from("staff_assignments")
       .select("hospital_id, hospitals ( name, alert_rules )");
+    if (version !== loadVersion.current) return;
     if (aErr) {
       setLoadError(aErr.message);
       setHospitalNames([]);
@@ -149,7 +154,7 @@ export function useTriageData(session: Session | null) {
 
     const { data: legacyPatients, error: lpErr } = await supabase
       .from("patients")
-      .select("id, primary_cancer_type, current_stage, is_in_nadir, patient_code, profiles ( full_name, date_of_birth, avatar_url )")
+      .select("id, primary_cancer_type, current_stage, is_in_nadir, patient_code, profiles!patients_profile_id_fkey ( full_name, date_of_birth, avatar_url )")
       .in("hospital_id", hospitalIds);
     if (lpErr) {
       setLoadError(lpErr.message);
@@ -164,7 +169,7 @@ export function useTriageData(session: Session | null) {
     if (onlyViaLink.length > 0) {
       const { data: extra, error: exErr } = await supabase
         .from("patients")
-        .select("id, primary_cancer_type, current_stage, is_in_nadir, patient_code, profiles ( full_name, date_of_birth, avatar_url )")
+        .select("id, primary_cancer_type, current_stage, is_in_nadir, patient_code, profiles!patients_profile_id_fkey ( full_name, date_of_birth, avatar_url )")
         .in("id", onlyViaLink);
       if (exErr) {
         setLoadError(exErr.message);
@@ -193,7 +198,7 @@ export function useTriageData(session: Session | null) {
     const { data: logs, error: lErr } = await supabase
       .from("symptom_logs")
       .select(
-        "patient_id, severity, logged_at, symptom_category, body_temperature, entry_kind, pain_level, nausea_level, fatigue_level"
+        "patient_id, severity, logged_at, symptom_category, body_temperature, entry_kind, pain_level, nausea_level, fatigue_level, ae_max_grade, triage_semaphore"
       )
       .in("patient_id", ids)
       .gte("logged_at", sinceFetch.toISOString());
@@ -209,10 +214,13 @@ export function useTriageData(session: Session | null) {
     const rules24h: MergedAlertRules = {
       fever_celsius_min: rules.fever_celsius_min,
       alert_window_hours: 24,
+      ctcae_yellow_min_grade: rules.ctcae_yellow_min_grade,
+      ctcae_red_min_grade: rules.ctcae_red_min_grade,
     };
 
     const maxByPatient = new Map<string, number>();
     const lastAtByPatient = new Map<string, string>();
+    const urgencyByPatient = new Map<string, number>();
     for (const l of logRows) {
       if (new Date(l.logged_at).getTime() < sinceRiskMs) continue;
       const r = symptomLogTriageRank(l);
@@ -221,6 +229,10 @@ export function useTriageData(session: Session | null) {
       const cur = lastAtByPatient.get(l.patient_id);
       const la = l.logged_at as string;
       if (!cur || new Date(la) > new Date(cur)) lastAtByPatient.set(l.patient_id, la);
+      const sem = l.triage_semaphore;
+      const ur = sem === "red" ? 3 : sem === "yellow" ? 2 : sem === "green" ? 1 : 0;
+      const prevU = urgencyByPatient.get(l.patient_id) ?? 0;
+      if (ur > prevU) urgencyByPatient.set(l.patient_id, ur);
     }
 
     const enriched: RiskRow[] = plist.map((p) => {
@@ -228,6 +240,9 @@ export function useTriageData(session: Session | null) {
       const { label, cls } = riskFromRank(n, p.is_in_nadir);
       const { hasAlert, reasons } = patientClinicalAlert(logRows, p.id, rules, nowMs);
       const { hasAlert: hasAlert24h } = patientClinicalAlert(logRows, p.id, rules24h, nowMs);
+      const u = urgencyByPatient.get(p.id) ?? 0;
+      const urgencySemaphore: "red" | "yellow" | "green" | null =
+        u === 3 ? "red" : u === 2 ? "yellow" : u === 1 ? "green" : null;
       return {
         ...p,
         risk: n,
@@ -237,6 +252,7 @@ export function useTriageData(session: Session | null) {
         hasClinicalAlert: hasAlert,
         alertReasons: reasons,
         hasAlert24h,
+        urgencySemaphore,
       };
     });
 
@@ -247,8 +263,14 @@ export function useTriageData(session: Session | null) {
         (a.is_in_nadir === b.is_in_nadir ? 0 : a.is_in_nadir ? -1 : 1)
     );
 
-    setRows(enriched);
-    setBusy(false);
+    if (version === loadVersion.current) setRows(enriched);
+    } catch (err) {
+      if (version === loadVersion.current) {
+        setLoadError(err instanceof Error ? err.message : "Erro ao carregar triagem.");
+      }
+    } finally {
+      if (version === loadVersion.current) setBusy(false);
+    }
   }, []);
 
   const scheduleTriageReload = useCallback(() => {

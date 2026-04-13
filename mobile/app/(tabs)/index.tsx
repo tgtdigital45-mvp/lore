@@ -16,7 +16,13 @@ import { useHomeSummary } from "@/src/home/useHomeSummary";
 import { WidgetPickerModal } from "@/src/home/WidgetPickerModal";
 import { useAuth } from "@/src/auth/AuthContext";
 import { useAppTheme } from "@/src/hooks/useAppTheme";
+import {
+  useAdaptiveSymptomReminders,
+  useFeverWatchReminders,
+  usePatientInfusions,
+} from "@/src/hooks/useAdaptiveReminders";
 import { useMedications } from "@/src/hooks/useMedications";
+import { usePatientConsentNotifications } from "@/src/hooks/usePatientConsentNotifications";
 import { usePatient } from "@/src/hooks/usePatient";
 import { useTreatmentCycles } from "@/src/hooks/useTreatmentCycles";
 import { nextMedicationSlot } from "@/src/lib/medicationNotifications";
@@ -72,6 +78,12 @@ function hrefForPinnedWidget(widgetId: string): Href | null {
   if (widgetId.startsWith("symptom:")) return "/(tabs)/diary" as Href;
   if (widgetId.startsWith("nutrition:")) return "/(tabs)/health/nutrition" as Href;
   if (widgetId === "vital:steps") return "/(tabs)/health" as Href;
+  if (widgetId === "vital:temp") return "/(tabs)/health/vitals/temperature" as Href;
+  if (widgetId === "vital:hr") return "/(tabs)/health/vitals/heart_rate" as Href;
+  if (widgetId === "vital:bp") return "/(tabs)/health/vitals/blood_pressure" as Href;
+  if (widgetId === "vital:spo2") return "/(tabs)/health/vitals/spo2" as Href;
+  if (widgetId === "vital:weight") return "/(tabs)/health/vitals/weight" as Href;
+  if (widgetId === "vital:glucose") return "/(tabs)/health/vitals/glucose" as Href;
   if (widgetId.startsWith("vital:")) return "/(tabs)/health/vitals" as Href;
   return null;
 }
@@ -94,6 +106,17 @@ export default function HomeScreen() {
   } = useHomeSummary(patient);
   const { medications, refresh: refreshMeds } = useMedications();
   const { fetchInfusions } = useTreatmentCycles(patient);
+  const allPatientInfusions = usePatientInfusions(patient?.id);
+  const { data: consentNotifs } = usePatientConsentNotifications();
+  useAdaptiveSymptomReminders({
+    enabled: Boolean(patient),
+    notifySymptoms: consentNotifs?.notify_symptoms ?? true,
+    infusions: allPatientInfusions,
+  });
+  useFeverWatchReminders({
+    enabled: Boolean(patient) && (consentNotifs?.notify_symptoms ?? true),
+    patientId: patient?.id,
+  });
   const scheduledActiveMeds = useMemo(
     () => medications.filter((m) => m.active && m.repeat_mode !== "as_needed"),
     [medications]
@@ -420,6 +443,21 @@ export default function HomeScreen() {
             </Pressable>
           ) : null}
 
+          {patient ? (
+            <Pressable onPress={() => router.push("/(tabs)/education" as Href)} style={{ marginTop: theme.spacing.md }}>
+              <OncoCard style={{ backgroundColor: theme.colors.background.primary }}>
+                <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+                  <Text style={[theme.typography.headline, { color: theme.colors.text.primary }]}>Biblioteca de apoio</Text>
+                  <FontAwesome name="chevron-right" size={14} color={theme.colors.text.tertiary} />
+                </View>
+                <Text style={[theme.typography.body, { color: theme.colors.text.secondary, marginTop: theme.spacing.xs }]}>
+                  Artigos alinhados aos seus sintomas e tipo de tumor.
+                </Text>
+                <Text style={{ fontSize: 13, fontWeight: "600", color: theme.colors.semantic.respiratory, marginTop: theme.spacing.sm }}>Abrir</Text>
+              </OncoCard>
+            </Pressable>
+          ) : null}
+
           {patient && hasBiopsy ? (
             <OncoCard style={{ marginTop: theme.spacing.md, backgroundColor: theme.colors.background.primary }}>
               <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
@@ -523,7 +561,11 @@ export default function HomeScreen() {
                 <OncoCard style={{ backgroundColor: theme.colors.background.primary }}>
                   <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
                     <Text style={[theme.typography.title2, { color: theme.colors.text.primary }]}>
-                      {nextAppointment?.kind === "exam" ? "Próximo exame" : "Agendamento"}
+                      {nextAppointment?.kind === "exam"
+                        ? "Próximo exame"
+                        : nextAppointment?.kind === "infusion"
+                          ? "Próxima infusão"
+                          : "Agendamento"}
                     </Text>
                     <Text style={{ color: theme.colors.semantic.respiratory, fontWeight: "700", fontSize: 13 }}>CALENDÁRIO</Text>
                   </View>
@@ -537,13 +579,15 @@ export default function HomeScreen() {
                           ? "Exame"
                           : nextAppointment.kind === "consult"
                             ? "Consulta"
-                            : "Outro"}{" "}
+                            : nextAppointment.kind === "infusion"
+                              ? "Infusão (unidade)"
+                              : "Outro"}{" "}
                         · {formatSessionAt(nextAppointment.starts_at)}
                       </Text>
                     </View>
                   ) : (
                     <Text style={[theme.typography.body, { color: theme.colors.text.secondary, marginTop: theme.spacing.sm }]}>
-                      Nenhum exame ou consulta futura no calendário. Toque para adicionar lembretes.
+                      Nenhum agendamento futuro no calendário. Toque para ver a agenda e lembretes.
                     </Text>
                   )}
                   <Text style={{ fontSize: 13, fontWeight: "600", color: theme.colors.semantic.treatment, marginTop: theme.spacing.md }}>

@@ -11,6 +11,8 @@ export type PatientProfileEmbed = {
 export type PatientRow = {
   id: string;
   profile_id: string;
+  /** Quando um cuidador gere o diário, o perfil clínico é o do paciente; o JWT é o do cuidador. */
+  is_caregiver_session?: boolean;
   primary_cancer_type: string;
   current_stage: string | null;
   hospital_id: string | null;
@@ -58,7 +60,10 @@ function normalizeProfilesEmbed(raw: unknown): PatientProfileEmbed | null {
 
 type PatientContextValue = {
   patient: PatientRow | null;
+  /** Primeira carga do perfil (TanStack Query v5: `isPending`). */
   loading: boolean;
+  /** Falha ao buscar `patients` (evita mandar para onboarding por engano). */
+  fetchError: Error | null;
   refresh: () => Promise<void>;
 };
 
@@ -68,22 +73,60 @@ export function PatientProvider({ children }: { children: React.ReactNode }) {
   const { session } = useAuth();
   const uid = session?.user?.id;
 
-  const { data: patient, isLoading: loading, refetch } = useQuery({
+  const { data: patient, isPending: loading, isError, error: queryError, refetch } = useQuery({
     queryKey: ["patient", uid],
     enabled: Boolean(uid),
     queryFn: async (): Promise<PatientRow | null> => {
       if (!uid) return null;
-      const { data, error } = await supabase
+      let data: unknown = null;
+      let caregiverSession = false;
+
+      const { data: prof } = await supabase.from("profiles").select("role").eq("id", uid).maybeSingle();
+      const appRole = (prof?.role as string | undefined) ?? "patient";
+
+      const { data: own, error } = await supabase
         .from("patients")
-        .select(`${PATIENT_SELECT}, profiles ( full_name, avatar_url )`)
+        .select(`${PATIENT_SELECT}, profiles!patients_profile_id_fkey ( full_name, avatar_url )`)
         .eq("profile_id", uid)
         .maybeSingle();
       if (error) throw error;
+
+      const { data: cgRows } = await supabase
+        .from("patient_caregivers")
+        .select("patient_id")
+        .eq("caregiver_profile_id", uid)
+        .order("created_at", { ascending: true })
+        .limit(1);
+      const linkedPid = cgRows?.[0]?.patient_id as string | undefined;
+
+      if (appRole === "caregiver" && linkedPid) {
+        const { data: forCaregiver, error: e2 } = await supabase
+          .from("patients")
+          .select(`${PATIENT_SELECT}, profiles!patients_profile_id_fkey ( full_name, avatar_url )`)
+          .eq("id", linkedPid)
+          .maybeSingle();
+        if (e2) throw e2;
+        data = forCaregiver;
+        caregiverSession = true;
+      } else if (own) {
+        data = own;
+      } else if (linkedPid) {
+        const { data: forCaregiver, error: e2 } = await supabase
+          .from("patients")
+          .select(`${PATIENT_SELECT}, profiles!patients_profile_id_fkey ( full_name, avatar_url )`)
+          .eq("id", linkedPid)
+          .maybeSingle();
+        if (e2) throw e2;
+        data = forCaregiver;
+        caregiverSession = true;
+      }
+
       if (!data) return null;
       const row = data as unknown as Record<string, unknown>;
       return {
         id: String(row.id),
         profile_id: String(row.profile_id),
+        is_caregiver_session: caregiverSession,
         primary_cancer_type: String(row.primary_cancer_type ?? "other"),
         current_stage: row.current_stage != null ? String(row.current_stage) : null,
         hospital_id: row.hospital_id != null ? String(row.hospital_id) : null,
@@ -107,13 +150,19 @@ export function PatientProvider({ children }: { children: React.ReactNode }) {
     await refetch();
   }, [refetch]);
 
+  const fetchError = useMemo(() => {
+    if (!isError || queryError == null) return null;
+    return queryError instanceof Error ? queryError : new Error(String(queryError));
+  }, [isError, queryError]);
+
   const value = useMemo<PatientContextValue>(
     () => ({
       patient: patient ?? null,
       loading: Boolean(uid) ? loading : false,
+      fetchError,
       refresh,
     }),
-    [patient, loading, uid, refresh]
+    [patient, loading, uid, fetchError, refresh]
   );
 
   return <PatientContext.Provider value={value}>{children}</PatientContext.Provider>;

@@ -90,11 +90,13 @@ export default function ExamsScreen() {
   const [rows, setRows] = useState<MedicalDocRow[]>([]);
   const [reviewSheet, setReviewSheet] = useState<{ documentId: string; extracted: OcrExtractedPayload } | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const canUpload = Boolean(session?.access_token && patient && !patientLoading);
 
   const loadDocs = useCallback(async () => {
     if (!patient) return;
+    setLoadError(null);
     const { data, error } = await supabase
       .from("medical_documents")
       .select("id, document_type, uploaded_at, exam_performed_at, ai_extracted_json")
@@ -102,7 +104,7 @@ export default function ExamsScreen() {
       .order("uploaded_at", { ascending: false })
       .limit(50);
     if (error) {
-      console.warn("[exams] medical_documents:", error.message);
+      setLoadError("Não foi possível carregar exames. Toque para tentar novamente.");
       return;
     }
     if (data) setRows(data as MedicalDocRow[]);
@@ -466,6 +468,12 @@ export default function ExamsScreen() {
       >
         <View style={{ paddingTop: theme.spacing.md }}>
           <Text style={[theme.typography.largeTitle, { color: theme.colors.text.primary }]}>Exames</Text>
+
+          {loadError ? (
+            <Pressable onPress={() => void loadDocs()} style={{ marginTop: theme.spacing.sm }}>
+              <Text style={[theme.typography.body, { color: "#DC2626" }]}>{loadError}</Text>
+            </Pressable>
+          ) : null}
 
           <View
             style={{

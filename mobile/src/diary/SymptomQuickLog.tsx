@@ -1,23 +1,34 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import * as ImagePicker from "expo-image-picker";
 import { Alert, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { EmergencyModal } from "@/components/EmergencyModal";
+import { SelfCareModal } from "@/components/SelfCareModal";
+import { uploadSymptomAttachment } from "@/src/lib/symptomAttachmentUpload";
+import { presentTriageFeedback } from "@/src/triage/presentTriageFeedback";
 import { PAIN_REGIONS, labelPainRegion, type PainRegionId } from "@/src/diary/painRegions";
 import { LegacySymptomLogStep } from "@/src/diary/LegacySymptomLogStep";
 import { VerbalIntensityStep } from "@/src/diary/VerbalIntensityStep";
 import {
-  SYMPTOM_NAV_ITEMS,
   logDestinationForSymptom,
   type SymptomDetailKey,
   type SymptomLogDestination,
   symptomLabel,
 } from "@/src/diary/symptomCatalog";
+import { orderedSymptomNavItems } from "@/src/diary/symptomModules/ordering";
+import type { TreatmentKind } from "@/src/types/treatment";
 import { SymptomDetailView } from "@/src/diary/SymptomDetailView";
 import type { SymptomLogRow } from "@/src/diary/symptomLogTypes";
+import { AeNauseaFlow } from "@/src/diary/AeNauseaFlow";
+import { AeFeverFlow } from "@/src/diary/AeFeverFlow";
+import { submitAeFlowLog, startFeverWatchEpisode } from "@/src/diary/aeFlowSubmit";
+import type { PromFlowResult } from "@/src/diary/promFlows/types";
 import {
   type VerbalSymptomDbSeverity,
   type VerbalSymptomKey,
   prdLevelFromVerbalKey,
 } from "@/src/diary/verbalSeverity";
 import { supabase } from "@/src/lib/supabase";
+import { loggedByProfileIdForInsert } from "@/src/lib/actorProfile";
 import type { AppTheme } from "@/src/theme/theme";
 
 type Wizard =
@@ -27,7 +38,9 @@ type Wizard =
   | { screen: "pain_intensity"; region: PainRegionId }
   | { screen: "single_intensity"; key: "fatigue" | "nausea" }
   | { screen: "fever_temp" }
-  | { screen: "legacy_verbal"; key: SymptomDetailKey };
+  | { screen: "legacy_verbal"; key: SymptomDetailKey }
+  | { screen: "ae_nausea" }
+  | { screen: "ae_fever" };
 
 function destinationToWizard(d: SymptomLogDestination): Wizard {
   switch (d.type) {
@@ -53,18 +66,33 @@ type Props = {
   logs: SymptomLogRow[];
   onLogged: () => Promise<void> | void;
   onSymptomDetailFocusChange?: (key: SymptomDetailKey | null) => void;
+  primaryCancerType?: string | null;
+  activeTreatmentKind?: TreatmentKind | null;
 };
 
 function prdNotesPainRegion(region: PainRegionId): string {
   return JSON.stringify({ kind: "prd_meta", painRegion: region });
 }
 
-export function SymptomQuickLog({ theme, patientId, logs, onLogged, onSymptomDetailFocusChange }: Props) {
+export function SymptomQuickLog({
+  theme,
+  patientId,
+  logs,
+  onLogged,
+  onSymptomDetailFocusChange,
+  primaryCancerType,
+  activeTreatmentKind,
+}: Props) {
+  const navItems = orderedSymptomNavItems(primaryCancerType, activeTreatmentKind ?? null);
   const [wizard, setWizard] = useState<Wizard>({ screen: "list" });
   const [painVerbal, setPainVerbal] = useState<VerbalSymptomKey>("present");
   const [singleVerbal, setSingleVerbal] = useState<VerbalSymptomKey>("present");
   const [temperature, setTemperature] = useState("");
   const [busy, setBusy] = useState(false);
+  const [pendingPhotoUri, setPendingPhotoUri] = useState<string | null>(null);
+  const [selfCareOpen, setSelfCareOpen] = useState(false);
+  const [emergencyOpen, setEmergencyOpen] = useState(false);
+  const [emergencyMsg, setEmergencyMsg] = useState("");
   const returnToDetailKeyRef = useRef<SymptomDetailKey | null>(null);
 
   useEffect(() => {
@@ -87,6 +115,16 @@ export function SymptomQuickLog({ theme, patientId, logs, onLogged, onSymptomDet
     }
   }, [onLogged, resetToList]);
 
+  const runTriageUi = useCallback((triage: string | null) => {
+    presentTriageFeedback(triage, {
+      openSelfCare: () => setSelfCareOpen(true),
+      openEmergency: (msg) => {
+        setEmergencyMsg(msg);
+        setEmergencyOpen(true);
+      },
+    });
+  }, []);
+
   const submitPrd = useCallback(
     async (payload: {
       pain: number;
@@ -95,24 +133,67 @@ export function SymptomQuickLog({ theme, patientId, logs, onLogged, onSymptomDet
       notes: string | null;
     }) => {
       setBusy(true);
-      const { error } = await supabase.from("symptom_logs").insert({
-        patient_id: patientId,
-        entry_kind: "prd",
-        pain_level: Math.round(payload.pain),
-        nausea_level: Math.round(payload.nausea),
-        fatigue_level: Math.round(payload.fatigue),
-        mood: "neutral",
-        notes: payload.notes,
-        logged_at: new Date().toISOString(),
-      });
+      let attachmentPath: string | null = null;
+      if (pendingPhotoUri) {
+        attachmentPath = await uploadSymptomAttachment(patientId, pendingPhotoUri);
+      }
+      const actor = await loggedByProfileIdForInsert();
+      const { data, error } = await supabase
+        .from("symptom_logs")
+        .insert({
+          patient_id: patientId,
+          entry_kind: "prd",
+          pain_level: Math.round(payload.pain),
+          nausea_level: Math.round(payload.nausea),
+          fatigue_level: Math.round(payload.fatigue),
+          mood: "neutral",
+          notes: payload.notes,
+          logged_at: new Date().toISOString(),
+          attachment_storage_path: attachmentPath,
+          logged_by_profile_id: actor ?? null,
+        })
+        .select("triage_semaphore")
+        .single();
       setBusy(false);
       if (error) {
         Alert.alert("Sintomas", error.message);
         return;
       }
+      setPendingPhotoUri(null);
+      runTriageUi((data as { triage_semaphore?: string | null } | null)?.triage_semaphore ?? null);
       await finishLogAndNavigate();
     },
-    [finishLogAndNavigate, patientId]
+    [finishLogAndNavigate, patientId, pendingPhotoUri, runTriageUi]
+  );
+
+  const submitAeProm = useCallback(
+    async (result: PromFlowResult, opts?: { startFeverWatch?: boolean }) => {
+      setBusy(true);
+      let attachmentPath: string | null = null;
+      if (pendingPhotoUri) {
+        attachmentPath = await uploadSymptomAttachment(patientId, pendingPhotoUri);
+      }
+      const res = await submitAeFlowLog({
+        patientId,
+        result,
+        attachmentStoragePath: attachmentPath,
+      });
+      setBusy(false);
+      if ("error" in res) {
+        Alert.alert("Sintomas", res.error);
+        return;
+      }
+      if (opts?.startFeverWatch) {
+        const w = await startFeverWatchEpisode({ patientId, sourceSymptomLogId: res.logId });
+        if (w.error) {
+          Alert.alert("Vigilância de febre", w.error);
+        }
+      }
+      setPendingPhotoUri(null);
+      runTriageUi(res.triage_semaphore ?? null);
+      await finishLogAndNavigate();
+    },
+    [finishLogAndNavigate, patientId, pendingPhotoUri, runTriageUi]
   );
 
   const submitLegacy = useCallback(
@@ -127,26 +208,52 @@ export function SymptomQuickLog({ theme, patientId, logs, onLogged, onSymptomDet
       }
     ) => {
       setBusy(true);
-      const { error } = await supabase.from("symptom_logs").insert({
-        patient_id: patientId,
-        entry_kind: "legacy",
-        symptom_category,
-        severity: args.severity,
-        body_temperature: args.body_temperature,
-        logged_at: args.logged_at,
-        symptom_started_at: args.symptom_started_at,
-        symptom_ended_at: args.symptom_ended_at,
-      });
+      let attachmentPath: string | null = null;
+      if (pendingPhotoUri) {
+        attachmentPath = await uploadSymptomAttachment(patientId, pendingPhotoUri);
+      }
+      const actor = await loggedByProfileIdForInsert();
+      const { data, error } = await supabase
+        .from("symptom_logs")
+        .insert({
+          patient_id: patientId,
+          entry_kind: "legacy",
+          symptom_category,
+          severity: args.severity,
+          body_temperature: args.body_temperature,
+          logged_at: args.logged_at,
+          symptom_started_at: args.symptom_started_at,
+          symptom_ended_at: args.symptom_ended_at,
+          attachment_storage_path: attachmentPath,
+          logged_by_profile_id: actor ?? null,
+        })
+        .select("triage_semaphore")
+        .single();
       setBusy(false);
       if (error) {
         Alert.alert("Sintomas", error.message);
         return;
       }
+      setPendingPhotoUri(null);
       setTemperature("");
+      runTriageUi((data as { triage_semaphore?: string | null } | null)?.triage_semaphore ?? null);
       await finishLogAndNavigate();
     },
-    [finishLogAndNavigate, patientId]
+    [finishLogAndNavigate, patientId, pendingPhotoUri, runTriageUi]
   );
+
+  const pickSymptomPhoto = useCallback(async () => {
+    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!perm.granted) {
+      Alert.alert("Fotos", "Permita o acesso à galeria para anexar uma imagem.");
+      return;
+    }
+    const res = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      quality: 0.85,
+    });
+    if (!res.canceled && res.assets[0]?.uri) setPendingPhotoUri(res.assets[0].uri);
+  }, []);
 
   if (wizard.screen === "symptom_detail") {
     const dest = logDestinationForSymptom(wizard.key);
@@ -319,6 +426,31 @@ export function SymptomQuickLog({ theme, patientId, logs, onLogged, onSymptomDet
     );
   }
 
+  if (wizard.screen === "ae_nausea") {
+    return (
+      <AeNauseaFlow
+        theme={theme}
+        busy={busy}
+        onBack={resetToList}
+        onSubmit={(r) => void submitAeProm(r)}
+      />
+    );
+  }
+
+  if (wizard.screen === "ae_fever") {
+    return (
+      <AeFeverFlow
+        theme={theme}
+        busy={busy}
+        onBack={resetToList}
+        onSubmit={(r) => {
+          const { startFeverWatch, ...rest } = r;
+          void submitAeProm(rest, { startFeverWatch });
+        }}
+      />
+    );
+  }
+
   if (wizard.screen === "legacy_verbal") {
     return (
       <LegacySymptomLogStep
@@ -342,6 +474,64 @@ export function SymptomQuickLog({ theme, patientId, logs, onLogged, onSymptomDet
 
   return (
     <View style={{ marginBottom: theme.spacing.md }}>
+      <Pressable
+        onPress={() => void pickSymptomPhoto()}
+        style={{
+          marginBottom: theme.spacing.sm,
+          paddingVertical: 12,
+          paddingHorizontal: theme.spacing.md,
+          borderRadius: theme.radius.lg,
+          backgroundColor: theme.colors.background.primary,
+          borderWidth: StyleSheet.hairlineWidth,
+          borderColor: theme.colors.border.divider,
+        }}
+      >
+        <Text style={[theme.typography.headline, { color: theme.colors.text.primary }]}>
+          {pendingPhotoUri ? "Foto anexada ao próximo registo (tocar para alterar)" : "Anexar foto ao próximo sintoma (opcional)"}
+        </Text>
+        <Text style={[theme.typography.body, { color: theme.colors.text.secondary, marginTop: 4 }]}>
+          Útil para reações cutâneas ou lesões — fica no dossier da equipa.
+        </Text>
+      </Pressable>
+      <View
+        style={{
+          marginBottom: theme.spacing.md,
+          borderRadius: theme.radius.lg,
+          overflow: "hidden",
+          backgroundColor: theme.colors.background.primary,
+          borderWidth: StyleSheet.hairlineWidth,
+          borderColor: theme.colors.semantic.symptoms,
+        }}
+      >
+        <Text style={[theme.typography.body, { paddingHorizontal: theme.spacing.md, paddingTop: 10, color: theme.colors.text.secondary }]}>
+          ePROM (CTCAE)
+        </Text>
+        <Pressable
+          onPress={() => setWizard({ screen: "ae_nausea" })}
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            paddingVertical: 14,
+            paddingHorizontal: theme.spacing.md,
+            borderBottomWidth: StyleSheet.hairlineWidth,
+            borderBottomColor: theme.colors.border.divider,
+          }}
+        >
+          <Text style={{ flex: 1, fontSize: 17, fontWeight: "600", color: theme.colors.text.primary }}>
+            Náusea — questionário adaptativo
+          </Text>
+          <Text style={{ fontSize: 20, color: theme.colors.text.tertiary, fontWeight: "300" }}>›</Text>
+        </Pressable>
+        <Pressable
+          onPress={() => setWizard({ screen: "ae_fever" })}
+          style={{ flexDirection: "row", alignItems: "center", paddingVertical: 14, paddingHorizontal: theme.spacing.md }}
+        >
+          <Text style={{ flex: 1, fontSize: 17, fontWeight: "600", color: theme.colors.text.primary }}>
+            Febre — questionário adaptativo
+          </Text>
+          <Text style={{ fontSize: 20, color: theme.colors.text.tertiary, fontWeight: "300" }}>›</Text>
+        </Pressable>
+      </View>
       <View
         style={{
           borderRadius: theme.radius.lg,
@@ -351,7 +541,7 @@ export function SymptomQuickLog({ theme, patientId, logs, onLogged, onSymptomDet
           borderColor: theme.colors.border.divider,
         }}
       >
-        {SYMPTOM_NAV_ITEMS.map((item, index) => (
+        {navItems.map((item, index) => (
           <Pressable
             key={item.id}
             onPress={() => setWizard({ screen: "symptom_detail", key: item.id })}
@@ -362,7 +552,7 @@ export function SymptomQuickLog({ theme, patientId, logs, onLogged, onSymptomDet
               alignItems: "center",
               paddingVertical: 14,
               paddingHorizontal: theme.spacing.md,
-              borderBottomWidth: index < SYMPTOM_NAV_ITEMS.length - 1 ? StyleSheet.hairlineWidth : 0,
+              borderBottomWidth: index < navItems.length - 1 ? StyleSheet.hairlineWidth : 0,
               borderBottomColor: theme.colors.border.divider,
             }}
           >
@@ -371,6 +561,8 @@ export function SymptomQuickLog({ theme, patientId, logs, onLogged, onSymptomDet
           </Pressable>
         ))}
       </View>
+      <SelfCareModal visible={selfCareOpen} onClose={() => setSelfCareOpen(false)} />
+      <EmergencyModal visible={emergencyOpen} message={emergencyMsg} onClose={() => setEmergencyOpen(false)} />
     </View>
   );
 }

@@ -7,7 +7,7 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { ResponsiveScreen } from "@/src/components/ResponsiveScreen";
 import { CircleChromeButton } from "@/src/health/components/MedicationChromeButtons";
 import { IOS_HEALTH } from "@/src/health/iosHealthTokens";
-import { KeyboardDoneAccessory, KEYBOARD_DONE_ACCESSORY_ID } from "@/src/components/KeyboardDoneAccessory";
+import { KeyboardAccessoryDone, KEYBOARD_ACCESSORY_ID } from "@/src/components/KeyboardAccessoryDone";
 import { useAppTheme } from "@/src/hooks/useAppTheme";
 import { useStackBack } from "@/src/hooks/useStackBack";
 
@@ -101,7 +101,7 @@ export default function TreatmentScheduleWizardScreen() {
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
       >
-        <KeyboardDoneAccessory />
+        <KeyboardAccessoryDone />
         <Text style={[theme.typography.title2, { color: theme.colors.text.primary, marginBottom: theme.spacing.sm }]}>
           Início do ciclo
         </Text>
@@ -139,7 +139,7 @@ export default function TreatmentScheduleWizardScreen() {
           onChangeText={setPlanned}
           placeholder="Ex.: 4"
           keyboardType="number-pad"
-          inputAccessoryViewID={Platform.OS === "ios" ? KEYBOARD_DONE_ACCESSORY_ID : undefined}
+          inputAccessoryViewID={Platform.OS === "ios" ? KEYBOARD_ACCESSORY_ID : undefined}
           returnKeyType="next"
           blurOnSubmit={false}
           onSubmitEditing={() => completedRef.current?.focus()}
@@ -167,7 +167,7 @@ export default function TreatmentScheduleWizardScreen() {
           onChangeText={setCompleted}
           placeholder="Ex.: 2"
           keyboardType="number-pad"
-          inputAccessoryViewID={Platform.OS === "ios" ? KEYBOARD_DONE_ACCESSORY_ID : undefined}
+          inputAccessoryViewID={Platform.OS === "ios" ? KEYBOARD_ACCESSORY_ID : undefined}
           returnKeyType="next"
           blurOnSubmit={false}
           onSubmitEditing={() => intervalRef.current?.focus()}
@@ -215,7 +215,7 @@ export default function TreatmentScheduleWizardScreen() {
           onChangeText={setIntervalDays}
           placeholder="Outro (1–180 dias)"
           keyboardType="number-pad"
-          inputAccessoryViewID={Platform.OS === "ios" ? KEYBOARD_DONE_ACCESSORY_ID : undefined}
+          inputAccessoryViewID={Platform.OS === "ios" ? KEYBOARD_ACCESSORY_ID : undefined}
           returnKeyType="done"
           blurOnSubmit
           onSubmitEditing={() => Keyboard.dismiss()}

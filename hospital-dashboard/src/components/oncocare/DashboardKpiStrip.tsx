@@ -7,7 +7,7 @@ export type DashboardKpiModel = {
   activeTrendLabel: string;
   criticalAlerts: number;
   nadirMonitoring: number;
-  adherencePct: number;
+  adherencePct: number | null;
   adherenceTrendLabel: string;
 };
 
@@ -46,8 +46,8 @@ export function DashboardKpiStrip({ kpi }: Props) {
     },
     {
       label: "Adesão média",
-      value: `${kpi.adherencePct}%`,
-      sub: kpi.adherenceTrendLabel,
+      value: kpi.adherencePct != null ? `${kpi.adherencePct}%` : "—",
+      sub: kpi.adherenceTrendLabel || null,
       trend: null,
       trendUp: true,
       icon: TrendingUp,
@@ -60,11 +60,12 @@ export function DashboardKpiStrip({ kpi }: Props) {
       {cards.map((c, i) => (
         <motion.div
           key={c.label}
+          className="h-full"
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: i * 0.05, duration: 0.35 }}
         >
-          <Card className="rounded-3xl border border-[#E8EAED] bg-white p-5 shadow-[0_4px_24px_-4px_rgba(15,23,42,0.08)]">
+          <Card className="h-full rounded-3xl border border-[#E8EAED] bg-white p-5 shadow-[0_4px_24px_-4px_rgba(15,23,42,0.08)]">
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0">
                 <p className="text-[0.7rem] font-semibold uppercase tracking-wide text-muted-foreground">{c.label}</p>

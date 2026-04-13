@@ -4,7 +4,7 @@ import FontAwesome from "@expo/vector-icons/FontAwesome";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import type { Href } from "expo-router";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { KeyboardDoneAccessory, KEYBOARD_DONE_ACCESSORY_ID } from "@/src/components/KeyboardDoneAccessory";
+import { KeyboardAccessoryDone, KEYBOARD_ACCESSORY_ID } from "@/src/components/KeyboardAccessoryDone";
 import { ResponsiveScreen } from "@/src/components/ResponsiveScreen";
 import { CircleChromeButton } from "@/src/health/components/MedicationChromeButtons";
 import { IOS_HEALTH } from "@/src/health/iosHealthTokens";
@@ -96,7 +96,7 @@ export default function NewInfusionScreen() {
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
       >
-        <KeyboardDoneAccessory />
+        <KeyboardAccessoryDone />
         <Text style={[theme.typography.body, { color: theme.colors.text.secondary }]}>Data e hora</Text>
         {Platform.OS === "ios" ? (
           <DateTimePicker value={sessionAt} mode="datetime" display="spinner" onChange={(_, d) => d && setSessionAt(d)} />
@@ -156,7 +156,7 @@ export default function NewInfusionScreen() {
           onChangeText={setWeight}
           placeholder="70.5"
           keyboardType="decimal-pad"
-          inputAccessoryViewID={Platform.OS === "ios" ? KEYBOARD_DONE_ACCESSORY_ID : undefined}
+          inputAccessoryViewID={Platform.OS === "ios" ? KEYBOARD_ACCESSORY_ID : undefined}
           returnKeyType="next"
           blurOnSubmit={false}
           onSubmitEditing={() => Keyboard.dismiss()}
@@ -178,7 +178,7 @@ export default function NewInfusionScreen() {
           value={notes}
           onChangeText={setNotes}
           multiline
-          inputAccessoryViewID={Platform.OS === "ios" ? KEYBOARD_DONE_ACCESSORY_ID : undefined}
+          inputAccessoryViewID={Platform.OS === "ios" ? KEYBOARD_ACCESSORY_ID : undefined}
           style={{
             marginTop: theme.spacing.xs,
             minHeight: 80,

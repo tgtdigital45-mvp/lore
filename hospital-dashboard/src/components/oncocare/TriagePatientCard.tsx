@@ -10,7 +10,7 @@ import { latestVital, vitalPointsLast24h } from "@/lib/vitalsSpark";
 import type { RiskRow, SymptomLogDetail, TreatmentCycleRow, TreatmentInfusionRow, VitalLogRow } from "@/types/dashboard";
 import { profileName, profileDob, profileAvatarUrl, ageFromDob, initialsFromName } from "@/lib/dashboardProfile";
 import { formatPatientCodeDisplay } from "@/lib/patientCode";
-import { formatPtDateTime, formatPtShort } from "@/lib/dashboardFormat";
+import { formatPtDateTime, formatPtShort, formatRelativeSince } from "@/lib/dashboardFormat";
 import { symptomCategoryLabel, symptomSeverityShort } from "@/lib/patientModalHelpers";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -112,11 +112,29 @@ export function TriagePatientCard({ row, vitals }: Props) {
                     {row.current_stage}
                   </Badge>
                 ) : null}
+                {row.urgencySemaphore === "red" ? (
+                  <Badge className="rounded-lg border-0 bg-red-100 px-2 py-0.5 text-[0.65rem] font-bold uppercase text-red-800">
+                    Semáforo vermelho
+                  </Badge>
+                ) : row.urgencySemaphore === "yellow" ? (
+                  <Badge className="rounded-lg border-0 bg-amber-100 px-2 py-0.5 text-[0.65rem] font-bold uppercase text-amber-900">
+                    Semáforo amarelo
+                  </Badge>
+                ) : row.urgencySemaphore === "green" ? (
+                  <Badge className="rounded-lg border-0 bg-emerald-50 px-2 py-0.5 text-[0.65rem] font-bold uppercase text-emerald-800">
+                    Semáforo verde
+                  </Badge>
+                ) : null}
               </div>
               <p className="mt-1 text-xs text-muted-foreground">
                 <span className="font-mono text-foreground/80">{code}</span> · {age ?? "—"} · —
               </p>
               <p className="mt-0.5 text-xs text-muted-foreground">{CANCER_PT[row.primary_cancer_type] ?? row.primary_cancer_type}</p>
+              {row.lastSymptomAt ? (
+                <p className="mt-1 text-[0.65rem] font-semibold uppercase text-muted-foreground">
+                  Último sintoma: {formatRelativeSince(row.lastSymptomAt)} · {formatPtShort(row.lastSymptomAt)}
+                </p>
+              ) : null}
             </div>
 
             <div className="flex min-w-0 flex-[1.4] flex-wrap gap-3 rounded-2xl border border-[#F1F5F9] bg-[#FAFBFC] p-3 md:gap-4">
@@ -124,7 +142,7 @@ export function TriagePatientCard({ row, vitals }: Props) {
                 data={tempPts}
                 color={lastTemp != null && lastTemp >= 38 ? "#EF4444" : "#0F172A"}
                 unit="°C"
-                label="Temp"
+                label="Temp."
               />
               <VitalMicroSpark data={spoPts} color={spo2Color(lastSpo2)} unit="%" label="SpO₂" />
               <VitalMicroSpark data={hrPts} color="#6366F1" unit="bpm" label="FC" />

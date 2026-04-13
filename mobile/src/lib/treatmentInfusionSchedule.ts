@@ -48,6 +48,26 @@ export function nextSuggestedInfusionDate(
   return addDaysUtc(last, intervalDays);
 }
 
+/**
+ * Após um check-in, recalcula `session_at` das sessões ainda `scheduled` (ordenadas da mais cedo à mais tarde):
+ * 1.ª pendente = último check-in + intervalo, 2.ª = +2×intervalo, …
+ * Assim, se a infusão for antecipada ou atrasada, as datas previstas seguintes seguem o último registo, não a grelha inicial.
+ */
+export function reschedulePendingSessionAtsAfterCheckIn(
+  completedAtIso: string,
+  intervalDays: number,
+  scheduledOrderedBySessionAt: Pick<TreatmentInfusionRow, "id">[]
+): { id: string; session_at: string }[] {
+  if (!Number.isFinite(intervalDays) || intervalDays < 1 || scheduledOrderedBySessionAt.length === 0) return [];
+  const anchor = new Date(completedAtIso).getTime();
+  if (Number.isNaN(anchor)) return [];
+  return scheduledOrderedBySessionAt.map((row, idx) => {
+    const d = addDaysUtc(new Date(completedAtIso), (idx + 1) * intervalDays);
+    d.setUTCHours(12, 0, 0, 0);
+    return { id: row.id, session_at: d.toISOString() };
+  });
+}
+
 export function formatPtDateShort(d: Date): string {
   return d.toLocaleDateString("pt-BR", { day: "2-digit", month: "short", year: "numeric" });
 }

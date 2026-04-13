@@ -8,7 +8,7 @@ import { usePatient } from "@/src/hooks/usePatient";
 export default function Index() {
   const { session, loading: authLoading } = useAuth();
   const { hasConsent, loading: consentLoading } = useConsent();
-  const { patient, loading: patientLoading } = usePatient();
+  const { patient, loading: patientLoading, fetchError: patientFetchError } = usePatient();
   const { theme } = useAppTheme();
 
   if (authLoading) {
@@ -41,6 +41,11 @@ export default function Index() {
         <ActivityIndicator />
       </View>
     );
+  }
+
+  /** Erro na API: não assumir "sem paciente" e mandar de volta ao cadastro a cada abertura. */
+  if (patientFetchError) {
+    return <Redirect href="/(tabs)" />;
   }
 
   if (!patient) {

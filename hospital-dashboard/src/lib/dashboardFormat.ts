@@ -39,6 +39,24 @@ export function formatPtDateLong(iso: string | null): string {
   }
 }
 
+/** Tempo decorrido curto (ex.: triagem). */
+export function formatRelativeSince(iso: string | null): string {
+  if (!iso) return "—";
+  try {
+    const t = new Date(iso).getTime();
+    const diff = Date.now() - t;
+    const m = Math.floor(diff / 60000);
+    if (m < 1) return "agora";
+    if (m < 60) return `há ${m} min`;
+    const h = Math.floor(m / 60);
+    if (h < 48) return `há ${h} h`;
+    const d = Math.floor(h / 24);
+    return `há ${d} d`;
+  } catch {
+    return "—";
+  }
+}
+
 export function formatPtTimeShort(iso: string | null): string {
   if (!iso) return "";
   try {

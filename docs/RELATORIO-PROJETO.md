@@ -120,6 +120,7 @@ flowchart TB
 | IA e compliance | [`diretrizes-corportamento.md`](diretrizes-corportamento.md), [`analise-de-modelos-ia.md`](analise-de-modelos-ia.md), [`politicas-compliance.md`](politicas-compliance.md) |
 | Dashboard | [`hospital-dashboard-sprint.md`](hospital-dashboard-sprint.md), [`data-contract-dashboard.md`](data-contract-dashboard.md) |
 | Segurança | [`SECURITY.md`](SECURITY.md) |
+| Enterprise / B2B | [`unimed-b2b/README.md`](unimed-b2b/README.md) |
 | Raiz | [`../README.md`](../README.md), [`../prd-onco-app.md`](../prd-onco-app.md), [`../TODO_MASTER.md`](../TODO_MASTER.md) |
 
 ---
@@ -141,7 +142,13 @@ Ver [`../TODO_MASTER.md`](../TODO_MASTER.md) para o detalhe. Em resumo:
 
 ---
 
-## 10. Conclusão
+## 10. Dossiê B2B (operadoras)
+
+Pitch, architecture alvo, RIPD resumida, ROI, due diligence (OIDC/FHIR, residência) e backlog enterprise: **[`unimed-b2b/README.md`](unimed-b2b/README.md)**.
+
+---
+
+## 11. Conclusão
 
 O **Aura Onco** é um **monorepo de produto clínico** com três faces (paciente mobile, equipa no dashboard web, landing), **núcleo de dados no Supabase** com RLS e **serviço Express** para OCR, IA, ficheiros e WhatsApp. Endurecimentos recentes incluem segredos nas Edge Functions, API e webhooks mais restritivos, e políticas de DELETE mais controladas para alinhar a operação a dados de saúde.
 

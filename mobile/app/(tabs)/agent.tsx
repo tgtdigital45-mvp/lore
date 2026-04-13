@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ActivityIndicator, Pressable, ScrollView, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import { EmergencyModal } from "@/components/EmergencyModal";
 import { ResponsiveScreen } from "@/src/components/ResponsiveScreen";
 import { useAuth } from "@/src/auth/AuthContext";
@@ -90,10 +90,11 @@ export default function AgentScreen() {
 
   return (
     <ResponsiveScreen variant="tabGradient">
-      <View style={{ flex: 1 }}>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined} keyboardVerticalOffset={100}>
       <ScrollView
         style={{ backgroundColor: "transparent" }}
         contentContainerStyle={{ paddingVertical: theme.spacing.md, paddingBottom: theme.spacing.xl }}
+        keyboardShouldPersistTaps="handled"
       >
         <Text style={[theme.typography.largeTitle, { color: theme.colors.text.primary }]}>Assistente</Text>
 
@@ -181,7 +182,7 @@ export default function AgentScreen() {
       </ScrollView>
 
       <EmergencyModal visible={emergencyOpen} message={emergencyText} onClose={() => setEmergencyOpen(false)} />
-      </View>
+      </KeyboardAvoidingView>
     </ResponsiveScreen>
   );
 }

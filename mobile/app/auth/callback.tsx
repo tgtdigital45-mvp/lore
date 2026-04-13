@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { ActivityIndicator, Text, View } from "react-native";
+import { ActivityIndicator, Pressable, Text, View } from "react-native";
+import FontAwesome from "@expo/vector-icons/FontAwesome";
 import * as Linking from "expo-linking";
 import { useRouter } from "expo-router";
 import { parseAuthParamsFromUrl } from "@/src/auth/oauth";
@@ -47,9 +48,20 @@ export default function AuthCallbackScreen() {
   return (
     <View style={{ flex: 1, justifyContent: "center", alignItems: "center", padding: 24 }}>
       {err ? (
-        <Text style={{ color: "#b91c1c", textAlign: "center" }} accessibilityRole="alert">
-          {err}
-        </Text>
+        <>
+          <Text style={{ color: "#b91c1c", textAlign: "center", marginBottom: 24 }} accessibilityRole="alert">
+            {err}
+          </Text>
+          <Pressable
+            onPress={() => router.replace("/login")}
+            style={{ flexDirection: "row", alignItems: "center", padding: 12 }}
+            accessibilityRole="button"
+            accessibilityLabel="Voltar ao login"
+          >
+            <FontAwesome name="chevron-left" size={16} color="#007AFF" />
+            <Text style={{ color: "#007AFF", marginLeft: 8, fontWeight: "600" }}>Voltar ao login</Text>
+          </Pressable>
+        </>
       ) : (
         <>
           <ActivityIndicator size="large" accessibilityLabel="Carregando" />

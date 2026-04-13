@@ -31,7 +31,7 @@ export type SymptomSnippet = {
 export type NextAppointmentSnippet = {
   title: string;
   starts_at: string;
-  kind: "consult" | "exam" | "other";
+  kind: "consult" | "exam" | "other" | "infusion";
 };
 
 function sameLocalCalendarDay(iso: string): boolean {
@@ -212,10 +212,13 @@ export function useHomeSummary(patient: PatientRow | null) {
     setNutritionRows((nutrRows ?? []) as NutritionLogRow[]);
 
     const upcoming = (apptRows ?? []) as { title: string; kind: string; starts_at: string }[];
-    const exam = upcoming.find((r) => r.kind === "exam");
-    const pick = exam ?? upcoming[0];
-    if (pick && (pick.kind === "consult" || pick.kind === "exam" || pick.kind === "other")) {
-      setNextAppointment({ title: pick.title, starts_at: pick.starts_at, kind: pick.kind });
+    const pick = upcoming[0];
+    const k = pick?.kind;
+    if (
+      pick &&
+      (k === "consult" || k === "exam" || k === "other" || k === "infusion")
+    ) {
+      setNextAppointment({ title: pick.title, starts_at: pick.starts_at, kind: k });
     } else {
       setNextAppointment(null);
     }

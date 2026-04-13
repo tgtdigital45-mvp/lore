@@ -129,6 +129,10 @@ function RootLayoutNav() {
           name="reports"
           options={{ title: "Relatórios", headerShown: true, animation: "slide_from_right", animationDuration: 380 }}
         />
+        <Stack.Screen
+          name="caregiver-claim"
+          options={{ title: "Cuidador", headerShown: true, animation: "slide_from_right", animationDuration: 380 }}
+        />
         <Stack.Screen name="+not-found" />
       </Stack>
     </ThemeProvider>

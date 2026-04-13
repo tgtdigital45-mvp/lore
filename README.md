@@ -196,6 +196,7 @@ Não existe `package.json` na **raiz**; cada app é um projeto Node independente
 | [`docs/data-contract-dashboard.md`](docs/data-contract-dashboard.md) | Contrato de dados dashboard hospitalar |
 | [`docs/hospital-dashboard-sprint.md`](docs/hospital-dashboard-sprint.md) | Sprint dashboard |
 | [`docs/sprints-dashboard-hospital.md`](docs/sprints-dashboard-hospital.md) | Sprints hospital |
+| [`docs/sgq/README.md`](docs/sgq/README.md) | **SGQ** — qualidade, ISO 14971 / IEC 62304, LGPD (BPF / RDC 665) |
 | [`prd-onco-app.md`](prd-onco-app.md) | PRD MVP (user stories, fluxos) |
 | [`TODO_MASTER.md`](TODO_MASTER.md) | Backlog: concluído vs pendente |
 
@@ -271,6 +272,7 @@ npm run dev
 - **Edge Functions:** `CRON_SECRET` + `Authorization: Bearer` — [`supabase/functions/README.md`](supabase/functions/README.md).
 - **IA:** input sanitizado antes do LLM; saída estruturada validada onde aplicável.
 - Leitura obrigatória para auditoria: [`docs/SECURITY.md`](docs/SECURITY.md), [`docs/politicas-compliance.md`](docs/politicas-compliance.md).
+- **Gestão da qualidade e rastreabilidade:** [`docs/sgq/README.md`](docs/sgq/README.md) (processos ISO 14971, IEC 62304, LGPD; template de PR em [`.github/PULL_REQUEST_TEMPLATE.md`](.github/PULL_REQUEST_TEMPLATE.md)).
 
 ---
 

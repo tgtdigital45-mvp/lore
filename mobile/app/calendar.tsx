@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from "react";
-import { Alert, Modal, Platform, Pressable, ScrollView, Text, TextInput, View } from "react-native";
+import { Alert, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { useFocusEffect } from "@react-navigation/native";
@@ -180,7 +180,13 @@ export default function CalendarScreen() {
             >
               <Text style={[theme.typography.headline, { color: theme.colors.text.primary }]}>{r.title}</Text>
               <Text style={{ color: theme.colors.text.secondary, marginTop: 4, fontSize: 12, fontWeight: "600" }}>
-                {r.kind === "exam" ? "Exame" : r.kind === "consult" ? "Consulta" : "Outro"}
+                {r.kind === "exam"
+                  ? "Exame"
+                  : r.kind === "consult"
+                    ? "Consulta"
+                    : r.kind === "infusion"
+                      ? "Infusão (agenda hospitalar)"
+                      : "Outro"}
               </Text>
               <Text style={{ color: theme.colors.text.secondary, marginTop: 4 }}>
                 {new Date(r.starts_at).toLocaleString()}
@@ -192,7 +198,12 @@ export default function CalendarScreen() {
       </ScrollView>
 
       <Modal visible={modal} animationType="slide" transparent>
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
         <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.45)", justifyContent: "flex-end" }}>
+          <ScrollView
+            contentContainerStyle={{ flexGrow: 1, justifyContent: "flex-end" }}
+            keyboardShouldPersistTaps="handled"
+          >
           <View
             style={{
               backgroundColor: theme.colors.background.primary,
@@ -314,7 +325,9 @@ export default function CalendarScreen() {
               <Text style={{ color: theme.colors.text.secondary }}>Cancelar</Text>
             </Pressable>
           </View>
+          </ScrollView>
         </View>
+        </KeyboardAvoidingView>
       </Modal>
     </ResponsiveScreen>
   );

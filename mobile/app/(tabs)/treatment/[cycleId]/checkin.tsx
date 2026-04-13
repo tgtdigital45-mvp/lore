@@ -13,7 +13,7 @@ import {
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import type { Href } from "expo-router";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { KeyboardDoneAccessory, KEYBOARD_DONE_ACCESSORY_ID } from "@/src/components/KeyboardDoneAccessory";
+import { KeyboardAccessoryDone, KEYBOARD_ACCESSORY_ID } from "@/src/components/KeyboardAccessoryDone";
 import { ResponsiveScreen } from "@/src/components/ResponsiveScreen";
 import { CircleChromeButton } from "@/src/health/components/MedicationChromeButtons";
 import { IOS_HEALTH } from "@/src/health/iosHealthTokens";
@@ -21,6 +21,7 @@ import { useAppTheme } from "@/src/hooks/useAppTheme";
 import { useStackBack } from "@/src/hooks/useStackBack";
 import { usePatient } from "@/src/hooks/usePatient";
 import { supabase } from "@/src/lib/supabase";
+import { reschedulePendingSessionAtsAfterCheckIn } from "@/src/lib/treatmentInfusionSchedule";
 import type { TreatmentInfusionRow } from "@/src/types/treatment";
 
 export default function TreatmentCheckInScreen() {
@@ -103,6 +104,31 @@ export default function TreatmentCheckInScreen() {
       return;
     }
 
+    const { data: cycleRow } = await supabase
+      .from("treatment_cycles")
+      .select("infusion_interval_days")
+      .eq("id", cycleId)
+      .eq("patient_id", patient.id)
+      .maybeSingle();
+    const intervalDays = cycleRow?.infusion_interval_days;
+    if (intervalDays != null && intervalDays >= 1) {
+      const { data: pendingRows, error: pendErr } = await supabase
+        .from("treatment_infusions")
+        .select("id")
+        .eq("cycle_id", cycleId)
+        .eq("patient_id", patient.id)
+        .eq("status", "scheduled")
+        .order("session_at", { ascending: true });
+      if (!pendErr && pendingRows?.length) {
+        const updates = reschedulePendingSessionAtsAfterCheckIn(nowIso, intervalDays, pendingRows as { id: string }[]);
+        await Promise.all(
+          updates.map((u) =>
+            supabase.from("treatment_infusions").update({ session_at: u.session_at }).eq("id", u.id).eq("patient_id", patient.id)
+          )
+        );
+      }
+    }
+
     const { count, error: cErr } = await supabase
       .from("treatment_infusions")
       .select("id", { count: "exact", head: true })
@@ -162,7 +188,7 @@ export default function TreatmentCheckInScreen() {
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode="on-drag"
         >
-          <KeyboardDoneAccessory />
+          <KeyboardAccessoryDone />
           <Text style={[theme.typography.body, { color: theme.colors.text.secondary }]}>
             Data prevista:{" "}
             {new Date(infusion.session_at).toLocaleDateString("pt-BR", {
@@ -183,7 +209,7 @@ export default function TreatmentCheckInScreen() {
             onChangeText={setWeight}
             placeholder="Ex.: 72,5"
             keyboardType="decimal-pad"
-            inputAccessoryViewID={Platform.OS === "ios" ? KEYBOARD_DONE_ACCESSORY_ID : undefined}
+            inputAccessoryViewID={Platform.OS === "ios" ? KEYBOARD_ACCESSORY_ID : undefined}
             returnKeyType="next"
             placeholderTextColor={theme.colors.text.tertiary}
             style={{
@@ -206,7 +232,7 @@ export default function TreatmentCheckInScreen() {
             placeholder="Como se sentiu, efeitos, notas para o médico…"
             placeholderTextColor={theme.colors.text.tertiary}
             multiline
-            inputAccessoryViewID={Platform.OS === "ios" ? KEYBOARD_DONE_ACCESSORY_ID : undefined}
+            inputAccessoryViewID={Platform.OS === "ios" ? KEYBOARD_ACCESSORY_ID : undefined}
             style={{
               marginTop: theme.spacing.xs,
               minHeight: 100,

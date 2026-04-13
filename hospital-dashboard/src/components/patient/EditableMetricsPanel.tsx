@@ -169,6 +169,15 @@ export function EditableMetricsPanel({ staffId, vitals, wearables, biomarkers }:
   const [prefs, setPrefs] = useState<Record<string, boolean>>({});
   const [configOpen, setConfigOpen] = useState(false);
 
+  useEffect(() => {
+    if (!configOpen) return;
+    function handleEscape(e: KeyboardEvent) {
+      if (e.key === "Escape") setConfigOpen(false);
+    }
+    document.addEventListener("keydown", handleEscape);
+    return () => document.removeEventListener("keydown", handleEscape);
+  }, [configOpen]);
+
   const key = storageKey(staffId);
 
   useEffect(() => {
@@ -358,8 +367,9 @@ export function EditableMetricsPanel({ staffId, vitals, wearables, biomarkers }:
           role="dialog"
           aria-modal="true"
           aria-labelledby="metrics-config-title"
+          onClick={() => setConfigOpen(false)}
         >
-          <Card className="relative max-h-[85vh] w-full max-w-lg overflow-y-auto rounded-2xl p-6 shadow-xl">
+          <Card className="relative max-h-[85vh] w-full max-w-lg overflow-y-auto rounded-2xl p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
             <button
               type="button"
               className="absolute right-4 top-4 rounded-lg p-1 text-muted-foreground hover:bg-[#F1F5F9]"

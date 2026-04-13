@@ -18,9 +18,15 @@ import type {
   TreatmentInfusionRow,
   VitalLogRow,
   WearableSampleRow,
+  CycleReadinessRow,
 } from "@/types/dashboard";
 
-const DEFAULT_RULES: MergedAlertRules = { fever_celsius_min: 37.8, alert_window_hours: 72 };
+const DEFAULT_RULES: MergedAlertRules = {
+  fever_celsius_min: 37.8,
+  alert_window_hours: 72,
+  ctcae_yellow_min_grade: 2,
+  ctcae_red_min_grade: 3,
+};
 
 export function usePatientClinicalBundle(patientId: string | undefined) {
   const prevPatientIdRef = useRef<string | undefined>(undefined);
@@ -41,6 +47,7 @@ export function usePatientClinicalBundle(patientId: string | undefined) {
   const [biomarkers, setBiomarkers] = useState<BiomarkerModalRow[]>([]);
   const [medicalDocs, setMedicalDocs] = useState<MedicalDocModalRow[]>([]);
   const [emergencyContacts, setEmergencyContacts] = useState<EmergencyContactEmbed[]>([]);
+  const [cycleReadiness, setCycleReadiness] = useState<CycleReadinessRow | null>(null);
 
   const reloadExames = useCallback(async (pid: string) => {
     const [bio, mdocs, medLogs, medCatalog] = await Promise.all([
@@ -94,6 +101,7 @@ export function usePatientClinicalBundle(patientId: string | undefined) {
       setMedications([]);
       setMedicationLogs([]);
       setEmergencyContacts([]);
+      setCycleReadiness(null);
       return;
     }
     const patientChanged = prevPatientIdRef.current !== patientId;
@@ -116,7 +124,7 @@ export function usePatientClinicalBundle(patientId: string | undefined) {
       const { data: prow, error: pe } = await supabase
         .from("patients")
         .select(
-          "id, profile_id, primary_cancer_type, current_stage, is_in_nadir, patient_code, is_pregnant, uses_continuous_medication, continuous_medication_notes, medical_history, allergies, height_cm, weight_kg, clinical_notes, profiles ( full_name, date_of_birth, avatar_url )"
+          "id, profile_id, primary_cancer_type, current_stage, is_in_nadir, patient_code, is_pregnant, uses_continuous_medication, continuous_medication_notes, medical_history, allergies, height_cm, weight_kg, clinical_notes, profiles!patients_profile_id_fkey ( full_name, date_of_birth, avatar_url )"
         )
         .eq("id", patientId)
         .maybeSingle();
@@ -134,7 +142,7 @@ export function usePatientClinicalBundle(patientId: string | undefined) {
       const { data: logs, error: le } = await supabase
         .from("symptom_logs")
         .select(
-          "patient_id, severity, logged_at, symptom_category, body_temperature, entry_kind, pain_level, nausea_level, fatigue_level"
+          "patient_id, severity, logged_at, symptom_category, body_temperature, entry_kind, pain_level, nausea_level, fatigue_level, ae_max_grade, triage_semaphore"
         )
         .eq("patient_id", patientId)
         .gte("logged_at", sinceFetch);
@@ -148,7 +156,7 @@ export function usePatientClinicalBundle(patientId: string | undefined) {
       const rr = buildRiskRow(p, logRows, rules, nowMs);
       setRiskRow(rr);
 
-      const [cyc, sym, inf, vit, wear, meds, nut, bio, mdocs, medCatalog, ec] = await Promise.all([
+      const [cyc, sym, inf, vit, wear, meds, nut, bio, mdocs, medCatalog, cr, ec] = await Promise.all([
         supabase
           .from("treatment_cycles")
           .select(
@@ -160,7 +168,7 @@ export function usePatientClinicalBundle(patientId: string | undefined) {
         supabase
           .from("symptom_logs")
           .select(
-            "id, symptom_category, severity, body_temperature, logged_at, notes, entry_kind, pain_level, nausea_level, fatigue_level, requires_action, mood, symptom_started_at, symptom_ended_at"
+            "id, symptom_category, severity, body_temperature, logged_at, notes, entry_kind, pain_level, nausea_level, fatigue_level, requires_action, mood, symptom_started_at, symptom_ended_at, ae_max_grade, flow_context, triage_semaphore"
           )
           .eq("patient_id", patientId)
           .order("logged_at", { ascending: false })
@@ -215,6 +223,7 @@ export function usePatientClinicalBundle(patientId: string | undefined) {
           .select("id, name, display_name, dosage, form, unit, frequency_hours, repeat_mode, anchor_at, end_date, active, notes, pinned")
           .eq("patient_id", patientId)
           .order("name"),
+        supabase.from("cycle_readiness").select("*").eq("patient_id", patientId).limit(1).maybeSingle(),
         supabase
           .from("patient_emergency_contacts")
           .select("id, full_name, phone, relationship, sort_order")
@@ -249,6 +258,7 @@ export function usePatientClinicalBundle(patientId: string | undefined) {
       );
       setMedicalDocs(!mdocs.error && mdocs.data ? (mdocs.data as MedicalDocModalRow[]) : []);
       setMedications(!medCatalog.error && medCatalog.data ? (medCatalog.data as MedicationRow[]) : []);
+      setCycleReadiness(!cr.error && cr.data ? (cr.data as CycleReadinessRow) : null);
       setEmergencyContacts(!ec.error && ec.data ? (ec.data as EmergencyContactEmbed[]) : []);
       setLoading(false);
     })();
@@ -293,6 +303,7 @@ export function usePatientClinicalBundle(patientId: string | undefined) {
     biomarkers,
     medicalDocs,
     emergencyContacts,
+    cycleReadiness,
     refreshExames,
   };
 }

@@ -1,11 +1,12 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { motion } from "framer-motion";
-import { ArrowLeft, Armchair, BedDouble, Trash2, Wrench } from "lucide-react";
+import { ArrowLeft, Trash2, Wrench } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { ResourceVisualIcons } from "@/components/oncocare/ResourceVisualIcons";
 import { bookingOverlapsExisting } from "@/lib/chemoChairBlock";
 import { cn } from "@/lib/utils";
 import { patientDisplayName, kindLabel } from "@/lib/infusionResourceUi";
@@ -37,11 +38,16 @@ export function OncoCareResourceDetailPage() {
   const [patientId, setPatientId] = useState("");
   const [medicationNotes, setMedicationNotes] = useState("");
   const [busy, setBusy] = useState(false);
+  const [labelDraft, setLabelDraft] = useState("");
 
   const selected = useMemo(
     () => (resourceId ? resources.find((r) => r.id === resourceId) : undefined),
     [resourceId, resources]
   );
+
+  useEffect(() => {
+    if (selected) setLabelDraft(selected.label);
+  }, [selected?.id]);
 
   const bookingsForResource = useMemo(() => {
     if (!resourceId) return [];
@@ -98,6 +104,36 @@ export function OncoCareResourceDetailPage() {
     }
   }
 
+  async function saveResourceLabel() {
+    if (!selected) return;
+    const t = labelDraft.trim();
+    if (!t) return;
+    setBusy(true);
+    try {
+      const { error: e } = await supabase.from("infusion_resources").update({ label: t }).eq("id", selected.id);
+      if (e) throw e;
+      await reload();
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function setPaxman(value: boolean) {
+    if (!selected) return;
+    setBusy(true);
+    try {
+      const { error: e } = await supabase.from("infusion_resources").update({ paxman_cryotherapy: value }).eq("id", selected.id);
+      if (e) throw e;
+      await reload();
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function bookSlot() {
     if (!selected || selected.operational_status === "maintenance") return;
     const t = Date.parse(slotInput);
@@ -139,8 +175,6 @@ export function OncoCareResourceDetailPage() {
     }
   }
 
-  const Icon = selected?.kind === "chair" ? Armchair : BedDouble;
-
   return (
     <div className="mx-auto flex max-w-5xl flex-col gap-8 pb-16">
       <div className="flex flex-wrap items-center gap-3">
@@ -163,28 +197,78 @@ export function OncoCareResourceDetailPage() {
       ) : selected ? (
         <>
           <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
-            <div className="flex flex-wrap items-start justify-between gap-4">
-              <div>
-                <p className="flex items-center gap-2 text-[0.65rem] font-bold uppercase tracking-wider text-muted-foreground">
-                  <Icon className="size-4 opacity-80" />
-                  {kindLabel(selected.kind)}
-                </p>
-                <h1 className="mt-1 text-3xl font-black tracking-tight">{selected.label}</h1>
-                <p className="mt-2 max-w-xl text-sm text-muted-foreground">
-                  {selected.details?.trim() || "Sem notas de equipemento."} Reservas na janela carregada (últimos 7 dias e
-                  próximos 45 dias).
-                </p>
+            <div className="overflow-hidden rounded-[36px] border-[3px] border-[#E8ECEF] bg-gradient-to-br from-white via-[#FAFBFC] to-[#F0F9FF] p-6 shadow-sm sm:p-8">
+              <div className="flex flex-wrap items-start justify-between gap-4">
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-3">
+                    <ResourceVisualIcons kind={selected.kind} cryo={selected.paxman_cryotherapy} />
+                    <p className="text-[0.65rem] font-bold uppercase tracking-wider text-muted-foreground">
+                      {kindLabel(selected.kind)}
+                    </p>
+                  </div>
+                  <h1 className="mt-3 text-3xl font-black tracking-tight sm:text-4xl">{selected.label}</h1>
+                  <p className="mt-3 max-w-xl text-[15px] leading-relaxed text-muted-foreground">
+                    {selected.details?.trim() || "Sem notas de equipemento."} Reservas na janela carregada (últimos 7 dias e
+                    próximos 45 dias).
+                  </p>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="shrink-0 rounded-2xl border-[3px] border-dashed border-[#CBD5E1] bg-white/80"
+                  disabled={busy}
+                  onClick={() => void toggleMaintenance()}
+                >
+                  <Wrench className="mr-2 size-4" />
+                  {selected.operational_status === "maintenance" ? "Disponibilizar recurso" : "Marcar manutenção"}
+                </Button>
               </div>
-              <Button
-                type="button"
-                variant="outline"
-                className="rounded-2xl border-[3px] border-dashed"
-                disabled={busy}
-                onClick={() => void toggleMaintenance()}
-              >
-                <Wrench className="mr-2 size-4" />
-                {selected.operational_status === "maintenance" ? "Disponibilizar recurso" : "Marcar manutenção"}
-              </Button>
+            </div>
+
+            <div className="mt-6 grid max-w-2xl gap-5">
+              <div className="rounded-[28px] border-[3px] border-[#E8ECF1] bg-white p-5 shadow-sm">
+                <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Identificação</p>
+                <label className="mt-3 block text-sm font-medium text-foreground">
+                  Nome exibido na agenda
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    <Input
+                      className="min-w-[200px] flex-1 rounded-2xl border-[3px] border-[#E8ECF1]"
+                      value={labelDraft}
+                      onChange={(e) => setLabelDraft(e.target.value)}
+                      disabled={busy}
+                    />
+                    <Button
+                      type="button"
+                      className="rounded-2xl"
+                      disabled={busy || !labelDraft.trim() || labelDraft.trim() === selected.label}
+                      onClick={() => void saveResourceLabel()}
+                    >
+                      Salvar nome
+                    </Button>
+                  </div>
+                </label>
+              </div>
+
+              <div className="rounded-[28px] border-[3px] border-sky-100 bg-gradient-to-br from-sky-50/90 to-white p-5 shadow-sm">
+                <p className="text-xs font-bold uppercase tracking-wider text-sky-800/80">Crioterapia na infusão</p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Marque se esta posição dispõe de touca inglesa PAXMAN para crioterapia de couro cabeludo. Na agenda principal
+                  aparece o ícone de neve junto ao recurso.
+                </p>
+                <label className="mt-4 flex cursor-pointer items-start gap-3 rounded-2xl border-[3px] border-white/80 bg-white/90 p-4 shadow-sm">
+                  <input
+                    type="checkbox"
+                    className="mt-0.5 size-[18px] shrink-0 rounded border-sky-300 text-sky-600 focus:ring-sky-500"
+                    checked={selected.paxman_cryotherapy}
+                    disabled={busy}
+                    onChange={(e) => void setPaxman(e.target.checked)}
+                  />
+                  <span className="text-sm leading-snug">
+                    <span className="font-semibold text-foreground">Esta posição tem touca PAXMAN (crioterapia)</span>
+                    <span className="text-muted-foreground"> — scalp cooling durante a infusão, quando indicado clinicamente.</span>
+                  </span>
+                </label>
+              </div>
             </div>
           </motion.div>
 

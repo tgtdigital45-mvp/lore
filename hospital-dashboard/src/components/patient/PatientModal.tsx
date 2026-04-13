@@ -1,3 +1,8 @@
+/**
+ * @deprecated Este modal não está integrado ao app atual.
+ * A triagem usa a página `/paciente/:id` (PatientDossierPage).
+ * Manter apenas como referência para futura refatoração.
+ */
 import { Suspense, lazy, useEffect, useRef, type PointerEvent } from "react";
 import { createPortal } from "react-dom";
 import type { ModalTabId } from "../../types/dashboard";
@@ -29,6 +34,7 @@ export function PatientModal(props: PatientModalProps) {
     modalWearables,
     modalMedicationLogs,
     modalNutritionLogs,
+    modalCycleReadiness,
     modalBiomarkers,
     modalMedicalDocs,
     modalOutbound,
@@ -197,6 +203,7 @@ export function PatientModal(props: PatientModalProps) {
                 modalWearables={modalWearables}
                 modalMedicationLogs={modalMedicationLogs}
                 modalNutritionLogs={modalNutritionLogs}
+                modalCycleReadiness={modalCycleReadiness}
               />
             ) : null}
 

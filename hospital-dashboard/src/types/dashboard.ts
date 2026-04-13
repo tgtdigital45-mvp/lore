@@ -104,6 +104,9 @@ export type SymptomLogDetail = {
   mood?: string | null;
   symptom_started_at?: string | null;
   symptom_ended_at?: string | null;
+  ae_max_grade?: number | null;
+  flow_context?: Record<string, unknown> | null;
+  triage_semaphore?: string | null;
 };
 
 /** Sinais vitais registrados na app (temperatura, PA, etc.). */
@@ -139,6 +142,26 @@ export type OutboundMessageRow = {
   status: string;
   created_at: string;
   error_detail: string | null;
+  symptom_log_id?: string | null;
+};
+
+export type ClinicalTaskRow = {
+  id: string;
+  hospital_id: string;
+  patient_id: string;
+  symptom_log_id: string;
+  task_type: string;
+  triage_semaphore: string;
+  title: string;
+  description: string | null;
+  status: string;
+  assigned_to: string | null;
+  due_at: string | null;
+  created_at: string;
+  patients?: {
+    patient_code?: string | null;
+    profiles?: { full_name?: string } | { full_name?: string }[] | null;
+  } | null;
 };
 
 export type WaProfileSnap = {
@@ -181,11 +204,15 @@ export type SymptomLogTriage = {
   pain_level?: number | null;
   nausea_level?: number | null;
   fatigue_level?: number | null;
+  ae_max_grade?: number | null;
+  triage_semaphore?: string | null;
 };
 
 export type MergedAlertRules = {
   fever_celsius_min: number;
   alert_window_hours: number;
+  ctcae_yellow_min_grade?: number;
+  ctcae_red_min_grade?: number;
 };
 
 export type HospitalEmbed = { name?: string; alert_rules?: unknown } | null;
@@ -198,6 +225,8 @@ export type RiskRow = PatientRow & {
   hasClinicalAlert: boolean;
   alertReasons: string[];
   hasAlert24h: boolean;
+  /** Pior semáforo na janela de triagem (derivado de `symptom_logs.triage_semaphore`). */
+  urgencySemaphore: "red" | "yellow" | "green" | null;
 };
 
 export type HospitalMetaRow = {
@@ -234,6 +263,21 @@ export type TreatmentInfusionRow = {
   patient_id: string;
   session_at: string;
   status: string;
+};
+
+/** Vista `cycle_readiness` — heurística MVP. */
+export type CycleReadinessRow = {
+  patient_id: string;
+  hospital_id: string | null;
+  cycle_id: string | null;
+  protocol_name: string | null;
+  cycle_status: string | null;
+  start_date: string | null;
+  last_high_ae_at: string | null;
+  last_fever_log_at: string | null;
+  has_recent_labs_doc: boolean | null;
+  readiness_status: "hold" | "likely_ok" | "review";
+  readiness_reasons: string[] | null;
 };
 
 /** Amostras Apple Health / wearables — ver `health_wearable_samples`. */

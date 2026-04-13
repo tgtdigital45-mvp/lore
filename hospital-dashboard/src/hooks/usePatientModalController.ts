@@ -33,6 +33,7 @@ import type {
   WaProfileSnap,
   WearableSampleRow,
   MergedAlertRules,
+  CycleReadinessRow,
 } from "../types/dashboard";
 import type { PatientModalProps } from "../components/patient/patientModalProps";
 
@@ -100,6 +101,7 @@ export function usePatientModalController(
   const [modalWearables, setModalWearables] = useState<WearableSampleRow[]>([]);
   const [modalMedicationLogs, setModalMedicationLogs] = useState<MedicationLogRow[]>([]);
   const [modalNutritionLogs, setModalNutritionLogs] = useState<NutritionLogRow[]>([]);
+  const [modalCycleReadiness, setModalCycleReadiness] = useState<CycleReadinessRow | null>(null);
   const [modalExamesReady, setModalExamesReady] = useState(false);
   const [modalMsgsReady, setModalMsgsReady] = useState(false);
   const [examesTabLoading, setExamesTabLoading] = useState(false);
@@ -137,7 +139,7 @@ export function usePatientModalController(
       const sinceFetch = new Date(nowMs - fetchHours * 3600 * 1000);
       const { data: prow, error: pe } = await supabase
         .from("patients")
-        .select("id, primary_cancer_type, current_stage, is_in_nadir, patient_code, profiles ( full_name, date_of_birth, avatar_url )")
+        .select("id, primary_cancer_type, current_stage, is_in_nadir, patient_code, profiles!patients_profile_id_fkey ( full_name, date_of_birth, avatar_url )")
         .eq("id", patientId)
         .maybeSingle();
       if (pe || !prow) return;
@@ -145,7 +147,7 @@ export function usePatientModalController(
       const { data: logs, error: le } = await supabase
         .from("symptom_logs")
         .select(
-          "patient_id, severity, logged_at, symptom_category, body_temperature, entry_kind, pain_level, nausea_level, fatigue_level"
+          "patient_id, severity, logged_at, symptom_category, body_temperature, entry_kind, pain_level, nausea_level, fatigue_level, ae_max_grade, triage_semaphore"
         )
         .eq("patient_id", patientId)
         .gte("logged_at", sinceFetch.toISOString());
@@ -353,6 +355,7 @@ export function usePatientModalController(
       setModalWearables([]);
       setModalMedicationLogs([]);
       setModalNutritionLogs([]);
+      setModalCycleReadiness(null);
       setModalExamesReady(false);
       setModalMsgsReady(false);
       setExamesTabLoading(false);
@@ -378,7 +381,7 @@ export function usePatientModalController(
     const pid = modalPatient.id;
     const sinceWear = new Date(Date.now() - 14 * 86400000).toISOString();
     void (async () => {
-      const [cyc, sym, inf, vit, wear, meds, nut] = await Promise.all([
+      const [cyc, sym, inf, vit, wear, meds, nut, cr] = await Promise.all([
         supabase
           .from("treatment_cycles")
           .select(
@@ -390,7 +393,7 @@ export function usePatientModalController(
         supabase
           .from("symptom_logs")
           .select(
-            "id, symptom_category, severity, body_temperature, logged_at, notes, entry_kind, pain_level, nausea_level, fatigue_level, requires_action, mood, symptom_started_at, symptom_ended_at"
+            "id, symptom_category, severity, body_temperature, logged_at, notes, entry_kind, pain_level, nausea_level, fatigue_level, requires_action, mood, symptom_started_at, symptom_ended_at, ae_max_grade, flow_context, triage_semaphore"
           )
           .eq("patient_id", pid)
           .order("logged_at", { ascending: false })
@@ -428,6 +431,7 @@ export function usePatientModalController(
           .eq("patient_id", pid)
           .order("logged_at", { ascending: false })
           .limit(40),
+        supabase.from("cycle_readiness").select("*").eq("patient_id", pid).limit(1).maybeSingle(),
       ]);
       if (cancelled) return;
       if (cyc.error || sym.error) {
@@ -453,6 +457,7 @@ export function usePatientModalController(
       );
       setModalMedicationLogs(!meds.error && meds.data ? (meds.data as MedicationLogRow[]) : []);
       setModalNutritionLogs(!nut.error && nut.data ? (nut.data as NutritionLogRow[]) : []);
+      setModalCycleReadiness(!cr.error && cr.data ? (cr.data as CycleReadinessRow) : null);
       setModalLoading(false);
     })();
     return () => {
@@ -512,7 +517,7 @@ export function usePatientModalController(
           .limit(25),
         supabase
           .from("patients")
-          .select("profiles ( phone_e164, whatsapp_opt_in_at, whatsapp_opt_in_revoked_at )")
+          .select("profiles!patients_profile_id_fkey ( phone_e164, whatsapp_opt_in_at, whatsapp_opt_in_revoked_at )")
           .eq("id", pid)
           .single(),
       ]);
@@ -552,6 +557,7 @@ export function usePatientModalController(
         modalWearables,
         modalMedicationLogs,
         modalNutritionLogs,
+        modalCycleReadiness,
         modalBiomarkers,
         modalMedicalDocs,
         modalOutbound,

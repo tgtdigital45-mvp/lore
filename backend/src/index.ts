@@ -11,6 +11,7 @@ import { runOpenAiSupport } from "./supportOpenAi.js";
 import { mountExamRoutes } from "./examHandlers.js";
 import { isR2Configured } from "./r2.js";
 import { mountWhatsappRoutes } from "./whatsappRoutes.js";
+import { mountFhirRoutes } from "./fhirRoutes.js";
 import { authenticateBearer } from "./authMiddleware.js";
 import { idempotencyMiddleware } from "./idempotencyMiddleware.js";
 
@@ -260,6 +261,7 @@ app.post("/api/staff/ocr/analyze", agentLimiter, idempotencyMiddleware(), requir
 mountExamRoutes(app, env, agentLimiter);
 
 mountWhatsappRoutes(app, env, agentLimiter);
+mountFhirRoutes(app, env, agentLimiter);
 
 app.post("/api/agent/vision-delegate", agentLimiter, idempotencyMiddleware(), requireUser, async (_req, res) => {
   res.status(410).json({

@@ -17,4 +17,9 @@ export type SymptomLogRow = {
   logged_at: string;
   symptom_started_at?: string | null;
   symptom_ended_at?: string | null;
+  triage_semaphore?: string | null;
+  attachment_storage_path?: string | null;
+  logged_by_profile_id?: string | null;
+  ae_max_grade?: number | null;
+  flow_context?: Record<string, unknown> | null;
 };

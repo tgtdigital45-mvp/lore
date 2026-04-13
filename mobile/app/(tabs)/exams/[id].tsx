@@ -4,6 +4,7 @@ import {
   ActivityIndicator,
   Alert,
   Dimensions,
+  KeyboardAvoidingView,
   Linking,
   Platform,
   Pressable,
@@ -384,10 +385,12 @@ export default function ExamDetailScreen() {
 
   return (
     <ResponsiveScreen variant="tabGradient">
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined} keyboardVerticalOffset={100}>
       <ScrollView
         style={{ flex: 1, backgroundColor: "transparent" }}
         contentContainerStyle={{ paddingBottom: theme.spacing.xl * 2 }}
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
       >
         <View style={{ alignItems: "center", marginTop: theme.spacing.sm }}>
           <View
@@ -914,6 +917,7 @@ export default function ExamDetailScreen() {
           })
         )}
       </ScrollView>
+      </KeyboardAvoidingView>
     </ResponsiveScreen>
   );
 }
