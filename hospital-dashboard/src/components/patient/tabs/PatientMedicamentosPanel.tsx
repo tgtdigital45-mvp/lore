@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { Pill } from "lucide-react";
 import { formatPtDateLong, formatPtDateTime } from "@/lib/dashboardFormat";
 import { medicationLogWhenIso, medicationNameFromLog } from "@/lib/patientModalHelpers";
@@ -48,10 +48,26 @@ type Props = {
 };
 
 export default function PatientMedicamentosPanel({ loading, medications, medicationLogs }: Props) {
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
   const sortedCatalog = [...medications].sort((a, b) => {
     if (a.active !== b.active) return a.active ? -1 : 1;
     return catalogLabel(a).localeCompare(catalogLabel(b), "pt-BR");
   });
+
+  const filteredLogs = useMemo(() => {
+    const fromTs = fromDate ? Date.parse(`${fromDate}T00:00:00`) : null;
+    const toTs = toDate ? Date.parse(`${toDate}T23:59:59`) : null;
+    return medicationLogs.filter((row) => {
+      const whenIso = medicationLogWhenIso(row);
+      if (!whenIso) return false;
+      const ts = Date.parse(whenIso);
+      if (!Number.isFinite(ts)) return false;
+      if (fromTs != null && ts < fromTs) return false;
+      if (toTs != null && ts > toTs) return false;
+      return true;
+    });
+  }, [fromDate, medicationLogs, toDate]);
 
   return (
     <div className="space-y-10 font-sans">
@@ -128,10 +144,30 @@ export default function PatientMedicamentosPanel({ loading, medications, medicat
             O que o paciente marcou como tomado (ou pendente) no lembrete — espelha o registro na aplicação.
           </p>
         </div>
+        <div className="grid gap-2 rounded-2xl border border-[#E8EAED] bg-[#FAFBFC] p-3 sm:grid-cols-2">
+          <label className="text-xs font-semibold text-muted-foreground">
+            De
+            <input
+              type="date"
+              value={fromDate}
+              onChange={(e) => setFromDate(e.target.value)}
+              className="mt-1 block h-10 w-full rounded-xl border border-[#DDE3EA] bg-white px-3 text-sm"
+            />
+          </label>
+          <label className="text-xs font-semibold text-muted-foreground">
+            Até
+            <input
+              type="date"
+              value={toDate}
+              onChange={(e) => setToDate(e.target.value)}
+              className="mt-1 block h-10 w-full rounded-xl border border-[#DDE3EA] bg-white px-3 text-sm"
+            />
+          </label>
+        </div>
 
         {loading ? (
           <div className="h-32 animate-pulse rounded-2xl bg-[#F1F5F9]" aria-busy="true" />
-        ) : medicationLogs.length === 0 ? (
+        ) : filteredLogs.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-[#E2E8F0] bg-[#FAFBFC] px-6 py-10 text-center text-sm text-muted-foreground">
             Sem registros de medicação visíveis. Confirme vínculo aprovado com o hospital ou peça ao paciente para registrar tomas na app.
           </div>
@@ -148,7 +184,7 @@ export default function PatientMedicamentosPanel({ loading, medications, medicat
                 </tr>
               </thead>
               <tbody>
-                {medicationLogs.map((row) => {
+                {filteredLogs.map((row) => {
                   const when = medicationLogWhenIso(row);
                   return (
                     <tr key={row.id} className="border-b border-[#F1F5F9] last:border-0">

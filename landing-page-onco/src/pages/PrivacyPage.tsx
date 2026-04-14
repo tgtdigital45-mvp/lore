@@ -6,7 +6,7 @@ const VIGENCY = '11 de abril de 2026'
 export function PrivacyPage() {
   return (
     <PageShell
-      wide
+      size="full"
       title="Política de privacidade"
       description="Informações sobre como tratamos dados pessoais no site, no aplicativo Onco para pacientes e no painel web para instituições de saúde, em conformidade com a LGPD (Lei nº 13.709/2018)."
       lastUpdated={VIGENCY}

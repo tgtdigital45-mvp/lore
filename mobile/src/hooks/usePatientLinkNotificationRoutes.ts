@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { useRouter } from "expo-router";
+import { loadExpoNotificationsModule } from "@/src/utils/notifications";
 
 /** Opens /authorizations when user taps a hospital link request push notification. */
 export function usePatientLinkNotificationRoutes() {
@@ -10,12 +11,8 @@ export function usePatientLinkNotificationRoutes() {
     let removeListener: (() => void) | undefined;
 
     void (async () => {
-      let Notifications: typeof import("expo-notifications");
-      try {
-        Notifications = await import("expo-notifications");
-      } catch {
-        return;
-      }
+      const Notifications = await loadExpoNotificationsModule();
+      if (!Notifications) return;
       if (cancelled) return;
 
       const last = await Notifications.getLastNotificationResponseAsync();

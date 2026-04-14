@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -115,8 +115,12 @@ export default function ExamsScreen() {
     if (patient?.id) void loadDocs();
   }, [patient?.id, loadDocs]);
 
+  const lastFetchRef = useRef(0);
   useFocusEffect(
     useCallback(() => {
+      const now = Date.now();
+      if (now - lastFetchRef.current < 15000) return; // Skip if less than 15s
+      lastFetchRef.current = now;
       void loadDocs();
     }, [loadDocs])
   );

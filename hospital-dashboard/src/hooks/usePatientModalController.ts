@@ -139,7 +139,9 @@ export function usePatientModalController(
       const sinceFetch = new Date(nowMs - fetchHours * 3600 * 1000);
       const { data: prow, error: pe } = await supabase
         .from("patients")
-        .select("id, primary_cancer_type, current_stage, is_in_nadir, patient_code, profiles!patients_profile_id_fkey ( full_name, date_of_birth, avatar_url )")
+        .select(
+          "id, cancer_type_id, primary_cancer_type, current_stage, is_in_nadir, patient_code, profiles!patients_profile_id_fkey ( full_name, date_of_birth, avatar_url )"
+        )
         .eq("id", patientId)
         .maybeSingle();
       if (pe || !prow) return;
@@ -385,7 +387,7 @@ export function usePatientModalController(
         supabase
           .from("treatment_cycles")
           .select(
-            "id, protocol_name, start_date, end_date, status, treatment_kind, notes, planned_sessions, completed_sessions, last_session_at, last_weight_kg, infusion_interval_days"
+            "id, protocol_id, protocol_name, start_date, end_date, status, treatment_kind, notes, planned_sessions, completed_sessions, last_session_at, last_weight_kg, infusion_interval_days"
           )
           .eq("patient_id", pid)
           .order("start_date", { ascending: false })

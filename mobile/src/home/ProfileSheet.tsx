@@ -100,7 +100,7 @@ export function ProfileSheet({
   const { theme } = useAppTheme();
   const insets = useSafeAreaInsets();
   const profileSheetModalRef = useRef<ElementRef<typeof BottomSheetModal>>(null);
-  const snapPoints = useMemo(() => ["55%", "92%"], []);
+  const snapPoints = useMemo(() => ["92%"], []);
   const { session } = useAuth();
   const uid = session?.user?.id;
   const qc = useQueryClient();

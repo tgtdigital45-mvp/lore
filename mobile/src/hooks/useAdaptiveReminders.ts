@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import type { TreatmentInfusionRow } from "@/src/types/treatment";
 import { supabase } from "@/src/lib/supabase";
-import { ensureNotificationPermissions } from "@/src/utils/notifications";
+import { ensureNotificationPermissions, loadExpoNotificationsModule } from "@/src/utils/notifications";
 
 const FEVER_WATCH_PREFIX = "fever-watch-rem-";
 
@@ -32,21 +32,17 @@ export function usePatientInfusions(patientId: string | undefined) {
 
 const PREFIX = "symptom-adaptive-";
 
-async function notifications() {
-  try {
-    return await import("expo-notifications");
-  } catch {
-    return null;
-  }
-}
-
 export async function cancelAdaptiveSymptomReminders(): Promise<void> {
-  const Notifications = await notifications();
-  if (!Notifications) return;
-  const scheduled = await Notifications.getAllScheduledNotificationsAsync();
-  await Promise.all(
-    scheduled.filter((n) => n.identifier.startsWith(PREFIX)).map((n) => Notifications.cancelScheduledNotificationAsync(n.identifier))
-  );
+  try {
+    const Notifications = await loadExpoNotificationsModule();
+    if (!Notifications) return;
+    const scheduled = await Notifications.getAllScheduledNotificationsAsync();
+    await Promise.all(
+      scheduled.filter((n) => n.identifier.startsWith(PREFIX)).map((n) => Notifications.cancelScheduledNotificationAsync(n.identifier))
+    );
+  } catch {
+    /* native / scheduler indisponível — não bloquear UI */
+  }
 }
 
 /**
@@ -79,7 +75,7 @@ export function useAdaptiveSymptomReminders(opts: {
     }
 
     void (async () => {
-      const Notifications = await notifications();
+      const Notifications = await loadExpoNotificationsModule();
       if (!Notifications) return;
       await ensureNotificationPermissions();
       await cancelAdaptiveSymptomReminders();
@@ -105,14 +101,18 @@ export function useAdaptiveSymptomReminders(opts: {
 }
 
 export async function cancelFeverWatchReminders(): Promise<void> {
-  const Notifications = await notifications();
-  if (!Notifications) return;
-  const scheduled = await Notifications.getAllScheduledNotificationsAsync();
-  await Promise.all(
-    scheduled
-      .filter((n) => n.identifier.startsWith(FEVER_WATCH_PREFIX))
-      .map((n) => Notifications.cancelScheduledNotificationAsync(n.identifier))
-  );
+  try {
+    const Notifications = await loadExpoNotificationsModule();
+    if (!Notifications) return;
+    const scheduled = await Notifications.getAllScheduledNotificationsAsync();
+    await Promise.all(
+      scheduled
+        .filter((n) => n.identifier.startsWith(FEVER_WATCH_PREFIX))
+        .map((n) => Notifications.cancelScheduledNotificationAsync(n.identifier))
+    );
+  } catch {
+    /* native / scheduler indisponível */
+  }
 }
 
 /** Lembretes locais enquanto existir episódio `fever_watch` aberto em `monitoring_episodes`. */
@@ -123,7 +123,7 @@ export function useFeverWatchReminders(opts: { enabled: boolean; patientId: stri
       return;
     }
     void (async () => {
-      const Notifications = await notifications();
+      const Notifications = await loadExpoNotificationsModule();
       if (!Notifications) return;
       const { data, error } = await supabase
         .from("monitoring_episodes")

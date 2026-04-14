@@ -10,6 +10,8 @@ export type PatientRow = {
   id: string;
   /** auth.users / profiles.id do titular (útil para subscrições em tempo real) */
   profile_id?: string;
+  /** Catálogo public.cancer_types (opcional). */
+  cancer_type_id?: string | null;
   primary_cancer_type: string;
   current_stage: string | null;
   is_in_nadir: boolean;
@@ -43,6 +45,7 @@ export type PatientHospitalLinkMgmtRow = {
 
 export type TreatmentCycleRow = {
   id: string;
+  protocol_id?: string | null;
   protocol_name: string;
   start_date: string;
   end_date: string | null;

@@ -101,12 +101,12 @@ export function TriagePatientCard({ row, vitals }: Props) {
       <div className="flex min-w-0">
         <div className="w-1.5 shrink-0 self-stretch" style={{ background: accent }} aria-hidden />
 
-        <div className="min-w-0 flex-1 p-4 md:p-5">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div className="min-w-0 flex-1 p-4 sm:p-5">
+          <div className="flex flex-col gap-3 sm:gap-4 lg:flex-row lg:items-start lg:justify-between">
             <div className="min-w-0 flex-1">
-              <div className="flex flex-wrap items-center gap-3">
+              <div className="flex flex-wrap items-center gap-2 sm:gap-3">
                 <PatientFaceThumb url={faceUrl} initials={faceInitials} className="h-11 w-11 text-xs" />
-                <h3 className="text-lg font-black tracking-tight">{name}</h3>
+                <h3 className="text-base font-black tracking-tight sm:text-lg">{name}</h3>
                 {row.current_stage ? (
                   <Badge className="rounded-lg border-0 bg-[#EEF2FF] px-2 py-0.5 text-[0.65rem] font-bold uppercase tracking-wide text-[#4F46E5]">
                     {row.current_stage}
@@ -126,18 +126,18 @@ export function TriagePatientCard({ row, vitals }: Props) {
                   </Badge>
                 ) : null}
               </div>
-              <p className="mt-1 text-xs text-muted-foreground">
+              <p className="mt-1 text-[0.7rem] text-muted-foreground sm:text-xs">
                 <span className="font-mono text-foreground/80">{code}</span> · {age ?? "—"} · —
               </p>
-              <p className="mt-0.5 text-xs text-muted-foreground">{CANCER_PT[row.primary_cancer_type] ?? row.primary_cancer_type}</p>
+              <p className="mt-0.5 text-[0.7rem] text-muted-foreground sm:text-xs">{CANCER_PT[row.primary_cancer_type] ?? row.primary_cancer_type}</p>
               {row.lastSymptomAt ? (
-                <p className="mt-1 text-[0.65rem] font-semibold uppercase text-muted-foreground">
+                <p className="mt-1 text-[0.62rem] font-semibold uppercase text-muted-foreground sm:text-[0.65rem]">
                   Último sintoma: {formatRelativeSince(row.lastSymptomAt)} · {formatPtShort(row.lastSymptomAt)}
                 </p>
               ) : null}
             </div>
 
-            <div className="flex min-w-0 flex-[1.4] flex-wrap gap-3 rounded-2xl border border-[#F1F5F9] bg-[#FAFBFC] p-3 md:gap-4">
+            <div className="grid min-w-0 flex-[1.4] grid-cols-1 gap-2 rounded-2xl border border-[#F1F5F9] bg-[#FAFBFC] p-3 sm:grid-cols-2 sm:gap-3 md:grid-cols-3 md:gap-4">
               <VitalMicroSpark
                 data={tempPts}
                 color={lastTemp != null && lastTemp >= 38 ? "#EF4444" : "#0F172A"}
@@ -148,7 +148,7 @@ export function TriagePatientCard({ row, vitals }: Props) {
               <VitalMicroSpark data={hrPts} color="#6366F1" unit="bpm" label="FC" />
             </div>
 
-            <div className="flex w-full shrink-0 flex-col gap-2 sm:w-auto sm:min-w-[200px] lg:flex-col">
+            <div className="grid w-full shrink-0 grid-cols-1 gap-2 sm:w-auto sm:min-w-[200px] sm:grid-cols-2 lg:grid-cols-1">
               <Button
                 type="button"
                 className="rounded-2xl bg-[#0A0A0A] font-bold text-white hover:bg-[#1A1A1A]"
@@ -172,7 +172,7 @@ export function TriagePatientCard({ row, vitals }: Props) {
                 type="button"
                 variant="ghost"
                 size="sm"
-                className="rounded-2xl text-muted-foreground"
+                className="rounded-2xl text-muted-foreground sm:col-span-2 lg:col-span-1"
                 onClick={() => setOpen((o) => !o)}
               >
                 Detalhe
@@ -196,7 +196,7 @@ export function TriagePatientCard({ row, vitals }: Props) {
                       <p className="mt-2 text-sm text-muted-foreground">Carregando…</p>
                     ) : (
                       <>
-                        <p className="mt-2 text-sm font-semibold leading-snug text-foreground">{interText}</p>
+                        <p className="mt-2 text-sm font-semibold leading-snug text-foreground break-words">{interText}</p>
                         <p className="mt-2 text-[0.65rem] font-semibold uppercase text-muted-foreground">
                           {inter ? formatPtDateTime(inter.logged_at) : "—"}
                         </p>

@@ -37,7 +37,7 @@ export function LgpdPage() {
 
   return (
     <PageShell
-      wide
+      size="full"
       title="LGPD — direitos do titular"
       description="Lei nº 13.709/2018 (LGPD): como exercer seus direitos em relação aos dados tratados pelo Onco e pelos serviços associados."
       lastUpdated={VIGENCY}

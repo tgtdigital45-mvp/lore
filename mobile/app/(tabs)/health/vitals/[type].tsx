@@ -170,38 +170,6 @@ export default function VitalTypeDetailScreen() {
         </Pressable>
       </View>
 
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={{ gap: theme.spacing.xs, paddingBottom: theme.spacing.sm, paddingRight: theme.spacing.md }}
-        style={{ maxHeight: 44, marginBottom: theme.spacing.sm }}
-      >
-        {VITAL_HUB_ORDER.map((t) => {
-          const active = t === vitalType;
-          return (
-            <Pressable
-              key={t}
-              onPress={() => switchType(t)}
-              style={{
-                paddingHorizontal: theme.spacing.md,
-                paddingVertical: theme.spacing.sm,
-                borderRadius: theme.radius.md,
-                backgroundColor: active ? theme.colors.semantic.treatment : theme.colors.background.secondary,
-              }}
-            >
-              <Text
-                style={{
-                  fontSize: 13,
-                  fontWeight: active ? "700" : "600",
-                  color: active ? "#FFF" : theme.colors.text.primary,
-                }}
-              >
-                {VITAL_TAB_SHORT[t]}
-              </Text>
-            </Pressable>
-          );
-        })}
-      </ScrollView>
 
       {loading ? (
         <ActivityIndicator color={theme.colors.semantic.treatment} style={{ marginTop: theme.spacing.lg }} />

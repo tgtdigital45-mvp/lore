@@ -7,10 +7,10 @@ const GREEN_TIPS = [
 ];
 
 const YELLOW_PATIENT_MSG =
-  "Os seus sintomas foram classificados como moderados. A equipa de enfermagem foi notificada para acompanhamento nas próximas 24 horas.";
+  "Os seus sintomas foram classificados como moderados. Continue os registros para acompanhamento da evolução.";
 
 const RED_PATIENT_MSG =
-  "Os seus sintomas exigem avaliação urgente. Contacte o seu médico assistente ou dirija-se ao serviço de urgência se piorar rapidamente.";
+  "Os seus sintomas foram classificados como intensos. Registe os próximos sintomas e acompanhe o plano de cuidado no dashboard da equipa.";
 
 export function selfCareTipsForGreen(): readonly string[] {
   return GREEN_TIPS;

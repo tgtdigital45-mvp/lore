@@ -10,7 +10,7 @@ import { useAppTheme } from "@/src/hooks/useAppTheme";
 import { usePatient } from "@/src/hooks/usePatient";
 import { useStackBack } from "@/src/hooks/useStackBack";
 import { supabase } from "@/src/lib/supabase";
-import { ensureNotificationPermissions } from "@/src/utils/notifications";
+import { ensureNotificationPermissions, loadExpoNotificationsModule } from "@/src/utils/notifications";
 
 type ApptRow = {
   id: string;
@@ -105,15 +105,17 @@ export default function CalendarScreen() {
       const ok = await ensureNotificationPermissions();
       if (ok) {
         try {
-          const Notifications = await import("expo-notifications");
-          await Notifications.scheduleNotificationAsync({
-            content: {
-              title: "Lembrete de consulta/exame",
-              body: t,
-              sound: true,
-            },
-            trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: remindAt },
-          });
+          const Notifications = await loadExpoNotificationsModule();
+          if (Notifications) {
+            await Notifications.scheduleNotificationAsync({
+              content: {
+                title: "Lembrete de consulta/exame",
+                body: t,
+                sound: true,
+              },
+              trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: remindAt },
+            });
+          }
         } catch {
           /* Expo Go / ambiente sem notificações locais */
         }

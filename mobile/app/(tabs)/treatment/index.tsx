@@ -63,6 +63,9 @@ export default function TreatmentIndexScreen() {
         style={{ flex: 1, backgroundColor: "transparent" }}
         contentContainerStyle={{ paddingHorizontal: theme.spacing.md, paddingBottom: theme.spacing.xl * 2 }}
       >
+        <Text style={[theme.typography.body, { color: theme.colors.text.secondary, marginBottom: theme.spacing.md }]}>
+          Acompanhe ciclos, abra cada detalhe para editar protocolo/sessões e registrar check-ins.
+        </Text>
         {!patient ? (
           <Text style={[theme.typography.body, { color: theme.colors.text.secondary }]}>
             Complete o cadastro do paciente para gerir ciclos.
@@ -99,6 +102,13 @@ export default function TreatmentIndexScreen() {
                     style={({ pressed }) => ({
                       marginBottom: theme.spacing.sm,
                       backgroundColor: theme.colors.background.primary,
+                      borderWidth: 1,
+                      borderColor:
+                        c.status === "active"
+                          ? IOS_HEALTH.blue
+                          : c.status === "completed"
+                            ? "#34C759"
+                            : theme.colors.border.divider,
                       borderRadius: theme.radius.md,
                       padding: theme.spacing.md,
                       opacity: pressed ? 0.92 : 1,
@@ -118,6 +128,9 @@ export default function TreatmentIndexScreen() {
                         <Text style={[theme.typography.body, { color: theme.colors.text.tertiary, marginTop: 4 }]}>
                           {c.status === "active" ? "Ativo" : c.status === "completed" ? "Concluído" : "Suspenso"}
                           {c.planned_sessions != null ? ` · ${c.completed_sessions ?? 0}/${c.planned_sessions} sessões` : ""}
+                        </Text>
+                        <Text style={{ fontSize: 12, color: IOS_HEALTH.blue, marginTop: 6, fontWeight: "600" }}>
+                          Toque para ver e editar o ciclo
                         </Text>
                       </View>
                       <FontAwesome name="chevron-right" size={16} color={theme.colors.text.tertiary} />

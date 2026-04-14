@@ -1,6 +1,6 @@
-# Onco — Landing page (marketing)
+# OncoCare — Landing page (marketing)
 
-Site **público** de apresentação do produto Onco: Vite, React, TypeScript e **Tailwind CSS v4**. Não usa Supabase nem backend — apenas conteúdo estático e rotas client-side.
+Site **público** de apresentação do produto OncoCare: Vite, React, TypeScript e **Tailwind CSS v4**. Não usa Supabase nem backend — apenas conteúdo estático e rotas client-side.
 
 ## Stack
 
@@ -52,7 +52,7 @@ Resumo: no painel da Vercel, define **Root Directory** = `landing-page-onco`; bu
 
 ## Antes de produção
 
-Substituir placeholders: links **App Store / Google Play** (`#`), e-mails de exemplo (`contato@onco.app`, `comercial@onco.app`, `privacidade@onco.app`, `rh@onco.app`) quando URLs e domínios oficiais estiverem definidos.
+Substituir placeholders: links **App Store / Google Play** (`#`), e-mails de exemplo (`contato@oncocare.app`, `comercial@oncocare.app`, `privacidade@oncocare.app`, `rh@oncocare.app`) quando URLs e domínios oficiais estiverem definidos.
 
 ## Documentação do monorepo
 

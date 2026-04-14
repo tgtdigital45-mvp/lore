@@ -14,6 +14,8 @@ export type MedicationScheduleSlot = {
 export type MedicationRow = {
   id: string;
   patient_id: string;
+  /** Catálogo public.medication_reference (opcional). */
+  medication_reference_id?: string | null;
   name: string;
   dosage: string | null;
   form: string | null;
@@ -46,7 +48,7 @@ export function useMedications() {
       const { data: meds, error } = await supabase
         .from("medications")
         .select(
-          "id, patient_id, name, dosage, form, frequency_hours, anchor_at, end_date, active, notes, shape, color_left, color_right, color_bg, unit, display_name, pinned, repeat_mode, schedule_weekdays"
+          "id, patient_id, medication_reference_id, name, dosage, form, frequency_hours, anchor_at, end_date, active, notes, shape, color_left, color_right, color_bg, unit, display_name, pinned, repeat_mode, schedule_weekdays"
         )
         .eq("patient_id", patient.id)
         .order("created_at", { ascending: false });

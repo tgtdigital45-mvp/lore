@@ -12,6 +12,7 @@ import { OncoCarePatientsPage } from "./pages/OncoCarePatientsPage";
 import { OncoCareAgendaPage } from "./pages/OncoCareAgendaPage";
 import { OncoCareResourceDetailPage } from "./pages/OncoCareResourceDetailPage";
 import { PatientDossierPage } from "./pages/PatientDossierPage";
+import { ProtocolConfigPage } from "./pages/ProtocolConfigPage";
 import { StaffSettingsPage } from "./pages/StaffSettingsPage";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./components/ui/card";
 import { Button } from "./components/ui/button";
@@ -199,6 +200,7 @@ export default function App() {
           <Route path="agenda" element={<OncoCareAgendaPage />} />
           <Route path="agenda/recurso/:resourceId" element={<OncoCareResourceDetailPage />} />
           <Route path="paciente/:patientId" element={<PatientDossierPage />} />
+          <Route path="protocolos" element={<ProtocolConfigPage />} />
           <Route path="conta" element={<StaffSettingsPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>

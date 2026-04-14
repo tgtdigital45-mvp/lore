@@ -29,10 +29,34 @@ import { useBiomarkerHistoryContext } from "@/hooks/useBiomarkerHistoryContext";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import type { BiomarkerModalRow, MedicalDocModalRow } from "../../../types/dashboard";
 
 type ChartPoint = { value: number; label: string; formattedValue: string };
+
+function normalizeText(input: string): string {
+  return input
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/\p{Diacritic}/gu, "")
+    .trim();
+}
+
+function looseTokenMatch(haystack: string, token: string): boolean {
+  if (!token) return true;
+  if (haystack.includes(token)) return true;
+  if (token.length >= 4 && haystack.includes(token.slice(0, -1))) return true;
+  if (token.length >= 5 && haystack.includes(token.slice(1))) return true;
+  return false;
+}
+
+function matchesQuery(haystack: string, rawQuery: string): boolean {
+  const query = normalizeText(rawQuery);
+  if (!query) return true;
+  const tokens = query.split(/\s+/).filter(Boolean);
+  return tokens.every((token) => looseTokenMatch(haystack, token));
+}
 
 function MetricTrendChart({
   model,
@@ -248,6 +272,9 @@ export default function PatientExamesPanel({
 }: Props) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [dragActive, setDragActive] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [docTypeFilter, setDocTypeFilter] = useState("all");
+  const [periodFilter, setPeriodFilter] = useState<"all" | "30d" | "90d" | "1y">("all");
 
   const historyInvalidationKey = useMemo(
     () =>
@@ -278,6 +305,58 @@ export default function PatientExamesPanel({
     return { byDoc, orphans };
   }, [modalBiomarkers]);
 
+  const docTypes = useMemo(() => {
+    return Array.from(new Set(modalMedicalDocs.map((d) => d.document_type).filter(Boolean))).sort((a, b) =>
+      a.localeCompare(b, "pt-BR")
+    );
+  }, [modalMedicalDocs]);
+
+  const filteredDocs = useMemo(() => {
+    const now = Date.now();
+    return modalMedicalDocs.filter((d) => {
+      if (docTypeFilter !== "all" && d.document_type !== docTypeFilter) return false;
+      const dateBase = Date.parse(examDisplayDateIso(d));
+      if (periodFilter !== "all" && Number.isFinite(dateBase)) {
+        const diffMs = now - dateBase;
+        const maxMs =
+          periodFilter === "30d"
+            ? 30 * 86400000
+            : periodFilter === "90d"
+              ? 90 * 86400000
+              : 365 * 86400000;
+        if (diffMs > maxMs) return false;
+      }
+      const markerNames = (examBiomarkerGroups.byDoc.get(d.id) ?? []).map((m) => m.name).join(" ");
+      const aiSummary = getAiSummaryPtBr(d.ai_extracted_json ?? undefined) ?? "";
+      const doctor = getDoctorNameFromJson(d.ai_extracted_json ?? undefined);
+      const searchable = normalizeText(
+        `${getDocumentTitle(d)} ${DOCUMENT_TYPE_PT[d.document_type] ?? d.document_type} ${aiSummary} ${doctor} ${markerNames}`
+      );
+      return matchesQuery(searchable, searchQuery);
+    });
+  }, [docTypeFilter, examBiomarkerGroups.byDoc, modalMedicalDocs, periodFilter, searchQuery]);
+
+  const filteredOrphans = useMemo(() => {
+    const now = Date.now();
+    return examBiomarkerGroups.orphans.filter((b) => {
+      if (periodFilter !== "all") {
+        const when = Date.parse(b.logged_at);
+        if (Number.isFinite(when)) {
+          const diffMs = now - when;
+          const maxMs =
+            periodFilter === "30d"
+              ? 30 * 86400000
+              : periodFilter === "90d"
+                ? 90 * 86400000
+                : 365 * 86400000;
+          if (diffMs > maxMs) return false;
+        }
+      }
+      const searchable = normalizeText(`${b.name} ${b.value_text ?? ""} ${b.reference_alert ?? ""}`);
+      return matchesQuery(searchable, searchQuery);
+    });
+  }, [examBiomarkerGroups.orphans, periodFilter, searchQuery]);
+
   const onDrag = (e: DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -307,6 +386,39 @@ export default function PatientExamesPanel({
             arquivo no armazenamento.
           </p>
         </div>
+        <div className="grid gap-2 rounded-2xl border border-[#E8EAED] bg-[#FAFBFC] p-3 sm:grid-cols-2 lg:grid-cols-4">
+          <Input
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Pesquisar exame, médico, biomarcador..."
+            className="rounded-xl border-[#DDE3EA] bg-white sm:col-span-2"
+            aria-label="Pesquisar exames por termos ou palavras parecidas"
+          />
+          <select
+            value={docTypeFilter}
+            onChange={(e) => setDocTypeFilter(e.target.value)}
+            className="h-10 rounded-xl border border-[#DDE3EA] bg-white px-3 text-sm"
+            aria-label="Filtrar por tipo de exame"
+          >
+            <option value="all">Todos os tipos</option>
+            {docTypes.map((t) => (
+              <option key={t} value={t}>
+                {DOCUMENT_TYPE_PT[t] ?? t}
+              </option>
+            ))}
+          </select>
+          <select
+            value={periodFilter}
+            onChange={(e) => setPeriodFilter(e.target.value as "all" | "30d" | "90d" | "1y")}
+            className="h-10 rounded-xl border border-[#DDE3EA] bg-white px-3 text-sm"
+            aria-label="Filtrar exames por período"
+          >
+            <option value="all">Qualquer período</option>
+            <option value="30d">Últimos 30 dias</option>
+            <option value="90d">Últimos 90 dias</option>
+            <option value="1y">Último 1 ano</option>
+          </select>
+        </div>
 
         {docOpenError ? (
           <div
@@ -323,7 +435,7 @@ export default function PatientExamesPanel({
             <div className="h-[4.5rem] animate-pulse rounded-2xl bg-[#F1F5F9]" />
             <div className="h-[4.5rem] animate-pulse rounded-2xl bg-[#F1F5F9]" />
           </div>
-        ) : modalMedicalDocs.length === 0 && examBiomarkerGroups.orphans.length === 0 ? (
+        ) : filteredDocs.length === 0 && filteredOrphans.length === 0 ? (
           <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-[#E2E8F0] bg-[#FAFBFC] px-6 py-12 text-center">
             <FileText className="mb-3 size-10 text-muted-foreground/50" strokeWidth={1.25} />
             <p className="text-sm font-medium text-foreground">Nenhum exame ou marcador registrado</p>
@@ -333,7 +445,7 @@ export default function PatientExamesPanel({
           </div>
         ) : (
           <ul className="space-y-3">
-            {modalMedicalDocs.map((d) => {
+            {filteredDocs.map((d) => {
               const inlineOnly = d.storage_path.startsWith("inline-ocr/");
               const markers = examBiomarkerGroups.byDoc.get(d.id) ?? [];
               const expanded = expandedExamDocId === d.id;
@@ -556,7 +668,7 @@ export default function PatientExamesPanel({
           </ul>
         )}
 
-        {!modalLoading && examBiomarkerGroups.orphans.length > 0 ? (
+        {!modalLoading && filteredOrphans.length > 0 ? (
           <div className="rounded-2xl border border-[#E8EAED] bg-[#FFFBEB]/40 p-5">
             <h4 className="text-sm font-bold text-foreground">Marcadores sem exame associado</h4>
             <p className="mt-1 text-xs text-muted-foreground">Entradas antigas ou manuais sem documento de origem</p>
@@ -571,7 +683,7 @@ export default function PatientExamesPanel({
                   </tr>
                 </thead>
                 <tbody>
-                  {examBiomarkerGroups.orphans.map((b) => (
+                  {filteredOrphans.map((b) => (
                     <tr key={b.id} className="border-b border-[#F1F5F9] last:border-0">
                       <td className="whitespace-nowrap px-4 py-2.5 text-muted-foreground">{formatPtDateTime(b.logged_at)}</td>
                       <td className="px-4 py-2.5 font-medium">

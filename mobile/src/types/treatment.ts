@@ -6,6 +6,8 @@ export type TreatmentCycleRow = {
   id: string;
   patient_id?: string;
   protocol_name: string;
+  /** FK opcional para public.protocols (catálogo). */
+  protocol_id?: string | null;
   start_date: string;
   end_date: string | null;
   status: string;

@@ -13,6 +13,8 @@ export type PatientRow = {
   profile_id: string;
   /** Quando um cuidador gere o diário, o perfil clínico é o do paciente; o JWT é o do cuidador. */
   is_caregiver_session?: boolean;
+  /** Catálogo opcional (public.cancer_types); backfill a partir do enum legado quando existir. */
+  cancer_type_id?: string | null;
   primary_cancer_type: string;
   current_stage: string | null;
   hospital_id: string | null;
@@ -32,6 +34,7 @@ export type PatientRow = {
 const PATIENT_SELECT = [
   "id",
   "profile_id",
+  "cancer_type_id",
   "primary_cancer_type",
   "current_stage",
   "hospital_id",
@@ -127,6 +130,7 @@ export function PatientProvider({ children }: { children: React.ReactNode }) {
         id: String(row.id),
         profile_id: String(row.profile_id),
         is_caregiver_session: caregiverSession,
+        cancer_type_id: row.cancer_type_id != null && row.cancer_type_id !== "" ? String(row.cancer_type_id) : null,
         primary_cancer_type: String(row.primary_cancer_type ?? "other"),
         current_stage: row.current_stage != null ? String(row.current_stage) : null,
         hospital_id: row.hospital_id != null ? String(row.hospital_id) : null,

@@ -1,15 +1,50 @@
+import { Platform } from "react-native";
+
 type ExpoNotifications = typeof import("expo-notifications");
 
 let notificationsModule: ExpoNotifications | null | undefined;
 
-async function loadNotifications(): Promise<ExpoNotifications | null> {
-  if (notificationsModule !== undefined) return notificationsModule;
+/**
+ * Metro/Hermes dynamic `import("expo-notifications")` pode expor APIs em `default`
+ * em vez do namespace — nesse caso `getAllScheduledNotificationsAsync` fica em `undefined` na raiz.
+ * Em nativo, `require("expo-notifications")` costuma devolver o objeto de API completo.
+ */
+function resolveExpoNotificationsModule(imported: unknown): ExpoNotifications | null {
+  if (!imported || typeof imported !== "object") return null;
+  const root = imported as Record<string, unknown>;
+  const pick = (o: Record<string, unknown>) =>
+    typeof o.getAllScheduledNotificationsAsync === "function" ? (o as ExpoNotifications) : null;
+  return pick(root) ?? (root.default && typeof root.default === "object" ? pick(root.default as Record<string, unknown>) : null);
+}
+
+function tryRequireExpoNotifications(): ExpoNotifications | null {
+  if (Platform.OS === "web") return null;
   try {
-    notificationsModule = await import("expo-notifications");
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    return resolveExpoNotificationsModule(require("expo-notifications"));
   } catch {
-    notificationsModule = null;
+    return null;
+  }
+}
+
+export async function loadExpoNotificationsModule(): Promise<ExpoNotifications | null> {
+  if (notificationsModule !== undefined) return notificationsModule;
+  const fromRequire = tryRequireExpoNotifications();
+  if (fromRequire) {
+    notificationsModule = fromRequire;
+  } else {
+    try {
+      const raw = await import("expo-notifications");
+      notificationsModule = resolveExpoNotificationsModule(raw);
+    } catch {
+      notificationsModule = null;
+    }
   }
   return notificationsModule;
+}
+
+async function loadNotifications(): Promise<ExpoNotifications | null> {
+  return loadExpoNotificationsModule();
 }
 
 let handlerInstalled = false;

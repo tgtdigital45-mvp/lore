@@ -123,7 +123,7 @@ export function useHomeSummary(patient: PatientRow | null) {
       supabase
         .from("treatment_cycles")
         .select(
-          "id, protocol_name, start_date, end_date, status, treatment_kind, notes, planned_sessions, completed_sessions, last_session_at, last_weight_kg, infusion_interval_days"
+          "id, protocol_id, protocol_name, start_date, end_date, status, treatment_kind, notes, planned_sessions, completed_sessions, last_session_at, last_weight_kg, infusion_interval_days"
         )
         .eq("patient_id", patient.id)
         .eq("status", "active")

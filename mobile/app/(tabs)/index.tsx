@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useFocusEffect } from "@react-navigation/native";
 import { Alert, Pressable, ScrollView, Text, View } from "react-native";
 import { Image } from "expo-image";
@@ -24,7 +24,9 @@ import {
 import { useMedications } from "@/src/hooks/useMedications";
 import { usePatientConsentNotifications } from "@/src/hooks/usePatientConsentNotifications";
 import { usePatient } from "@/src/hooks/usePatient";
+import { useProtocolMonitoring } from "@/src/hooks/useProtocolMonitoring";
 import { useTreatmentCycles } from "@/src/hooks/useTreatmentCycles";
+import { ProtocolGuidelinesSection } from "@/src/home/ProtocolGuidelinesSection";
 import { nextMedicationSlot } from "@/src/lib/medicationNotifications";
 import { nextPendingScheduledInfusion } from "@/src/lib/treatmentInfusionSchedule";
 import { labelTreatmentKind } from "@/src/i18n/treatment";
@@ -106,6 +108,16 @@ export default function HomeScreen() {
   } = useHomeSummary(patient);
   const { medications, refresh: refreshMeds } = useMedications();
   const { fetchInfusions } = useTreatmentCycles(patient);
+  const {
+    protocolWithGuidelines,
+    displayGuidelines,
+    firedAlerts,
+    loading: protocolGuidelinesLoading,
+    source: protocolSource,
+  } = useProtocolMonitoring(
+    patient,
+    activeCycle
+  );
   const allPatientInfusions = usePatientInfusions(patient?.id);
   const { data: consentNotifs } = usePatientConsentNotifications();
   useAdaptiveSymptomReminders({
@@ -175,11 +187,20 @@ export default function HomeScreen() {
     })();
   }, []);
 
+  const lastFetchRef = useRef(0);
   useFocusEffect(
     useCallback(() => {
-      void refreshSummary();
-      void refreshMeds();
-      void loadInfusions();
+      const now = Date.now();
+      if (now - lastFetchRef.current < 15000) return; // Skip if less than 15s
+      lastFetchRef.current = now;
+
+      try {
+        void refreshSummary();
+        void refreshMeds();
+        void loadInfusions();
+      } catch (e) {
+        console.warn("[HomeScreen focus] Error refreshing summary:", e);
+      }
     }, [refreshSummary, refreshMeds, loadInfusions])
   );
 
@@ -366,6 +387,16 @@ export default function HomeScreen() {
                 <Text style={[theme.typography.headline, { color: "#FFFFFF" }]}>Abrir tratamento</Text>
               </Pressable>
             </OncoCard>
+          ) : null}
+
+          {patient ? (
+            <ProtocolGuidelinesSection
+              loading={protocolGuidelinesLoading}
+              source={protocolSource}
+              protocolName={protocolWithGuidelines?.name ?? null}
+              guidelines={displayGuidelines}
+              firedAlerts={firedAlerts}
+            />
           ) : null}
 
           {patient ? (

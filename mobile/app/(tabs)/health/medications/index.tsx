@@ -1,4 +1,4 @@
-import { Alert, Modal, Platform, Pressable, ScrollView, Text, View } from "react-native";
+import { ActivityIndicator, Alert, Modal, Platform, Pressable, ScrollView, Text, View } from "react-native";
 import { useCallback, useMemo, useRef, useState } from "react";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import DateTimePicker from "@react-native-community/datetimepicker";
@@ -18,6 +18,16 @@ import { PillPreview } from "@/src/medications/components/PillPreview";
 import { supabase } from "@/src/lib/supabase";
 
 const WEEKDAYS = ["D", "S", "T", "Q", "Q", "S", "S"];
+
+type MedicationLogItem = {
+  id: string;
+  medication_id: string;
+  status: string | null;
+  taken_time: string | null;
+  scheduled_time: string | null;
+  quantity: number | null;
+  notes: string | null;
+};
 
 function generateCalendarDays(centerDate: Date, range: number = 14): Date[] {
   const arr: Date[] = [];
@@ -68,17 +78,39 @@ export default function MedicationsLandingScreen() {
   const calendarScrollRef = useRef<ScrollView>(null);
   
   const [selectedDate, setSelectedDate] = useState(() => new Date());
+  const [fromDate, setFromDate] = useState(() => new Date());
+  const [toDate, setToDate] = useState(() => new Date());
   const [editMode, setEditMode] = useState(false);
   const [logModalMed, setLogModalMed] = useState<MedicationRow | null>(null);
   const [logDate, setLogDate] = useState(() => new Date());
   const [logTime, setLogTime] = useState(() => new Date());
   const [logOutcome, setLogOutcome] = useState<"taken" | "skipped" | null>(null);
   const [loggingDose, setLoggingDose] = useState(false);
+  const [logsLoading, setLogsLoading] = useState(false);
+  const [logRows, setLogRows] = useState<MedicationLogItem[]>([]);
 
   useFocusEffect(
     useCallback(() => {
       void refresh();
-    }, [refresh])
+      if (!patient) return;
+      void (async () => {
+        setLogsLoading(true);
+        try {
+          const { data, error } = await supabase
+            .from("medication_logs")
+            .select("id, medication_id, status, taken_time, scheduled_time, quantity, notes")
+            .eq("patient_id", patient.id)
+            .order("scheduled_time", { ascending: false })
+            .limit(250);
+          if (error) throw error;
+          setLogRows((data ?? []) as MedicationLogItem[]);
+        } catch (err) {
+          console.warn("[medication_logs]", err);
+        } finally {
+          setLogsLoading(false);
+        }
+      })();
+    }, [patient, refresh])
   );
 
   const today = useMemo(() => {
@@ -100,6 +132,24 @@ export default function MedicationsLandingScreen() {
   const scheduleGroups = useMemo(() => groupSchedulesByTime(scheduledMeds), [scheduledMeds]);
 
   const hasMedications = medications.length > 0;
+  const selectedDateKey = selectedDate.toISOString().slice(0, 10);
+
+  const filteredLogs = useMemo(() => {
+    const start = new Date(fromDate);
+    start.setHours(0, 0, 0, 0);
+    const end = new Date(toDate);
+    end.setHours(23, 59, 59, 999);
+    return logRows.filter((row) => {
+      const iso = row.taken_time ?? row.scheduled_time;
+      if (!iso) return false;
+      const at = new Date(iso).getTime();
+      return at >= start.getTime() && at <= end.getTime();
+    });
+  }, [fromDate, logRows, toDate]);
+
+  const dayScheduleGroups = useMemo(() => {
+    return scheduleGroups;
+  }, [scheduleGroups, selectedDateKey]);
 
   const handleSelectDate = (d: Date) => {
     setSelectedDate(d);
@@ -402,7 +452,7 @@ export default function MedicationsLandingScreen() {
                 </Pressable>
               </View>
 
-              {scheduleGroups.size > 0 ? (
+              {dayScheduleGroups.size > 0 ? (
                 <View
                   style={{
                     backgroundColor: theme.colors.background.primary,
@@ -412,7 +462,7 @@ export default function MedicationsLandingScreen() {
                     ...IOS_HEALTH.shadow.card,
                   }}
                 >
-                  {[...scheduleGroups.entries()].map(([time, items], groupIdx) => (
+                  {[...dayScheduleGroups.entries()].map(([time, items], groupIdx) => (
                     <View key={time}>
                       <View
                         style={{
@@ -454,7 +504,7 @@ export default function MedicationsLandingScreen() {
                               paddingHorizontal: theme.spacing.md,
                               paddingVertical: theme.spacing.sm,
                               gap: theme.spacing.md,
-                              borderBottomWidth: idx === items.length - 1 && groupIdx < scheduleGroups.size - 1 ? 1 : 0,
+                              borderBottomWidth: idx === items.length - 1 && groupIdx < dayScheduleGroups.size - 1 ? 1 : 0,
                               borderBottomColor: IOS_HEALTH.separator,
                             }}
                           >
@@ -617,6 +667,78 @@ export default function MedicationsLandingScreen() {
                   </Pressable>
                 </View>
               )}
+
+              <Text style={[theme.typography.title2, { color: theme.colors.text.primary, marginBottom: theme.spacing.sm }]}>
+                Registros por período
+              </Text>
+              <View
+                style={{
+                  backgroundColor: theme.colors.background.primary,
+                  borderRadius: IOS_HEALTH.groupedListRadius,
+                  padding: theme.spacing.md,
+                  marginBottom: theme.spacing.lg,
+                  ...IOS_HEALTH.shadow.card,
+                }}
+              >
+                <View style={{ flexDirection: "row", gap: theme.spacing.sm, marginBottom: theme.spacing.sm }}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontSize: 12, color: theme.colors.text.secondary, marginBottom: 6 }}>De</Text>
+                    <DateTimePicker
+                      value={fromDate}
+                      mode="date"
+                      display={Platform.OS === "ios" ? "compact" : "default"}
+                      onChange={(_, value) => {
+                        if (value) setFromDate(value);
+                      }}
+                    />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontSize: 12, color: theme.colors.text.secondary, marginBottom: 6 }}>Até</Text>
+                    <DateTimePicker
+                      value={toDate}
+                      mode="date"
+                      display={Platform.OS === "ios" ? "compact" : "default"}
+                      onChange={(_, value) => {
+                        if (value) setToDate(value);
+                      }}
+                    />
+                  </View>
+                </View>
+                {logsLoading ? (
+                  <ActivityIndicator color={IOS_HEALTH.blue} />
+                ) : filteredLogs.length === 0 ? (
+                  <Text style={{ color: theme.colors.text.secondary, textAlign: "center" }}>
+                    Nenhum registro no período selecionado.
+                  </Text>
+                ) : (
+                  filteredLogs.slice(0, 30).map((row) => {
+                    const med = medications.find((m) => m.id === row.medication_id);
+                    const label = med?.display_name?.trim() || med?.name || "Medicamento";
+                    const when = row.taken_time ?? row.scheduled_time;
+                    return (
+                      <View
+                        key={row.id}
+                        style={{
+                          paddingVertical: 10,
+                          borderBottomWidth: 1,
+                          borderBottomColor: IOS_HEALTH.separator,
+                        }}
+                      >
+                        <Text style={[theme.typography.headline, { color: theme.colors.text.primary }]} numberOfLines={1}>
+                          {label}
+                        </Text>
+                        <Text style={{ fontSize: 13, color: theme.colors.text.secondary, marginTop: 2 }}>
+                          {when ? new Date(when).toLocaleString("pt-BR") : "Sem horário"}
+                        </Text>
+                        <Text style={{ fontSize: 12, color: theme.colors.text.tertiary, marginTop: 2 }}>
+                          {row.status === "taken" ? "Tomado" : row.status === "skipped" ? "Não tomado" : row.status ?? "—"}
+                          {row.quantity != null ? ` · Qtd ${row.quantity}` : ""}
+                        </Text>
+                      </View>
+                    );
+                  })
+                )}
+              </View>
 
               {/* Seus Medicamentos */}
               <View

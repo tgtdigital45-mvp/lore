@@ -6,7 +6,7 @@ const VIGENCY = '11 de abril de 2026'
 export function TermsPage() {
   return (
     <PageShell
-      wide
+      size="full"
       title="Termos de uso"
       description="Termos gerais de uso do site, do aplicativo móvel Onco e do painel web para instituições de saúde (quando aplicável)."
       lastUpdated={VIGENCY}

@@ -5,8 +5,10 @@ import { LineChart } from "react-native-gifted-charts";
 import { OncoCard } from "@/components/OncoCard";
 import { symptomLabel, type SymptomDetailKey } from "@/src/diary/symptomCatalog";
 import type { SymptomLogRow } from "@/src/diary/symptomLogTypes";
-import { filterLogsForSymptomChart, type TimeframeKey } from "@/src/diary/symptomLogValue";
+import { valueForSymptomDetail, filterLogsForSymptomChart, type TimeframeKey } from "@/src/diary/symptomLogValue";
+import { labelSeverity } from "@/src/i18n/ui";
 import type { AppTheme } from "@/src/theme/theme";
+import { StyleSheet } from "react-native";
 
 const TIMEFRAMES: { key: TimeframeKey; label: string }[] = [
   { key: "D", label: "D" },
@@ -23,7 +25,7 @@ const ABOUT_EXTRA: Partial<Record<SymptomDetailKey, string>> = {
   pain: "A dor pode variar com o tratamento, a posição ou o esforço. Registrar ajuda a perceber padrões e a comunicar com a equipe.",
   fatigue: "A fadiga oncológica é cansaço persistente, não sempre proporcional ao esforço. O registro ajuda a planejar o dia e o descanso.",
   nausea: "A náusea é uma sensação de desconforto no estômago que muitas vezes vem antes do vômito.",
-  fever: "A febre pode ser sinal de infecção. Registre a temperatura e contate a equipe se estiver no período de maior risco ou com outros sintomas.",
+  fever: "A febre pode indicar mudança clínica. Registre a temperatura e acompanhe a evolução no diário para análise da equipa no dashboard.",
   diarrhea: "Alterações do hábito intestinal podem estar ligadas ao tratamento ou a outras causas. O registro ajuda o acompanhamento clínico.",
   hydration: "Manter-se hidratado é importante durante o tratamento. Este registro é orientativo — ajuste com a sua equipe.",
   vomiting: "O vómito pode acompanhar náusea ou ser efeito do tratamento. Registre para ajudar na hidratação e no ajuste terapêutico.",
@@ -246,6 +248,74 @@ export function SymptomDetailView({ theme, symptomKey, logs, onBack, onAdd }: Pr
       >
         <Text style={[theme.typography.headline, { color: "#FFFFFF" }]}>Registrar {title.toLowerCase()}</Text>
       </Pressable>
+
+      <Text style={[theme.typography.title2, { color: theme.colors.text.primary, marginTop: theme.spacing.xl, marginBottom: theme.spacing.sm }]}>
+        Histórico
+      </Text>
+      <View
+        style={{
+          borderRadius: theme.radius.lg,
+          overflow: "hidden",
+          backgroundColor: theme.colors.background.primary,
+          borderWidth: StyleSheet.hairlineWidth,
+          borderColor: theme.colors.border.divider,
+        }}
+      >
+        {(() => {
+          const filtered = logs
+            .filter((l) => valueForSymptomDetail(l, symptomKey) !== null)
+            .sort((a, b) => new Date(b.logged_at).getTime() - new Date(a.logged_at).getTime())
+            .slice(0, 50);
+
+          if (filtered.length === 0) {
+            return (
+              <View style={{ padding: theme.spacing.lg, alignItems: "center" }}>
+                <Text style={[theme.typography.body, { color: theme.colors.text.tertiary }]}>
+                  Nenhum registro histórico para este sintoma.
+                </Text>
+              </View>
+            );
+          }
+
+          return filtered.map((l, idx) => {
+            const val = valueForSymptomDetail(l, symptomKey);
+            return (
+              <View
+                key={l.id}
+                style={{
+                  paddingVertical: theme.spacing.md,
+                  paddingHorizontal: theme.spacing.md,
+                  borderBottomWidth: idx < filtered.length - 1 ? StyleSheet.hairlineWidth : 0,
+                  borderBottomColor: theme.colors.border.divider,
+                }}
+              >
+                <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[theme.typography.headline, { color: theme.colors.text.primary }]}>
+                      {isFever ? `${val?.toFixed(1)}°C` : `Nível ${val ?? "—"}`}
+                    </Text>
+                    <Text style={[theme.typography.body, { color: theme.colors.text.secondary, marginTop: 2 }]}>
+                      {new Date(l.logged_at).toLocaleString("pt-BR", { dateStyle: "medium", timeStyle: "short" })}
+                    </Text>
+                  </View>
+                  {l.severity && (
+                    <View style={{ backgroundColor: theme.colors.background.tertiary, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 }}>
+                      <Text style={{ fontSize: 11, fontWeight: "600", color: theme.colors.text.secondary }}>
+                        {labelSeverity(l.severity)}
+                      </Text>
+                    </View>
+                  )}
+                </View>
+                {l.notes && (
+                  <Text style={[theme.typography.caption1, { color: theme.colors.text.tertiary, marginTop: 4 }]} numberOfLines={2}>
+                    {l.notes}
+                  </Text>
+                )}
+              </View>
+            );
+          });
+        })()}
+      </View>
     </View>
   );
 }

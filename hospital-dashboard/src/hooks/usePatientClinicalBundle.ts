@@ -124,7 +124,7 @@ export function usePatientClinicalBundle(patientId: string | undefined) {
       const { data: prow, error: pe } = await supabase
         .from("patients")
         .select(
-          "id, profile_id, primary_cancer_type, current_stage, is_in_nadir, patient_code, is_pregnant, uses_continuous_medication, continuous_medication_notes, medical_history, allergies, height_cm, weight_kg, clinical_notes, profiles!patients_profile_id_fkey ( full_name, date_of_birth, avatar_url )"
+          "id, profile_id, cancer_type_id, primary_cancer_type, current_stage, is_in_nadir, patient_code, is_pregnant, uses_continuous_medication, continuous_medication_notes, medical_history, allergies, height_cm, weight_kg, clinical_notes, profiles!patients_profile_id_fkey ( full_name, date_of_birth, avatar_url )"
         )
         .eq("id", patientId)
         .maybeSingle();
@@ -160,7 +160,7 @@ export function usePatientClinicalBundle(patientId: string | undefined) {
         supabase
           .from("treatment_cycles")
           .select(
-            "id, protocol_name, start_date, end_date, status, treatment_kind, notes, planned_sessions, completed_sessions, last_session_at, last_weight_kg, infusion_interval_days"
+            "id, protocol_id, protocol_name, start_date, end_date, status, treatment_kind, notes, planned_sessions, completed_sessions, last_session_at, last_weight_kg, infusion_interval_days"
           )
           .eq("patient_id", patientId)
           .order("start_date", { ascending: false })
@@ -287,6 +287,10 @@ export function usePatientClinicalBundle(patientId: string | undefined) {
     return reloadExames(patientId);
   }, [patientId, reloadExames]);
 
+  const refreshClinicalBundle = useCallback(() => {
+    setProfileRefreshNonce((n) => n + 1);
+  }, []);
+
   return {
     loading,
     error,
@@ -305,5 +309,6 @@ export function usePatientClinicalBundle(patientId: string | undefined) {
     emergencyContacts,
     cycleReadiness,
     refreshExames,
+    refreshClinicalBundle,
   };
 }

@@ -117,27 +117,30 @@ export default function VitalLogScreen() {
       </View>
 
       <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingBottom: theme.spacing.xl }}>
-        <Text style={[theme.typography.headline, { color: theme.colors.text.secondary, marginBottom: theme.spacing.sm }]}>Tipo</Text>
-        <View style={{ flexDirection: "row", flexWrap: "wrap", gap: theme.spacing.sm, marginBottom: theme.spacing.lg }}>
-          {TYPES.map((t) => {
-            const on = vitalType === t.key;
-            return (
-              <Pressable
-                key={t.key}
-                onPress={() => setVitalType(t.key)}
-                style={{
-                  paddingHorizontal: theme.spacing.md,
-                  paddingVertical: theme.spacing.sm,
-                  borderRadius: theme.radius.md,
-                  backgroundColor: on ? theme.colors.semantic.treatment : theme.colors.background.secondary,
-                }}
-              >
-                <Text style={{ color: on ? "#FFF" : theme.colors.text.primary, fontWeight: "600", fontSize: 14 }}>{t.label}</Text>
-              </Pressable>
-            );
-          })}
-        </View>
-
+        {!typeParam && (
+          <>
+            <Text style={[theme.typography.headline, { color: theme.colors.text.secondary, marginBottom: theme.spacing.sm }]}>Tipo</Text>
+            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: theme.spacing.sm, marginBottom: theme.spacing.lg }}>
+              {TYPES.map((t) => {
+                const on = vitalType === t.key;
+                return (
+                  <Pressable
+                    key={t.key}
+                    onPress={() => setVitalType(t.key)}
+                    style={{
+                      paddingHorizontal: theme.spacing.md,
+                      paddingVertical: theme.spacing.sm,
+                      borderRadius: theme.radius.md,
+                      backgroundColor: on ? theme.colors.semantic.treatment : theme.colors.background.secondary,
+                    }}
+                  >
+                    <Text style={{ color: on ? "#FFF" : theme.colors.text.primary, fontWeight: "600", fontSize: 14 }}>{t.label}</Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          </>
+        )}
         <Text style={[theme.typography.headline, { color: theme.colors.text.secondary, marginBottom: theme.spacing.sm }]}>Dia e hora</Text>
         <Text style={[theme.typography.body, { color: theme.colors.text.tertiary, marginBottom: theme.spacing.xs, fontSize: 13 }]}>
           O registro fica associado ao instante escolhido (por padrão: agora).

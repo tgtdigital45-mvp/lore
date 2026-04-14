@@ -1,4 +1,4 @@
-# Aura Onco — Plataforma de acompanhamento oncológico
+# OncoCare — Plataforma de acompanhamento oncológico
 
 **Um dia de cada vez** · HealthTech / orientação **SaMD** · Monorepo com app **Expo**, **dashboard hospitalar**, **API Node**, **Supabase** e **IA** (Gemini / OpenAI).
 

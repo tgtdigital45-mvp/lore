@@ -1,7 +1,8 @@
 {
   "expo": {
-    "name": "Aura Onco",
-    "slug": "aura-onco",
+    "owner": "lore-onco",
+    "name": "Lore Onco",
+    "slug": "lore-onco",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
@@ -16,12 +17,14 @@
     "ios": {
       "supportsTablet": true,
       "infoPlist": {
-        "NSPhotoLibraryUsageDescription": "O Aura Onco acede às suas fotos para a imagem de perfil e para anexar laudos e exames.",
-        "NSCameraUsageDescription": "O Aura Onco usa a câmera para fotografar laudos e documentos.",
+        "NSPhotoLibraryUsageDescription": "O Lore Onco acede às suas fotos para a imagem de perfil e para anexar laudos e exames.",
+        "NSCameraUsageDescription": "O Lore Onco usa a câmera para fotografar laudos e documentos.",
         "NSMicrophoneUsageDescription": "O microfone pode ser usado ao gravar vídeo com a câmera."
       }
     },
     "android": {
+      "package": "com.auraonco.app",
+      "versionCode": 4,
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#0f766e"
@@ -39,7 +42,10 @@
               "pathPrefix": "/callback"
             }
           ],
-          "category": ["BROWSABLE", "DEFAULT"]
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
         }
       ]
     },
@@ -69,6 +75,15 @@
     ],
     "experiments": {
       "typedRoutes": true
+    },
+    "extra": {
+      "supabaseUrl": "https://dxfjlpxxxxirvcwtxxdz.supabase.co",
+      "supabaseAnonKey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR4ZmpscHh4eHhpcnZjd3R4eGR6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU4MTg2NzUsImV4cCI6MjA5MTM5NDY3NX0.uOYyIXXnpRZ7VNaew7F5fyM6I7itFVTUrU2vjkkqNvY",
+      "apiUrl": "http://192.168.3.16:3000",
+      "router": {},
+      "eas": {
+        "projectId": "8f2dd6ff-ff84-49da-a538-75e10c2566ec"
+      }
     }
   }
 }

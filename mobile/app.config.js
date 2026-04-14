@@ -36,6 +36,9 @@ module.exports = ({ config }) => {
   if (!plugins.some((p) => p === "expo-apple-authentication" || (Array.isArray(p) && p[0] === "expo-apple-authentication"))) {
     plugins.push("expo-apple-authentication");
   }
+  if (!plugins.some((p) => p === "expo-secure-store" || (Array.isArray(p) && p[0] === "expo-secure-store"))) {
+    plugins.push("expo-secure-store");
+  }
 
   return {
     ...config,

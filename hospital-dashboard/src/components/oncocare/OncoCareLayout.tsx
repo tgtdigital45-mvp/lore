@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { Outlet, NavLink, useLocation, useNavigate } from "react-router-dom";
-import { Activity, CalendarDays, LayoutDashboard, LogOut, Search, Settings, Users } from "lucide-react";
+import { Activity, CalendarDays, LayoutDashboard, LogOut, Search, Settings, Users, Layers } from "lucide-react";
 import { motion } from "framer-motion";
 import { useOncoCare } from "@/context/OncoCareContext";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -18,6 +18,7 @@ const nav = [
 
 export function OncoCareLayout() {
   const { staffProfile, staffAvatarBust, reloadStaffProfile, patientSearch, setPatientSearch } = useOncoCare();
+  const isHospitalAdmin = staffProfile?.role === "hospital_admin";
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -73,6 +74,19 @@ export function OncoCareLayout() {
                 {label}
               </NavLink>
             ))}
+            {isHospitalAdmin ? (
+              <NavLink
+                to="/protocolos"
+                className={({ isActive }) =>
+                  `flex items-center gap-3 rounded-2xl px-3 py-2.5 text-sm font-semibold transition-colors ${
+                    isActive ? "bg-[#1A1A1A] text-white" : "text-foreground hover:bg-muted"
+                  }`
+                }
+              >
+                <Layers className="size-5 shrink-0 opacity-90" />
+                Protocolos
+              </NavLink>
+            ) : null}
             <NavLink
               to="/conta"
               className={({ isActive }) =>

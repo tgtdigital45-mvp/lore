@@ -1,8 +1,11 @@
-import type { ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { ClipboardList } from "lucide-react";
 import { CANCER_PT } from "@/constants/dashboardLabels";
 import { cn } from "@/lib/utils";
 import type { EmergencyContactEmbed, RiskRow } from "@/types/dashboard";
+import { supabase } from "@/lib/supabase";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 
 function SectionTitle({ children }: { children: ReactNode }) {
   return (
@@ -22,27 +25,7 @@ function FieldBlock({ label, children }: { label: string; children: ReactNode })
   );
 }
 
-function textOrDash(s: string | null | undefined): string {
-  const t = s?.trim();
-  return t ? t : "—";
-}
-
-function pregnancyLabel(v: boolean | null | undefined): string {
-  if (v === null || v === undefined) return "Não informado";
-  return v ? "Sim" : "Não";
-}
-
-function fmtCm(v: number | string | null | undefined): string {
-  if (v == null || v === "") return "—";
-  const n = typeof v === "number" ? v : Number(v);
-  return Number.isFinite(n) ? `${n} cm` : "—";
-}
-
-function fmtKg(v: number | string | null | undefined): string {
-  if (v == null || v === "") return "—";
-  const n = typeof v === "number" ? v : Number(v);
-  return Number.isFinite(n) ? `${n} kg` : "—";
-}
+type ContactDraft = { id?: string; full_name: string; phone: string; relationship: string };
 
 type Props = {
   loading: boolean;
@@ -51,6 +34,104 @@ type Props = {
 };
 
 export default function PatientFichaMedicaPanel({ loading, riskRow, emergencyContacts }: Props) {
+  const [busy, setBusy] = useState(false);
+  const [stage, setStage] = useState("");
+  const [isPregnant, setIsPregnant] = useState<"unset" | "yes" | "no">("unset");
+  const [usesContinuousMedication, setUsesContinuousMedication] = useState(false);
+  const [continuousMedNotes, setContinuousMedNotes] = useState("");
+  const [medicalHistory, setMedicalHistory] = useState("");
+  const [allergies, setAllergies] = useState("");
+  const [heightCm, setHeightCm] = useState("");
+  const [weightKg, setWeightKg] = useState("");
+  const [clinicalNotes, setClinicalNotes] = useState("");
+  const [contacts, setContacts] = useState<ContactDraft[]>([]);
+
+  useEffect(() => {
+    setStage(riskRow.current_stage ?? "");
+    setIsPregnant(riskRow.is_pregnant == null ? "unset" : riskRow.is_pregnant ? "yes" : "no");
+    setUsesContinuousMedication(riskRow.uses_continuous_medication ?? false);
+    setContinuousMedNotes(riskRow.continuous_medication_notes ?? "");
+    setMedicalHistory(riskRow.medical_history ?? "");
+    setAllergies(riskRow.allergies ?? "");
+    setHeightCm(riskRow.height_cm != null ? String(riskRow.height_cm) : "");
+    setWeightKg(riskRow.weight_kg != null ? String(riskRow.weight_kg) : "");
+    setClinicalNotes(riskRow.clinical_notes ?? "");
+  }, [
+    riskRow.current_stage,
+    riskRow.is_pregnant,
+    riskRow.uses_continuous_medication,
+    riskRow.continuous_medication_notes,
+    riskRow.medical_history,
+    riskRow.allergies,
+    riskRow.height_cm,
+    riskRow.weight_kg,
+    riskRow.clinical_notes,
+  ]);
+
+  useEffect(() => {
+    setContacts(
+      emergencyContacts.map((c) => ({
+        id: c.id,
+        full_name: c.full_name ?? "",
+        phone: c.phone ?? "",
+        relationship: c.relationship ?? "",
+      }))
+    );
+  }, [emergencyContacts]);
+
+  async function saveFicha(): Promise<void> {
+    setBusy(true);
+    try {
+      const parsedHeight = heightCm.trim() === "" ? null : Number(heightCm);
+      const parsedWeight = weightKg.trim() === "" ? null : Number(weightKg);
+      const { error } = await supabase
+        .from("patients")
+        .update({
+          current_stage: stage.trim() || null,
+          is_pregnant: isPregnant === "unset" ? null : isPregnant === "yes",
+          uses_continuous_medication: usesContinuousMedication,
+          continuous_medication_notes: continuousMedNotes.trim() || null,
+          medical_history: medicalHistory.trim() || null,
+          allergies: allergies.trim() || null,
+          height_cm: Number.isFinite(parsedHeight) ? parsedHeight : null,
+          weight_kg: Number.isFinite(parsedWeight) ? parsedWeight : null,
+          clinical_notes: clinicalNotes.trim() || null,
+        })
+        .eq("id", riskRow.id);
+      if (error) throw error;
+
+      const existingIds = new Set(emergencyContacts.map((c) => c.id));
+      const keepIds = new Set(contacts.filter((c) => c.id).map((c) => c.id as string));
+      for (const id of existingIds) {
+        if (!keepIds.has(id)) {
+          const { error: delErr } = await supabase.from("patient_emergency_contacts").delete().eq("id", id);
+          if (delErr) throw delErr;
+        }
+      }
+      let sortOrder = 0;
+      for (const contact of contacts) {
+        const payload = {
+          patient_id: riskRow.id,
+          full_name: contact.full_name.trim() || "—",
+          phone: contact.phone.trim() || "—",
+          relationship: contact.relationship.trim() || null,
+          sort_order: sortOrder++,
+        };
+        if (contact.id) {
+          const { error: updateErr } = await supabase.from("patient_emergency_contacts").update(payload).eq("id", contact.id);
+          if (updateErr) throw updateErr;
+        } else if (contact.full_name.trim() || contact.phone.trim()) {
+          const { error: insertErr } = await supabase.from("patient_emergency_contacts").insert(payload);
+          if (insertErr) throw insertErr;
+        }
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return (
     <div className="space-y-8 font-sans">
       <div>
@@ -73,8 +154,20 @@ export default function PatientFichaMedicaPanel({ loading, riskRow, emergencyCon
               <FieldBlock label="Tipo de câncer (resumo)">
                 {CANCER_PT[riskRow.primary_cancer_type] ?? riskRow.primary_cancer_type}
               </FieldBlock>
-              <FieldBlock label="Estágio">{textOrDash(riskRow.current_stage)}</FieldBlock>
-              <FieldBlock label="Gravidez">{pregnancyLabel(riskRow.is_pregnant)}</FieldBlock>
+              <FieldBlock label="Estágio (editável)">
+                <Input value={stage} onChange={(e) => setStage(e.target.value)} placeholder="Ex.: estádio III" className="rounded-xl" />
+              </FieldBlock>
+              <FieldBlock label="Gravidez (editável)">
+                <select
+                  value={isPregnant}
+                  onChange={(e) => setIsPregnant(e.target.value as "unset" | "yes" | "no")}
+                  className="h-10 w-full rounded-xl border border-[#E2E8F0] bg-white px-3 text-sm"
+                >
+                  <option value="unset">Não informar</option>
+                  <option value="no">Não</option>
+                  <option value="yes">Sim</option>
+                </select>
+              </FieldBlock>
               <FieldBlock label="Nadir (automático)">
                 {riskRow.is_in_nadir ? (
                   <span className="font-medium text-[#B91C1C]">Na janela de nadir — vigilância febril</span>
@@ -87,65 +180,141 @@ export default function PatientFichaMedicaPanel({ loading, riskRow, emergencyCon
 
           <section className="space-y-3">
             <h4 className="text-sm font-bold text-foreground">Medicação de base</h4>
-            <FieldBlock label="Uso contínuo de medicamentos">
-              <span className="font-medium">{riskRow.uses_continuous_medication ? "Sim" : "Não"}</span>
+            <FieldBlock label="Uso contínuo de medicamentos (editável)">
+              <label className="inline-flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={usesContinuousMedication}
+                  onChange={(e) => setUsesContinuousMedication(e.target.checked)}
+                />
+                <span className="font-medium">{usesContinuousMedication ? "Sim" : "Não"}</span>
+              </label>
             </FieldBlock>
             <FieldBlock label="Quais medicamentos (texto livre)">
-              {textOrDash(riskRow.continuous_medication_notes)}
+              <Input
+                value={continuousMedNotes}
+                onChange={(e) => setContinuousMedNotes(e.target.value)}
+                placeholder="Ex.: levotiroxina 75 ug"
+                className="rounded-xl"
+              />
             </FieldBlock>
           </section>
 
           <section className="space-y-3">
             <h4 className="text-sm font-bold text-foreground">Antecedentes e alergias</h4>
             <FieldBlock label="Doenças e condições anteriores">
-              <p className="whitespace-pre-wrap">{textOrDash(riskRow.medical_history)}</p>
+              <textarea
+                value={medicalHistory}
+                onChange={(e) => setMedicalHistory(e.target.value)}
+                placeholder="Histórico relevante"
+                className="min-h-[90px] w-full rounded-xl border border-[#E2E8F0] p-3 text-sm"
+              />
             </FieldBlock>
             <FieldBlock label="Alergias">
-              <p className="whitespace-pre-wrap">{textOrDash(riskRow.allergies)}</p>
+              <textarea
+                value={allergies}
+                onChange={(e) => setAllergies(e.target.value)}
+                placeholder="Alergias medicamentosas ou alimentares"
+                className="min-h-[90px] w-full rounded-xl border border-[#E2E8F0] p-3 text-sm"
+              />
             </FieldBlock>
           </section>
 
           <section className="space-y-3">
             <h4 className="text-sm font-bold text-foreground">Medidas e notas</h4>
             <div className="grid gap-3 sm:grid-cols-2">
-              <FieldBlock label="Altura (ficha)">{fmtCm(riskRow.height_cm)}</FieldBlock>
-              <FieldBlock label="Peso (ficha)">{fmtKg(riskRow.weight_kg)}</FieldBlock>
+              <FieldBlock label="Altura (ficha)">
+                <Input value={heightCm} onChange={(e) => setHeightCm(e.target.value)} type="number" className="rounded-xl" />
+              </FieldBlock>
+              <FieldBlock label="Peso (ficha)">
+                <Input value={weightKg} onChange={(e) => setWeightKg(e.target.value)} type="number" className="rounded-xl" />
+              </FieldBlock>
             </div>
             <FieldBlock label="Notas clínicas (ficha)">
-              <p className="whitespace-pre-wrap">{textOrDash(riskRow.clinical_notes)}</p>
+              <textarea
+                value={clinicalNotes}
+                onChange={(e) => setClinicalNotes(e.target.value)}
+                placeholder="Observações clínicas"
+                className="min-h-[120px] w-full rounded-xl border border-[#E2E8F0] p-3 text-sm"
+              />
             </FieldBlock>
           </section>
 
           <section className="space-y-3">
             <h4 className="text-sm font-bold text-foreground">Contactos de emergência</h4>
-            {emergencyContacts.length === 0 ? (
+            {contacts.length === 0 ? (
               <p className="rounded-2xl border border-dashed border-[#E2E8F0] bg-[#FAFBFC] px-4 py-8 text-center text-sm text-muted-foreground">
-                Sem contactos registrados ou sem permissão de leitura.
+                Sem contactos registrados.
               </p>
             ) : (
               <ul className="space-y-3">
-                {emergencyContacts.map((c, i) => (
+                {contacts.map((c, i) => (
                   <li
-                    key={c.id}
+                    key={c.id ?? `new-${i}`}
                     className={cn(
                       "rounded-2xl border border-[#E8EAED] bg-white px-4 py-4 shadow-sm",
                       i > 0 && "mt-1"
                     )}
                   >
-                    <p className="font-semibold text-foreground">{c.full_name || "—"}</p>
-                    <p className="mt-1 text-sm text-muted-foreground">
-                      <span className="font-medium text-foreground/90">Telefone:</span> {c.phone || "—"}
-                    </p>
-                    {c.relationship?.trim() ? (
-                      <p className="mt-1 text-sm text-muted-foreground">
-                        <span className="font-medium text-foreground/90">Parentesco:</span> {c.relationship.trim()}
-                      </p>
-                    ) : null}
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      <Input
+                        value={c.full_name}
+                        onChange={(e) => {
+                          const next = [...contacts];
+                          next[i] = { ...next[i], full_name: e.target.value };
+                          setContacts(next);
+                        }}
+                        placeholder="Nome"
+                        className="rounded-xl"
+                      />
+                      <Input
+                        value={c.phone}
+                        onChange={(e) => {
+                          const next = [...contacts];
+                          next[i] = { ...next[i], phone: e.target.value };
+                          setContacts(next);
+                        }}
+                        placeholder="Telefone"
+                        className="rounded-xl"
+                      />
+                      <Input
+                        value={c.relationship}
+                        onChange={(e) => {
+                          const next = [...contacts];
+                          next[i] = { ...next[i], relationship: e.target.value };
+                          setContacts(next);
+                        }}
+                        placeholder="Parentesco"
+                        className="rounded-xl sm:col-span-2"
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="w-fit rounded-xl"
+                        onClick={() => setContacts(contacts.filter((_, idx) => idx !== i))}
+                      >
+                        Remover contato
+                      </Button>
+                    </div>
                   </li>
                 ))}
               </ul>
             )}
+            <Button
+              type="button"
+              variant="outline"
+              className="rounded-xl"
+              onClick={() => setContacts([...contacts, { full_name: "", phone: "", relationship: "" }])}
+            >
+              Adicionar contato
+            </Button>
           </section>
+          <div className="flex justify-end">
+            <Button type="button" className="rounded-xl" disabled={busy} onClick={() => void saveFicha()}>
+              {busy ? "Guardando..." : "Guardar ficha"}
+            </Button>
+          </div>
         </>
       )}
     </div>

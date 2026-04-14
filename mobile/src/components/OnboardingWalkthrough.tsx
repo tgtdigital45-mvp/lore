@@ -1,12 +1,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Modal,
+  Platform,
   Pressable,
   ScrollView,
   Text,
   useWindowDimensions,
   View,
 } from "react-native";
+import * as SecureStore from "expo-secure-store";
 import { LinearGradient } from "expo-linear-gradient";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/src/auth/AuthContext";
@@ -20,11 +22,43 @@ function onboardingKeyForUser(userId: string): string {
   return `aura_onboarding_walkthrough_v2_${userId}`;
 }
 
+/** Chave no Keychain/Keystore — sobrevive mesmo se AsyncStorage cair em fallback só em memória. */
+function secureWalkthroughKey(userId: string): string {
+  return `aura_onboarding_walkthrough_ss_${userId}`;
+}
+
 async function shouldShowOnboarding(userId: string): Promise<boolean> {
   const k = onboardingKeyForUser(userId);
-  if ((await appStorage.getItem(k)) === "1") return false;
+
+  if (Platform.OS !== "web") {
+    try {
+      if ((await SecureStore.getItemAsync(secureWalkthroughKey(userId))) === "1") {
+        return false;
+      }
+    } catch {
+      /* SecureStore indisponível */
+    }
+  }
+
+  if ((await appStorage.getItem(k)) === "1") {
+    if (Platform.OS !== "web") {
+      try {
+        await SecureStore.setItemAsync(secureWalkthroughKey(userId), "1");
+      } catch {
+        /* */
+      }
+    }
+    return false;
+  }
   if ((await appStorage.getItem(LEGACY_STORAGE_KEY)) === "1") {
     await appStorage.setItem(k, "1");
+    if (Platform.OS !== "web") {
+      try {
+        await SecureStore.setItemAsync(secureWalkthroughKey(userId), "1");
+      } catch {
+        /* */
+      }
+    }
     return false;
   }
   return true;
@@ -95,7 +129,18 @@ export function OnboardingWalkthrough() {
 
   const finish = useCallback(async () => {
     visibilityGateRef.current += 1;
-    if (userId) await appStorage.setItem(onboardingKeyForUser(userId), "1");
+    if (userId) {
+      const k = onboardingKeyForUser(userId);
+      await appStorage.setItem(k, "1");
+      await appStorage.setItem(LEGACY_STORAGE_KEY, "1");
+      if (Platform.OS !== "web") {
+        try {
+          await SecureStore.setItemAsync(secureWalkthroughKey(userId), "1");
+        } catch {
+          /* */
+        }
+      }
+    }
     setVisible(false);
     setChecking(false);
   }, [userId]);

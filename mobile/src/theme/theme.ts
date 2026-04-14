@@ -28,6 +28,7 @@ export const lightTheme = {
     title2: { fontSize: 22, fontWeight: "600" as const, lineHeight: 28 },
     headline: { fontSize: 17, fontWeight: "600" as const, lineHeight: 22 },
     body: { fontSize: 17, fontWeight: "400" as const, lineHeight: 22 },
+    caption1: { fontSize: 12, fontWeight: "400" as const, lineHeight: 16 },
     dataHuge: { fontSize: 44, fontWeight: "800" as const, lineHeight: 52 },
   },
 };

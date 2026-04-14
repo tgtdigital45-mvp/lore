@@ -12,7 +12,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 export function OncoCareDashboardPage() {
-  const { busy, loadError, rows, staffProfile, loadTriage, cohortHospitalId, hospitalsMeta } = useOncoCare();
+  const { busy, loadError, rows, staffProfile, cohortHospitalId, hospitalsMeta } = useOncoCare();
   const [triageMode, setTriageMode] = useState<"all" | "critical">("all");
 
   const triageList = useMemo(() => {

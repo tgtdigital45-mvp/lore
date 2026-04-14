@@ -10,7 +10,14 @@ export function waProfileFromPatientsJoin(profiles: unknown): WaProfileSnap {
   return { phone_e164: phone, optIn: hasIn && !hasRev };
 }
 
-export function profileName(p: PatientRow["profiles"]): string {
+/** Aceita perfis com `full_name` opcional (ex.: joins em `clinical_tasks`). */
+export function profileName(
+  p:
+    | PatientRow["profiles"]
+    | { full_name?: string | null; date_of_birth?: string | null; avatar_url?: string | null }
+    | { full_name?: string | null; date_of_birth?: string | null; avatar_url?: string | null }[]
+    | null
+): string {
   if (!p) return "—";
   if (Array.isArray(p)) return p[0]?.full_name ?? "—";
   return p.full_name ?? "—";

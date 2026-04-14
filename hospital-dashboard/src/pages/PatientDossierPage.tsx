@@ -21,7 +21,6 @@ import { TemperatureAreaChart } from "@/components/patient/TemperatureAreaChart"
 import { ToxicityHeatmap } from "@/components/patient/ToxicityHeatmap";
 import PatientExamesPanel from "@/components/patient/tabs/PatientExamesPanel";
 import PatientDiarioPanel from "@/components/patient/tabs/PatientDiarioPanel";
-import { PatientMensagensDossierPanel } from "@/components/patient/tabs/PatientMensagensDossierPanel";
 import PatientMedicamentosPanel from "@/components/patient/tabs/PatientMedicamentosPanel";
 import PatientFichaMedicaPanel from "@/components/patient/tabs/PatientFichaMedicaPanel";
 import PatientTratamentoPanel from "@/components/patient/tabs/PatientTratamentoPanel";
@@ -29,9 +28,10 @@ import { EditableMetricsPanel } from "@/components/patient/EditableMetricsPanel"
 import { DossierReportModal } from "@/components/patient/DossierReportModal";
 import { FhirExportButton } from "@/components/oncocare/FhirExportButton";
 import { SuspensionFactorsModal } from "@/components/patient/SuspensionFactorsModal";
+import { PatientProtocolAlertsBanner } from "@/components/patient/PatientProtocolAlertsBanner";
 import type { DossierReportPayload } from "@/lib/dossierReportHtml";
 
-type DossierTab = "resumo" | "ficha" | "tratamento" | "exames" | "medicamentos" | "diario" | "mensagens";
+type DossierTab = "resumo" | "metricas" | "ficha" | "tratamento" | "exames" | "medicamentos" | "diario";
 
 export function PatientDossierPage() {
   const { patientId } = useParams<{ patientId: string }>();
@@ -44,10 +44,10 @@ export function PatientDossierPage() {
   const tab: DossierTab =
     tabParam === "exames" ||
     tabParam === "diario" ||
+    tabParam === "metricas" ||
     tabParam === "medicamentos" ||
     tabParam === "ficha" ||
-    tabParam === "tratamento" ||
-    tabParam === "mensagens"
+    tabParam === "tratamento"
       ? tabParam
       : "resumo";
 
@@ -74,6 +74,7 @@ export function PatientDossierPage() {
     emergencyContacts,
     cycleReadiness,
     refreshExames,
+    refreshClinicalBundle,
   } = usePatientClinicalBundle(patientId);
 
   const examesHandlers = usePatientExamesHandlers(session, patientId, refreshExames);
@@ -251,6 +252,8 @@ export function PatientDossierPage() {
         </div>
       </Card>
 
+      {patientId ? <PatientProtocolAlertsBanner patientId={patientId} cycles={cycles} /> : null}
+
       <div className="patient-modal__tabs mb-6" role="tablist" aria-label="Seções do prontuário">
         <button
           type="button"
@@ -260,6 +263,15 @@ export function PatientDossierPage() {
           onClick={() => setTab("resumo")}
         >
           Resumo
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={tab === "metricas"}
+          className={`patient-modal__tab ${tab === "metricas" ? "is-active" : ""}`}
+          onClick={() => setTab("metricas")}
+        >
+          Métricas
         </button>
         <button
           type="button"
@@ -305,15 +317,6 @@ export function PatientDossierPage() {
           onClick={() => setTab("diario")}
         >
           Diário
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={tab === "mensagens"}
-          className={`patient-modal__tab ${tab === "mensagens" ? "is-active" : ""}`}
-          onClick={() => setTab("mensagens")}
-        >
-          Mensagens
         </button>
       </div>
 
@@ -372,12 +375,6 @@ export function PatientDossierPage() {
               <ToxicityHeatmap symptoms={symptoms} days={28} />
             </Card>
 
-            <EditableMetricsPanel
-              staffId={session?.user?.id}
-              vitals={vitals}
-              wearables={wearables}
-              biomarkers={biomarkers}
-            />
           </div>
 
           <aside className="space-y-6 lg:col-span-2">
@@ -494,9 +491,31 @@ export function PatientDossierPage() {
         </div>
       ) : null}
 
+      {tab === "metricas" ? (
+        <Card className="rounded-3xl border border-[#E8EAED] p-6 shadow-sm">
+          <EditableMetricsPanel
+            staffId={session?.user?.id}
+            vitals={vitals}
+            wearables={wearables}
+            biomarkers={biomarkers}
+          />
+        </Card>
+      ) : null}
+
       {tab === "tratamento" ? (
         <Card className="rounded-3xl border border-[#E8EAED] p-6 shadow-sm">
-          <PatientTratamentoPanel loading={loading} cycles={cycles} infusions={infusions} medications={medications} />
+          <PatientTratamentoPanel
+            loading={loading}
+            cycles={cycles}
+            infusions={infusions}
+            medications={medications}
+            patientId={patientId}
+            cancerTypeId={riskRow.cancer_type_id ?? null}
+            primaryCancerType={riskRow.primary_cancer_type}
+            onUpdated={() => {
+              refreshClinicalBundle();
+            }}
+          />
         </Card>
       ) : null}
 
@@ -543,13 +562,6 @@ export function PatientDossierPage() {
       {tab === "diario" ? (
         <Card className="rounded-3xl border border-[#E8EAED] p-6 shadow-sm">
           <PatientDiarioPanel modalLoading={loading} modalSymptoms={symptoms} />
-        </Card>
-      ) : null}
-
-      {tab === "mensagens" && patientId ? (
-        <Card className="rounded-3xl border border-[#E8EAED] p-6 shadow-sm">
-          <h2 className="mb-4 text-lg font-bold">WhatsApp com contexto</h2>
-          <PatientMensagensDossierPanel session={session} patientId={patientId} />
         </Card>
       ) : null}
 

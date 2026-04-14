@@ -4,7 +4,7 @@ import type { PatientRow } from "@/src/hooks/usePatient";
 import type { TreatmentCycleRow, TreatmentInfusionRow } from "@/src/types/treatment";
 
 const CYCLE_SELECT =
-  "id, patient_id, protocol_name, start_date, end_date, status, treatment_kind, notes, planned_sessions, completed_sessions, last_session_at, last_weight_kg, infusion_interval_days, created_at";
+  "id, patient_id, protocol_id, protocol_name, start_date, end_date, status, treatment_kind, notes, planned_sessions, completed_sessions, last_session_at, last_weight_kg, infusion_interval_days, created_at";
 
 const INFUSION_SELECT =
   "id, patient_id, cycle_id, session_at, status, weight_kg, notes, created_at, updated_at";
