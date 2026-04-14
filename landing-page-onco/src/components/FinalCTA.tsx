@@ -1,49 +1,43 @@
 export function FinalCTA() {
   return (
-    <section
-      id="download"
-      className="border-b border-black/5 bg-gradient-to-b from-white to-[#E8F2FF] py-16 sm:py-20"
-      aria-labelledby="download-heading"
-    >
-      <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
-        <div className="mx-auto max-w-3xl text-center">
-          <h2 id="download-heading" className="text-2xl font-bold tracking-tight text-[#1C1C1E] sm:text-3xl">
-            Comece hoje. Um dia de cada vez.
-          </h2>
-          <p className="mt-4 text-lg text-[#3A3A3C]">
-            Baixe gratuitamente e transforme sua rotina de tratamento.
-          </p>
-        </div>
-
-        <div className="mt-10 flex flex-col items-center justify-center gap-8 lg:flex-row lg:items-start">
-          <div className="flex w-full max-w-md flex-col gap-4 sm:flex-row sm:justify-center">
-            <a
-              href="#"
-              className="inline-flex min-h-[44px] flex-1 items-center justify-center gap-2 rounded-xl bg-[#1C1C1E] px-6 py-3 font-semibold text-white transition hover:bg-black focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1C1C1E]"
-              aria-label="Baixar na App Store (link em breve)"
-            >
-              <AppleIcon className="h-6 w-6" />
-              App Store
-            </a>
-            <a
-              href="#"
-              className="inline-flex min-h-[44px] flex-1 items-center justify-center gap-2 rounded-xl border-2 border-[#1C1C1E] bg-white px-6 py-3 font-semibold text-[#1C1C1E] transition hover:bg-[#F2F2F7] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1C1C1E]"
-              aria-label="Baixar no Google Play (link em breve)"
-            >
-              <PlayStoreIcon className="h-6 w-6" />
-              Google Play
-            </a>
-          </div>
-
-          <div className="flex flex-col items-center rounded-2xl bg-white p-6 shadow-sm ring-1 ring-black/5">
-            <QrPlaceholder />
-            <p className="mt-3 text-center text-sm text-[#636366]">Escaneie para baixar</p>
+    <section id="download" className="relative overflow-hidden bg-bg-soft py-24 sm:py-32" aria-labelledby="cta-heading">
+      {/* Decorative background circle */}
+      <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 -z-10 h-[800px] w-[800px] bg-[radial-gradient(circle,rgba(0,79,99,0.08)_0%,transparent_70%)] blur-3xl opacity-50" />
+      
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <div className="relative overflow-hidden rounded-[3rem] bg-brand-primary px-8 py-20 text-center shadow-2xl sm:px-16 sm:py-24">
+          <div className="relative z-10 mx-auto max-w-2xl">
+            <h2 id="cta-heading" className="text-3xl font-extrabold tracking-tight text-white sm:text-4xl">
+              Retome o controle da sua jornada. <br />
+              <span className="text-white/80">Um dia de cada vez.</span>
+            </h2>
+            <p className="mt-6 text-lg leading-8 text-white/90">
+              Junte-se a milhares de pacientes que transformaram o caos do tratamento em clareza clínica. 
+              Gratuito para sempre. Privado por design.
+            </p>
+            
+            <div className="mt-10 flex flex-col items-center justify-center gap-6 sm:flex-row">
+              <a
+                href="#"
+                className="group inline-flex items-center justify-center gap-3 rounded-2xl bg-white px-8 py-4 text-lg font-bold text-brand-primary transition-all hover:scale-105 hover:bg-bg-soft"
+              >
+                <AppleIcon className="h-6 w-6" />
+                App Store
+              </a>
+              <a
+                href="#"
+                className="group inline-flex items-center justify-center gap-3 rounded-2xl border-2 border-white/30 bg-white/10 px-8 py-4 text-lg font-bold text-white backdrop-blur-sm transition-all hover:bg-white/20"
+              >
+                <PlayStoreIcon className="h-6 w-6" />
+                Google Play
+              </a>
+            </div>
+            
+            <p className="mt-8 text-sm font-medium text-white/70">
+              Cadastro em 2 minutos. Primeiro registro em 10 segundos.
+            </p>
           </div>
         </div>
-
-        <p className="mt-10 text-center text-[#636366]">
-          Cadastro em 2 minutos. Primeiro registro em 10 segundos.
-        </p>
       </div>
     </section>
   )
@@ -59,77 +53,8 @@ function AppleIcon({ className }: { className?: string }) {
 
 function PlayStoreIcon({ className }: { className?: string }) {
   return (
-    <svg className={className} viewBox="0 0 24 24" aria-hidden>
-      <path fill="#EA4335" d="M3.6 20.4 12 12.8l3.1 3.1L3.6 20.4z" />
-      <path fill="#FBBC04" d="M12 12.8 3.6 3.6v16.8l8.4-7.6z" />
-      <path fill="#34A853" d="M20.4 10.8 15.1 12.8 12 9.7l8.4-4.9c.4.7.5 1.5.5 2.4 0 .9-.2 1.7-.5 2.4z" />
-      <path fill="#4285F4" d="M3.6 3.6 20.4 10.8c-.3-.5-.7-1-1.2-1.4L12 9.7 3.6 3.6z" />
-    </svg>
-  )
-}
-
-function QrPlaceholder() {
-  return (
-    <svg
-      width={120}
-      height={120}
-      viewBox="0 0 120 120"
-      className="text-[#1C1C1E]"
-      aria-hidden
-    >
-      <rect width="120" height="120" fill="white" rx="8" />
-      <g fill="currentColor">
-        {[
-          [0, 0],
-          [8, 0],
-          [16, 0],
-          [0, 8],
-          [16, 8],
-          [0, 16],
-          [8, 16],
-          [16, 16],
-          [32, 0],
-          [48, 0],
-          [40, 8],
-          [56, 8],
-          [64, 0],
-          [72, 0],
-          [80, 0],
-          [88, 0],
-          [96, 0],
-          [104, 0],
-          [32, 8],
-          [64, 8],
-          [96, 8],
-          [104, 8],
-          [112, 8],
-          [24, 16],
-          [32, 16],
-          [48, 16],
-          [56, 16],
-          [72, 16],
-          [80, 16],
-          [88, 16],
-          [96, 16],
-          [104, 16],
-          [112, 16],
-          [0, 24],
-          [16, 24],
-          [24, 24],
-          [40, 24],
-          [48, 24],
-          [56, 24],
-          [64, 24],
-          [72, 24],
-          [80, 24],
-          [88, 24],
-          [96, 24],
-          [104, 24],
-          [112, 24],
-        ].map(([x, y], i) => (
-          <rect key={i} x={x} y={y} width="6" height="6" rx="1" />
-        ))}
-      </g>
+    <svg className={className} viewBox="0 0 24 24" fill="currentColor">
+      <path d="M12.302 11.594L2.091 1.144C1.867.926 1.564.814 1.25.814c-.69 0-1.25.56-1.25 1.25v19.872c0 .69.56 1.25 1.25 1.25.314 0 .617-.112.841-.33l10.211-10.45c.196-.201.196-.525 0-.726zM23.34 11.594l-7.23-4.131-4.103 4.2c-.196.201-.196.525 0 .726l4.103 4.2 7.23-4.131c.6-.343.6-.921 0-1.264zM1.986.993l14.124 8.071-4.103 4.2-10.021-12.271zM1.986 23.007l10.021-12.271 4.103 4.2-14.124 8.071z" />
     </svg>
   )
 }

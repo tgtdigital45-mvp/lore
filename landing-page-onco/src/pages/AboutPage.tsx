@@ -4,96 +4,80 @@ import { PageShell } from '../components/PageShell'
 export function AboutPage() {
   return (
     <PageShell
-      title="Sobre o Onco"
-      description="Um aplicativo pensado para quem vive o tratamento oncológico no dia a dia — com dignidade, clareza e menos carga mental."
+      size="full"
+      title="Nossa História e Missão"
+      description="Um ecossistema pensado por quem vive o tratamento oncológico no dia a dia — com dignidade, clareza e menos carga mental."
     >
-      <section className="rounded-2xl bg-white p-6 ring-1 ring-black/5">
-        <h2 className="text-xl font-semibold text-[#1C1C1E]">Por que existimos</h2>
-        <p className="mt-3">
-          O Onco nasceu da constatação de que viver um tratamento de câncer não é só &ldquo;ir à quimio&rdquo;: é
-          remédios em horários diferentes, sintomas que mudam a cada dia, exames espalhados e consultas em que é
-          difícil explicar como você se sentiu na semana passada. A fadiga e o chamado <em>chemo brain</em> tornam a
-          memória frágil — e relatos imprecisos atrapalham o oncologista a ajustar dose, sintomas e suporte.
-        </p>
-      </section>
+      <div className="space-y-12">
+        <section className="rounded-3xl bg-white p-8 shadow-sm ring-1 ring-black/5 sm:p-10">
+          <div className="lg:grid lg:grid-cols-2 lg:gap-12 lg:items-center">
+            <div>
+              <h2 className="text-2xl font-bold text-[#1C1C1E]">Por que existimos</h2>
+              <p className="mt-4 text-lg leading-relaxed text-[#3A3A3C]">
+                O OncoCare nasceu de uma constatação dolorosa: viver um tratamento de câncer não é apenas "ir à quimioterapia". 
+                É lidar com uma cascata de remédios, sintomas voláteis e uma sobrecarga cognitiva brutal.
+              </p>
+              <p className="mt-4 text-lg leading-relaxed text-[#3A3A3C]">
+                A fadiga e o <em>chemo brain</em> tornam a memória frágil, e relatos imprecisos durante as consultas dificultam o ajuste clínico ideal. 
+                Existimos para eliminar essa lacuna.
+              </p>
+            </div>
+            <div className="mt-10 lg:mt-0">
+              <div className="aspect-[4/3] rounded-2xl bg-[#004F63]/5 flex items-center justify-center p-8">
+                <blockquote className="text-center italic text-[#004F63]">
+                  "Um dia de cada vez não é apenas um lema, é a unidade de medida do cuidado oncológico."
+                </blockquote>
+              </div>
+            </div>
+          </div>
+        </section>
 
-      <section className="rounded-2xl bg-white p-6 ring-1 ring-black/5">
-        <h2 className="text-xl font-semibold text-[#1C1C1E]">Nossa missão</h2>
-        <p className="mt-3">
-          Reduzir a <strong>carga mental e física</strong> do tratamento oncológico, capacitando pacientes a
-          retomarem o controle da rotina com registros rápidos (em poucos segundos) e dados que viram relatórios
-          objetivos para a equipe médica. <strong>Um dia de cada vez.</strong>
-        </p>
-      </section>
+        <section className="grid gap-8 md:grid-cols-2">
+          <div className="rounded-3xl bg-[#004F63] p-8 text-white shadow-xl">
+            <h2 className="text-xl font-bold">Nossa Visão</h2>
+            <p className="mt-4 text-white/80">
+              Queremos que cada paciente oncológico tenha sua voz estruturada em dados, permitindo que a medicina personalizada 
+              chegue ao nível do dia a dia, não apenas no diagnóstico.
+            </p>
+          </div>
+          <div className="rounded-3xl bg-[#F2F2F7] p-8 ring-1 ring-black/5">
+            <h2 className="text-xl font-bold text-[#1C1C1E]">Valores Inegociáveis</h2>
+            <ul className="mt-4 space-y-3 text-[#3A3A3C]">
+              <li className="flex gap-3">
+                <span className="text-[#004F63] font-bold">✓</span>
+                <span><strong>Gratuidade</strong> para quem está em tratamento.</span>
+              </li>
+              <li className="flex gap-3">
+                <span className="text-[#004F63] font-bold">✓</span>
+                <span><strong>Privacidade</strong> por desenho (Privacy by Design).</span>
+              </li>
+              <li className="flex gap-3">
+                <span className="text-[#004F63] font-bold">✓</span>
+                <span><strong>Acessibilidade</strong> cognitiva e motora.</span>
+              </li>
+            </ul>
+          </div>
+        </section>
 
-      <section className="rounded-2xl bg-white p-6 ring-1 ring-black/5">
-        <h2 className="text-xl font-semibold text-[#1C1C1E]">O que o aplicativo faz</h2>
-        <ul className="mt-3 list-inside list-disc space-y-2">
-          <li>Diário de sintomas com escalas simples (dor, náusea, fadiga, humor)</li>
-          <li>Lembretes e registro de medicação, com histórico de doses</li>
-          <li>Acompanhamento de ciclos de tratamento e agenda em calendário</li>
-          <li>Organização de exames e tendências de biomarcadores, com apoio de leitura assistida</li>
-          <li>Relatórios em PDF para levar ou enviar antes da consulta</li>
-          <li>Privacidade e consentimento (LGPD), com gestão de vínculos com hospitais quando você autorizar</li>
-        </ul>
-      </section>
+        <section className="rounded-3xl bg-white p-8 shadow-sm ring-1 ring-black/5">
+          <h2 className="text-2xl font-bold text-[#1C1C1E]">Um Ecossistema Conectado</h2>
+          <p className="mt-4 text-lg leading-relaxed text-[#3A3A3C]">
+            O OncoCare não é um aplicativo isolado. Ele é o elo entre o paciente, sua rede de apoio e as instituições de saúde. 
+            Utilizamos Real World Data (RWD) para gerar insights que salvam vidas e otimizam recursos hospitalares, 
+            sempre com o consentimento explícito e soberano do paciente.
+          </p>
+          <div className="mt-8 flex flex-wrap gap-4">
+            <Link to="/funcionalidades" className="text-[#007AFF] font-bold hover:underline">Ver Funcionalidades →</Link>
+            <Link to="/hospitais" className="text-[#007AFF] font-bold hover:underline">Soluções Corporativas →</Link>
+            <Link to="/cuidadores" className="text-[#007AFF] font-bold hover:underline">Apoio a Familiares →</Link>
+          </div>
+        </section>
 
-      <section className="rounded-2xl bg-white p-6 ring-1 ring-black/5">
-        <h2 className="text-xl font-semibold text-[#1C1C1E]">Visão: saúde conectada com responsabilidade</h2>
-        <p className="mt-3">
-          Queremos que dados do mundo real — sempre com <strong>consentimento</strong> — apoiem decisões clínicas e
-          navegação oncológica. O <strong>dashboard para instituições de saúde</strong> (quando adotado pelo seu
-          hospital) permite triagem e continuidade do cuidado, com regras de acesso e auditoria; o paciente permanece
-          no centro e pode aprovar ou revogar vínculos no aplicativo.
-        </p>
-      </section>
-
-      <section className="rounded-2xl bg-white p-6 ring-1 ring-black/5">
-        <h2 className="text-xl font-semibold text-[#1C1C1E]">Valores</h2>
-        <ul className="mt-3 list-inside list-disc space-y-2">
-          <li>
-            <strong>Gratuidade para pacientes</strong> — o app para quem está em tratamento não deve ser barreira
-            financeira.
-          </li>
-          <li>
-            <strong>Privacidade por desenho</strong> — segurança e transparência no tratamento de dados de saúde.
-          </li>
-          <li>
-            <strong>Acessibilidade</strong> — interfaces pensadas para mãos trêmulas, fadiga visual e pouca energia
-            cognitiva.
-          </li>
-          <li>
-            <strong>Honestidade clínica</strong> — o Onco complementa o cuidado; não substitui seu médico ou
-            emergência.
-          </li>
-        </ul>
-      </section>
-
-      <section className="rounded-2xl bg-white p-6 ring-1 ring-black/5">
-        <h2 className="text-xl font-semibold text-[#1C1C1E]">Quem constrói</h2>
-        <p className="mt-3">
-          Um time multidisciplinar de <strong>produto, engenharia e experiência em saúde digital</strong>, alinhado ao
-          que já está implementado no ecossistema Aura Onco (aplicativo, integrações e políticas de segurança). Os
-          canais oficiais de contato e encarregado de dados constam na{' '}
-          <Link to="/privacidade" className="font-semibold text-[#007AFF] underline-offset-2 hover:underline">
-            Política de privacidade
-          </Link>{' '}
-          e na página{' '}
-          <Link to="/contato" className="font-semibold text-[#007AFF] underline-offset-2 hover:underline">
-            Contato
-          </Link>
-          .
-        </p>
-      </section>
-
-      <p className="text-center">
-        <Link
-          to="/contato"
-          className="inline-flex min-h-[44px] items-center justify-center rounded-xl bg-[#007AFF] px-6 py-3 font-semibold text-white transition hover:bg-[#0066DD] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#007AFF]"
-        >
-          Fale conosco
-        </Link>
-      </p>
+        <div className="text-center pt-8">
+          <p className="text-[#8E8E93]">© {new Date().getFullYear()} OncoCare. Todos os direitos reservados.</p>
+        </div>
+      </div>
     </PageShell>
   )
 }
+

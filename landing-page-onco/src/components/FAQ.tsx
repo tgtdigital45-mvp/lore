@@ -1,56 +1,66 @@
-const faqs = [
-  {
-    q: 'O app é realmente gratuito?',
-    a: 'Sim, 100% gratuito para pacientes. Sem anúncios, sem compras no app, sem pegadinhas.',
-  },
-  {
-    q: 'Meus dados são vendidos?',
-    a: 'Jamais. Seus dados de saúde são protegidos e só você decide quem pode ver. Nosso modelo de negócio é B2B (hospitais), não venda de dados.',
-  },
-  {
-    q: 'Funciona offline?',
-    a: 'Você pode registrar sintomas e medicamentos offline. Quando voltar a ter internet, tudo sincroniza automaticamente.',
-  },
-  {
-    q: 'Preciso ter câncer para usar?',
-    a: 'O Onco foi projetado para pacientes oncológicos, mas qualquer pessoa em tratamento crônico pode se beneficiar do diário de sintomas e gestão medicamentosa.',
-  },
-  {
-    q: 'Como meu médico pode acessar meus dados?',
-    a: 'Você gera um PDF e envia por WhatsApp ou e-mail. Se seu hospital tiver o painel Onco, você pode autorizar o acesso (e revogar a qualquer momento).',
-  },
-  {
-    q: 'E se eu quiser deletar minha conta?',
-    a: 'Vá em Configurações → Excluir conta. Seus dados serão tratados conforme a LGPD e as políticas do aplicativo.',
-  },
-]
-
 export function FAQ() {
+  const faqs = [
+    {
+      q: 'O aplicativo OncoCare é realmente gratuito?',
+      a: 'Sim, 100% gratuito para pacientes e cuidadores. Nosso compromisso é com a democratização do suporte oncológico.',
+    },
+    {
+      q: 'Como meus dados são protegidos?',
+      a: 'Utilizamos criptografia de nível bancário e seguimos rigorosamente a LGPD. Seus dados nunca são vendidos. Ponto.',
+    },
+    {
+      q: 'Funciona sem conexão com a internet?',
+      a: 'Sim. Você pode registrar sintomas e biometria offline. O OncoCare sincroniza tudo automaticamente assim que detectar uma conexão.',
+    },
+    {
+      q: 'Como meu médico acessa o meu dossiê?',
+      a: 'Você gera um Dossiê Clínico em PDF diretamente no app e compartilha via WhatsApp ou E-mail. É seguro, rápido e preciso.',
+    },
+    {
+      q: 'Posso convidar familiares para me ajudar?',
+      a: 'Com certeza. O recurso "Círculo de Cuidado" permite conectar cuidadores para monitoramento compartilhado e redução da ansiedade familiar.',
+    },
+  ]
+
   return (
-    <section className="border-b border-black/5 bg-[#F2F2F7] py-16 sm:py-20" aria-labelledby="faq-heading">
+    <section id="faq" className="bg-bg-pure py-24 sm:py-32" aria-labelledby="faq-heading">
       <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8">
-        <h2 id="faq-heading" className="text-center text-2xl font-bold tracking-tight text-[#1C1C1E] sm:text-3xl">
-          Perguntas frequentes
-        </h2>
-        <div className="mt-10 space-y-3">
+        <div className="text-center mb-16">
+          <h2 id="faq-heading" className="text-base font-semibold leading-7 text-brand-primary uppercase tracking-wide">
+            Dúvidas Comuns
+          </h2>
+          <p className="mt-2 text-3xl font-extrabold tracking-tight text-text-primary sm:text-4xl">
+            Perguntas Frequentes
+          </p>
+        </div>
+
+        <div className="space-y-4">
           {faqs.map((item) => (
             <details
               key={item.q}
-              className="group rounded-2xl bg-white p-4 shadow-sm ring-1 ring-black/5 open:ring-[#007AFF]/20"
+              className="group rounded-3xl bg-bg-soft/50 p-6 transition-all hover:bg-bg-soft open:bg-white open:shadow-lg open:ring-1 open:ring-black/5"
             >
-              <summary className="cursor-pointer list-none font-semibold text-[#1C1C1E] marker:content-none [&::-webkit-details-marker]:hidden">
-                <span className="flex items-center justify-between gap-4">
-                  {item.q}
-                  <span className="text-[#007AFF] transition group-open:rotate-180" aria-hidden>
-                    ▼
-                  </span>
+              <summary className="flex cursor-pointer list-none items-center justify-between font-bold text-text-primary">
+                {item.q}
+                <span className="ml-4 flex-shrink-0 text-brand-primary transition-transform group-open:rotate-180">
+                  <ChevronDownIcon className="h-5 w-5" />
                 </span>
               </summary>
-              <p className="mt-3 text-[#3A3A3C]">{item.a}</p>
+              <div className="mt-4 text-base leading-7 text-text-secondary">
+                {item.a}
+              </div>
             </details>
           ))}
         </div>
       </div>
     </section>
+  )
+}
+
+function ChevronDownIcon({ className }: { className?: string }) {
+  return (
+    <svg fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className={className}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
+    </svg>
   )
 }

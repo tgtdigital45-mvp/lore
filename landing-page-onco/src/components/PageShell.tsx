@@ -4,22 +4,31 @@ type PageShellProps = {
   title: string
   description?: string
   children: ReactNode
-  /** Textos jurídicos longos */
-  wide?: boolean
+  /** 'medium' (3xl), 'large' (5xl), 'full' (7xl) */
+  size?: 'medium' | 'large' | 'full'
   lastUpdated?: string
 }
 
-export function PageShell({ title, description, children, wide, lastUpdated }: PageShellProps) {
+export function PageShell({ title, description, children, size = 'medium', lastUpdated }: PageShellProps) {
+  const maxWidthClass = {
+    medium: 'max-w-3xl',
+    large: 'max-w-5xl',
+    full: 'max-w-7xl',
+  }[size]
+
   return (
     <article
-      className={`mx-auto px-4 pb-12 pt-[calc(4.75rem+3rem)] sm:px-6 sm:pt-[calc(5rem+3rem)] lg:px-8 ${wide ? 'max-w-4xl' : 'max-w-3xl'}`}
+      className={`mx-auto px-4 pb-20 pt-[calc(4.75rem+3rem)] sm:px-6 sm:pt-[calc(5rem+4rem)] lg:px-8 ${maxWidthClass}`}
     >
-      <h1 className="text-3xl font-bold tracking-tight text-[#1C1C1E] sm:text-4xl">{title}</h1>
-      {description ? <p className="mt-4 text-lg text-[#636366]">{description}</p> : null}
-      {lastUpdated ? (
-        <p className="mt-2 text-sm text-[#8E8E93]">Última atualização: {lastUpdated}</p>
-      ) : null}
-      <div className="mt-10 space-y-4 text-[#3A3A3C]">{children}</div>
+      <div className={size === 'full' ? '' : ''}>
+        <h1 className="text-4xl font-extrabold tracking-tight text-[#1C1C1E] sm:text-5xl">{title}</h1>
+        {description ? <p className="mt-4 text-xl text-[#636366] max-w-3xl">{description}</p> : null}
+        {lastUpdated ? (
+          <p className="mt-2 text-sm text-[#8E8E93]">Última atualização: {lastUpdated}</p>
+        ) : null}
+      </div>
+      <div className="mt-16 space-y-16 text-[#3A3A3C]">{children}</div>
     </article>
   )
 }
+

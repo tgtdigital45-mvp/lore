@@ -1,44 +1,72 @@
-const bullets = [
-  'Painel de triagem com priorização automática por risco',
-  'Alertas configuráveis (febre ≥38°C, sintomas graves)',
-  'Auditoria HIPAA-ready de acessos a prontuários',
-  'Comunicação institucional via WhatsApp Cloud API',
-  'Integração via API REST',
-]
-
 export function B2BTeaser() {
   return (
-    <section className="border-b border-black/5 bg-[#1C1C1E] py-16 text-white sm:py-20" aria-labelledby="b2b-heading">
-      <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
-        <div className="grid gap-10 lg:grid-cols-2 lg:items-center">
-          <div>
-            <h2 id="b2b-heading" className="text-2xl font-bold tracking-tight sm:text-3xl">
-              Para instituições de saúde
-            </h2>
-            <p className="mt-3 text-lg text-white/80">Triagem preditiva alimentada por dados do mundo real</p>
-            <p className="mt-6 text-white/90">
-              O Dashboard Onco permite que equipes de navegação oncológica visualizem alertas em tempo real: febre,
-              sintomas graves, pacientes em nadir. Menos ligações de emergência. Intervenções mais precoces.
-            </p>
+    <section id="hospital" className="bg-bg-soft py-24 sm:py-32" aria-labelledby="hospital-heading">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <div className="lg:grid lg:grid-cols-2 lg:items-center lg:gap-16">
+          <div className="relative order-2 lg:order-1">
+            <div className="relative overflow-hidden rounded-3xl bg-white shadow-2xl ring-1 ring-black/5">
+              <img
+                className="w-full object-cover"
+                src="/dashboard-mockup.png"
+                alt="Hospital Triage Dashboard Preview"
+              />
+            </div>
+            {/* Overlay badge */}
+            <div className="absolute -top-4 -right-4 rounded-2xl bg-brand-primary p-4 text-white shadow-xl">
+              <p className="text-xs font-bold uppercase tracking-widest">Tempo Real</p>
+              <p className="text-sm font-medium">Triagem Preditiva IA</p>
+            </div>
           </div>
-          <div className="rounded-2xl bg-white/5 p-6 ring-1 ring-white/10">
-            <ul className="space-y-3">
-              {bullets.map((b) => (
-                <li key={b} className="flex gap-3 text-sm sm:text-base">
-                  <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-[#34C759]" aria-hidden />
-                  <span className="text-white/90">{b}</span>
+
+          <div className="order-1 mt-12 lg:order-2 lg:mt-0">
+            <h2 id="hospital-heading" className="text-base font-semibold leading-7 text-brand-primary uppercase tracking-wide">
+              Para Instituições de Saúde
+            </h2>
+            <p className="mt-2 text-3xl font-extrabold tracking-tight text-text-primary sm:text-4xl">
+              Real World Data: <br className="hidden sm:block" />
+              <span className="text-brand-primary/80">Decisões Clínicas Precisas.</span>
+            </p>
+            <p className="mt-6 text-lg leading-8 text-text-secondary">
+              O Dashboard OncoCare permite que equipes de navegação visualizem alertas estruturados: febre, 
+              nadir imunológico e toxicidade extrema. Reduzimos internações evitáveis e otimizamos o tempo em consultório.
+            </p>
+
+            <ul className="mt-10 space-y-4">
+              {[
+                'Painel de triagem inteligente com priorização por risco.',
+                'Alertas configuráveis de biometria e sintomas graves.',
+                'Relatórios consolidados inter-ciclos para agilidade clínica.',
+                'Conexão instantânea via Código ID do paciente (LGPD).',
+                'Integração nativa via API para prontuários eletrônicos.',
+              ].map((item) => (
+                <li key={item} className="flex items-start gap-4">
+                  <div className="mt-1 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-brand-primary/10">
+                    <CheckIcon className="h-4 w-4 text-brand-primary" />
+                  </div>
+                  <span className="text-base font-medium text-text-primary">{item}</span>
                 </li>
               ))}
             </ul>
-            <a
-              href="mailto:comercial@onco.app?subject=Interesse%20no%20Dashboard%20Onco"
-              className="mt-8 inline-flex min-h-[44px] w-full items-center justify-center rounded-xl bg-[#007AFF] px-6 py-3 text-center font-semibold text-white transition hover:bg-[#0066DD] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
-            >
-              Falar com nossa equipe comercial
-            </a>
+
+            <div className="mt-10">
+              <a
+                href="mailto:comercial@oncocare.com.br"
+                className="inline-flex items-center justify-center rounded-2xl bg-brand-primary px-8 py-4 text-lg font-bold text-white shadow-lg shadow-brand-primary/20 transition-all hover:bg-brand-secondary focus:outline-none"
+              >
+                Solicitar Demonstração B2B
+              </a>
+            </div>
           </div>
         </div>
       </div>
     </section>
+  )
+}
+
+function CheckIcon({ className }: { className?: string }) {
+  return (
+    <svg fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor" className={className}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+    </svg>
   )
 }

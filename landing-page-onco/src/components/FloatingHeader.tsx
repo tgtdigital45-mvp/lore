@@ -14,18 +14,21 @@ export function FloatingHeader() {
           to="/"
           className="relative z-10 shrink-0 text-lg font-bold tracking-tight text-[#007AFF] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#007AFF] sm:text-xl"
         >
-          Onco
+          OncoCare
         </Link>
 
         <nav
           className="absolute left-1/2 top-1/2 hidden -translate-x-1/2 -translate-y-1/2 items-center gap-0.5 md:flex"
           aria-label="Principal"
         >
-          <Link to="/#features-heading" className={navLinkClass}>
+          <Link to="/funcionalidades" className={navLinkClass}>
             Funcionalidades
           </Link>
-          <Link to="/#b2b-heading" className={navLinkClass}>
+          <Link to="/hospitais" className={navLinkClass}>
             Hospitais
+          </Link>
+          <Link to="/cuidadores" className={navLinkClass}>
+            Cuidadores
           </Link>
           <Link to="/sobre" className={navLinkClass}>
             Sobre

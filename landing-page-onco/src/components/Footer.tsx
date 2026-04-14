@@ -1,10 +1,10 @@
 import { Link } from 'react-router-dom'
 
 const product = [
-  { label: 'Funcionalidades', to: '/#features-heading' },
-  { label: 'Para hospitais', to: '/#b2b-heading' },
-  { label: 'Segurança', to: '/#security-heading' },
-  { label: 'FAQ', to: '/#faq-heading' },
+  { label: 'Funcionalidades', to: '/funcionalidades' },
+  { label: 'Para hospitais', to: '/hospitais' },
+  { label: 'Cuidadores', to: '/cuidadores' },
+  { label: 'Segurança', to: '/hospitais' }, // Link nested in hospitals page
 ] as const
 
 const company = [
@@ -97,7 +97,7 @@ export function Footer() {
         </div>
 
         <div className="mt-12 border-t border-white/10 pt-8 text-center text-sm text-white/60">
-          <p>© {year} Onco. Todos os direitos reservados.</p>
+          <p>© {year} OncoCare. Todos os direitos reservados.</p>
           <p className="mt-2">Feito com carinho para quem enfrenta o tratamento um dia de cada vez.</p>
         </div>
       </div>

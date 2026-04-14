@@ -1,12 +1,28 @@
 @import 'tailwindcss';
 
 @theme {
-  --font-sans: system-ui, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-  --color-onco-bg: #f2f2f7;
-  --color-onco-primary: #007aff;
-  --color-onco-mint: #34c759;
-  --color-onco-alert: #ff9500;
-  --color-onco-danger: #ff3b30;
+  --font-sans: 'Inter', system-ui, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  
+  /* Brand: Azul Petróleo */
+  --color-brand-primary: #004F63;
+  --color-brand-secondary: #006D80;
+  
+  /* Backgrounds: Clean White Aesthetic */
+  --color-bg-pure: #FFFFFF;
+  --color-bg-soft: #F2F2F7;
+  --color-bg-card: #FFFFFF;
+  
+  /* Semantic Clinical Colors (inspired by Apple Health) */
+  --color-clinical-vitals: #FF2D55;     /* Pink/Red - Critical */
+  --color-clinical-treatment: #5E5CE6;  /* Indigo - Medicine/Cycles */
+  --color-clinical-symptoms: #FF9500;   /* Orange - Attention */
+  --color-clinical-respiratory: #32ADE6;/* Cyan - Breath/Hydration */
+  --color-clinical-nutrition: #34C759;  /* Green - Success/Food */
+  
+  /* Text */
+  --color-text-primary: #1C1C1E;
+  --color-text-secondary: #8E8E93;
+  --color-text-tertiary: #C7C7CC;
 }
 
 html {
@@ -18,8 +34,8 @@ body {
   font-family: var(--font-sans);
   font-size: 16px;
   line-height: 1.5;
-  color: #1c1c1e;
-  background: var(--color-onco-bg);
+  color: var(--color-text-primary);
+  background: var(--color-bg-pure);
   -webkit-font-smoothing: antialiased;
 }
 
