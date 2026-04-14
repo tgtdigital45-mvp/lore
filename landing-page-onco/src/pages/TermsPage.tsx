@@ -13,8 +13,11 @@ export function TermsPage() {
     >
       <p className="rounded-xl bg-[#F2F2F7] p-4 text-sm text-[#636366]">
         Este documento tem caráter informativo e deve ser <strong>revisado por advogado</strong> antes de uso em
-        produção. Substitua referências genéricas (razão social, CNPJ, endereço, e-mails) pelos dados oficiais da
-        empresa controladora.
+        produção. A identificação da controladora consta na{' '}
+        <Link to="/privacidade" className="font-semibold text-[#007AFF] underline-offset-2 hover:underline">
+          Política de privacidade
+        </Link>
+        .
       </p>
 
       <section>

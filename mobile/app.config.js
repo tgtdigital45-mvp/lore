@@ -5,14 +5,17 @@ const path = require("path");
  * (backend já define SUPABASE_URL / SUPABASE_ANON_KEY para o mesmo projeto.)
  */
 function loadEnv() {
+  // quiet: evita logs "◇ injected env" no stdout (dotenv ≥17); isso quebra o parse do
+  // `expo-doctor` / `expo install --check`, que esperam só JSON na saída.
+  const opts = { quiet: true };
   try {
-    require("dotenv").config({ path: path.join(__dirname, ".env") });
+    require("dotenv").config({ ...opts, path: path.join(__dirname, ".env") });
   } catch (_) {}
   try {
-    require("dotenv").config({ path: path.join(__dirname, "..", ".env") });
+    require("dotenv").config({ ...opts, path: path.join(__dirname, "..", ".env") });
   } catch (_) {}
   try {
-    require("dotenv").config({ path: path.join(__dirname, "..", "backend", ".env") });
+    require("dotenv").config({ ...opts, path: path.join(__dirname, "..", "backend", ".env") });
   } catch (_) {}
 }
 

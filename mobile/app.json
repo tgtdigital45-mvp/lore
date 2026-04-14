@@ -24,7 +24,10 @@
     },
     "android": {
       "package": "com.auraonco.app",
-      "versionCode": 4,
+      "blockedPermissions": [
+        "com.google.android.gms.permission.AD_ID"
+      ],
+      "versionCode": 7,
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#0f766e"

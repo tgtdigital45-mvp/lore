@@ -2,6 +2,7 @@ import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { PageShell } from '../components/PageShell'
+import { DPO_EMAIL } from '../lib/companyLegal'
 
 const REQUEST_TYPES = [
   'Confirmação da existência de tratamento',
@@ -17,7 +18,6 @@ const REQUEST_TYPES = [
 ] as const
 
 const VIGENCY = '11 de abril de 2026'
-const DPO_EMAIL = 'privacidade@onco.app'
 
 export function LgpdPage() {
   const [requestType, setRequestType] = useState<(typeof REQUEST_TYPES)[number]>(REQUEST_TYPES[0])

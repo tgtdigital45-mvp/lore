@@ -114,5 +114,6 @@ Na primeira vez, o EAS ajuda a criar a keystore Android; guarde as credenciais e
 
 ## Notas
 
+- **`expo-doctor`:** o [`app.config.js`](app.config.js) usa `dotenv` com `quiet: true` para não imprimir linhas `◇ injected env` no stdout. O dotenv v17 fazia isso por defeito e estragava o check de versões do SDK (falso negativo com `upToDate: true`). Comando: `npm run doctor`.
 - Não commite ficheiros `.env` com chaves reais.
 - O backend usa **JWT** do Supabase; o app envia o token nas chamadas à API Express quando aplicável.

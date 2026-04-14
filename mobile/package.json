@@ -4,6 +4,7 @@
   "version": "1.0.0",
   "scripts": {
     "typecheck": "tsc --noEmit",
+    "doctor": "expo-doctor",
     "e2e:maestro": "echo \"Instale Maestro (https://maestro.mobile.dev/) e execute: maestro test maestro/smoke.yaml (ajuste appId no YAML ao bundle da build).\"",
     "start": "node ./scripts/adb-reverse.mjs --soft && expo start",
     "start:plain": "expo start",
@@ -68,6 +69,7 @@
   "devDependencies": {
     "@types/react": "~19.1.0",
     "dotenv": "^17.4.1",
+    "expo-doctor": "^1.18.18",
     "react-test-renderer": "19.1.0",
     "typescript": "~5.9.2"
   },

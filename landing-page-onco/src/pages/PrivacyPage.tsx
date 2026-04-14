@@ -1,5 +1,14 @@
 import { Link } from 'react-router-dom'
 import { PageShell } from '../components/PageShell'
+import {
+  COMPANY_CNPJ,
+  COMPANY_EMAIL_RFB,
+  COMPANY_FULL_ADDRESS,
+  COMPANY_LEGAL_NAME,
+  COMPANY_PHONE,
+  COMPANY_TRADE_NAME,
+  DPO_EMAIL,
+} from '../lib/companyLegal'
 
 const VIGENCY = '11 de abril de 2026'
 
@@ -12,21 +21,29 @@ export function PrivacyPage() {
       lastUpdated={VIGENCY}
     >
       <p className="rounded-xl bg-[#F2F2F7] p-4 text-sm text-[#636366]">
-        Preencha os campos [ENTRE COLCHETES] com razão social, CNPJ, endereço e contatos oficiais. Revise com{' '}
-        <strong>advogado e DPO</strong> antes da publicação.
+        Dados cadastrais da controladora conforme CNPJ. Alterações relevantes à política devem ser alinhadas com{' '}
+        <strong>advogado e DPO</strong>.
       </p>
 
       <section>
         <h2 className="text-xl font-semibold text-[#1C1C1E]">1. Controlador e encarregado (DPO)</h2>
         <p className="mt-3">
-          <strong>Controlador:</strong> [Razão social], CNPJ [•••], com sede em [endereço completo].
+          <strong>Controlador:</strong> {COMPANY_LEGAL_NAME} (nome fantasia: {COMPANY_TRADE_NAME}), inscrita no CNPJ
+          nº {COMPANY_CNPJ}, com sede em {COMPANY_FULL_ADDRESS}.
         </p>
         <p className="mt-3">
-          <strong>Encarregado de dados (DPO):</strong> [Nome ou departamento] — contato:{' '}
-          <a href="mailto:privacidade@onco.app" className="font-semibold text-[#007AFF] underline-offset-2 hover:underline">
-            privacidade@onco.app
-          </a>{' '}
-          (substituir pelo e-mail oficial).
+          <strong>Encarregado de dados (DPO):</strong> solicitações sobre dados pessoais pelo e-mail{' '}
+          <a href={`mailto:${DPO_EMAIL}`} className="font-semibold text-[#007AFF] underline-offset-2 hover:underline">
+            {DPO_EMAIL}
+          </a>
+          . Telefone institucional: {COMPANY_PHONE}. E-mail constante no cadastro CNPJ (RFB):{' '}
+          <a
+            href={`mailto:${COMPANY_EMAIL_RFB}`}
+            className="font-semibold text-[#007AFF] underline-offset-2 hover:underline"
+          >
+            {COMPANY_EMAIL_RFB}
+          </a>
+          .
         </p>
       </section>
 
@@ -149,6 +166,14 @@ export function PrivacyPage() {
           Mantemos os dados pelo tempo necessário às finalidades descritas, ao cumprimento legal e à resolução de
           disputas. Após exclusão de conta ou término da base legal aplicável, procedemos à eliminação ou anonimização,
           salvo retenção mínima exigida por lei (ex.: obrigações contábeis ou ordens regulatórias).
+        </p>
+        <p className="mt-3">
+          Para solicitar a exclusão da conta e dos dados associados ao aplicativo Onco (pacientes), siga os passos
+          descritos na página{' '}
+          <Link to="/exclusao-conta" className="font-semibold text-[#007AFF] underline-offset-2 hover:underline">
+            Exclusão de conta e dados
+          </Link>
+          .
         </p>
       </section>
 

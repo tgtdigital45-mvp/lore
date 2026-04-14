@@ -10,6 +10,7 @@ import { ContactPage } from './pages/ContactPage'
 import { TermsPage } from './pages/TermsPage'
 import { PrivacyPage } from './pages/PrivacyPage'
 import { LgpdPage } from './pages/LgpdPage'
+import { AccountDeletionPage } from './pages/AccountDeletionPage'
 
 function App() {
   return (
@@ -24,6 +25,7 @@ function App() {
         <Route path="/contato" element={<ContactPage />} />
         <Route path="/termos" element={<TermsPage />} />
         <Route path="/privacidade" element={<PrivacyPage />} />
+        <Route path="/exclusao-conta" element={<AccountDeletionPage />} />
         <Route path="/lgpd" element={<LgpdPage />} />
       </Route>
     </Routes>
