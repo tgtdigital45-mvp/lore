@@ -31,6 +31,8 @@ export type MedicationRow = {
   unit?: string | null;
   display_name?: string | null;
   pinned?: boolean;
+  archived?: boolean;
+  sort_order?: number;
   repeat_mode?: "daily" | "weekdays" | "interval_hours" | "as_needed";
   schedule_weekdays?: number[] | null;
   medication_schedules?: MedicationScheduleSlot[];
@@ -48,9 +50,11 @@ export function useMedications() {
       const { data: meds, error } = await supabase
         .from("medications")
         .select(
-          "id, patient_id, medication_reference_id, name, dosage, form, frequency_hours, anchor_at, end_date, active, notes, shape, color_left, color_right, color_bg, unit, display_name, pinned, repeat_mode, schedule_weekdays"
+          "id, patient_id, medication_reference_id, name, dosage, form, frequency_hours, anchor_at, end_date, active, notes, shape, color_left, color_right, color_bg, unit, display_name, pinned, archived, sort_order, repeat_mode, schedule_weekdays"
         )
         .eq("patient_id", patient.id)
+        .eq("archived", false)
+        .order("sort_order", { ascending: true })
         .order("created_at", { ascending: false });
       if (error) throw error;
       const rows = (meds ?? []) as MedicationRow[];

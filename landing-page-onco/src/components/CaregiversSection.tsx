@@ -45,7 +45,7 @@ export function CaregiversSection() {
               <span className="text-brand-primary/80">ansiedade reduzida.</span>
             </p>
             <p className="mt-6 text-lg leading-8 text-text-secondary">
-              O câncer não se enfrenta sozinho. OncoCare conecta o paciente à sua rede de apoio, 
+              O câncer não se enfrenta sozinho. Aura Onco conecta o paciente à sua rede de apoio, 
               garantindo que todos estejam na mesma página, sem precisar de ligações constantes.
             </p>
 

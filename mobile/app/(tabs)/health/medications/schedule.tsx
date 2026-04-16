@@ -5,6 +5,7 @@ import {
   Platform,
   Pressable,
   ScrollView,
+  Switch,
   Text,
   View,
 } from "react-native";
@@ -227,6 +228,33 @@ export default function MedicationScheduleScreen() {
           Defina horários
         </Text>
 
+        <View
+          style={{
+            marginTop: theme.spacing.md,
+            flexDirection: "row",
+            alignItems: "center",
+            justifyContent: "space-between",
+            backgroundColor: theme.colors.background.secondary,
+            borderRadius: IOS_HEALTH.groupedListRadius,
+            padding: theme.spacing.md,
+            ...IOS_HEALTH.shadow.card,
+          }}
+        >
+          <View style={{ flex: 1, paddingRight: theme.spacing.md }}>
+            <Text style={[theme.typography.headline, { color: theme.colors.text.primary }]}>SOS (só quando precisar)</Text>
+            <Text style={{ fontSize: 13, color: theme.colors.text.secondary, marginTop: 4 }}>
+              Sem horários fixos nem lembretes por hora. O medicamento fica em «Seus medicamentos» como uso esporádico.
+            </Text>
+          </View>
+          <Switch
+            value={isAsNeeded}
+            onValueChange={(on) => {
+              if (on) setFrequency("as_needed");
+              else setFrequency("daily");
+            }}
+          />
+        </View>
+
         <Text style={[theme.typography.headline, { color: theme.colors.text.primary, marginTop: theme.spacing.md }]}>
           Quando você tomará?
         </Text>
@@ -272,10 +300,10 @@ export default function MedicationScheduleScreen() {
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={[theme.typography.headline, { color: theme.colors.text.primary }]}>
-                  Uso esporádico
+                  Modo SOS ativo
                 </Text>
                 <Text style={[theme.typography.body, { color: theme.colors.text.secondary, marginTop: 4 }]}>
-                  Este medicamento aparecerá na seção "Quando precisar" sem horários fixos.
+                  Após guardar, encontra o medicamento em «Seus medicamentos» e regista tomas quando usar.
                 </Text>
               </View>
             </View>

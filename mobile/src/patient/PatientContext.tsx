@@ -182,6 +182,8 @@ export function useInvalidatePatient() {
   const { session } = useAuth();
   const qc = useQueryClient();
   return useCallback(() => {
-    void qc.invalidateQueries({ queryKey: ["patient", session?.user?.id] });
+    const uid = session?.user?.id;
+    void qc.invalidateQueries({ queryKey: ["patient", uid] });
+    void qc.invalidateQueries({ queryKey: ["homeSummary"] });
   }, [qc, session?.user?.id]);
 }

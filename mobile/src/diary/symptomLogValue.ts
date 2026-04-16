@@ -1,7 +1,13 @@
 import type { SymptomDetailKey, SymptomLogRow } from "@/src/diary/symptomLogTypes";
-import { scale10FromDbSeverity } from "@/src/diary/verbalSeverity";
+import {
+  ctcaeGradeFromDbSeverity,
+  ctcaeGradeFromPrdLevel,
+  effectiveVerbalSeverityForLegacyLog,
+  labelForCtcaeGrade,
+} from "@/src/diary/verbalSeverity";
+import { labelSeverity } from "@/src/i18n/ui";
 
-/** Valor numérico para o gráfico deste sintoma (ou null se o registro não aplica). */
+/** Valor numérico para o gráfico deste sintoma: febre = °C; resto = grau CTCAE 0–5 (ou null). */
 export function valueForSymptomDetail(log: SymptomLogRow, key: SymptomDetailKey): number | null {
   if (key === "fever") {
     if (log.entry_kind === "legacy" && log.symptom_category === "fever" && log.body_temperature != null) {
@@ -10,24 +16,39 @@ export function valueForSymptomDetail(log: SymptomLogRow, key: SymptomDetailKey)
     return null;
   }
   if (log.entry_kind === "prd") {
-    if (key === "pain") return log.pain_level;
-    if (key === "fatigue") return log.fatigue_level;
-    if (key === "nausea") return log.nausea_level;
+    if (key === "pain") return ctcaeGradeFromPrdLevel(log.pain_level);
+    if (key === "fatigue") return ctcaeGradeFromPrdLevel(log.fatigue_level);
+    if (key === "nausea") return ctcaeGradeFromPrdLevel(log.nausea_level);
     return null;
   }
   if (log.entry_kind === "legacy" && log.symptom_category === key) {
-    return scale10FromDbSeverity(log.severity);
+    const sev = effectiveVerbalSeverityForLegacyLog(log);
+    return ctcaeGradeFromDbSeverity(sev);
   }
   return null;
+}
+
+/** Linha principal do histórico (rótulo verbal; febre em °C). */
+export function historyPrimaryLabelForRow(log: SymptomLogRow, key: SymptomDetailKey, val: number | null): string {
+  if (key === "fever" && val != null) return `${val.toFixed(1)}°C`;
+  if (log.entry_kind === "legacy") {
+    const sev = effectiveVerbalSeverityForLegacyLog(log);
+    if (sev) return labelSeverity(sev);
+  }
+  if (log.entry_kind === "prd" && val != null) return `${labelForCtcaeGrade(val)} · registro combinado (legado)`;
+  if (val != null) return labelForCtcaeGrade(val);
+  return "—";
 }
 
 export type TimeframeKey = "D" | "S" | "M" | "6M" | "A";
 
 export function timeframeStartMs(tf: TimeframeKey, nowMs: number): number {
-  const d = new Date(nowMs);
   switch (tf) {
-    case "D":
-      return nowMs - 24 * 60 * 60 * 1000;
+    case "D": {
+      // Hoje (início do dia local), alinhado ao que o utilizador espera de "D"
+      const n = new Date(nowMs);
+      return new Date(n.getFullYear(), n.getMonth(), n.getDate()).getTime();
+    }
     case "S":
       return nowMs - 7 * 24 * 60 * 60 * 1000;
     case "M":
@@ -35,7 +56,8 @@ export function timeframeStartMs(tf: TimeframeKey, nowMs: number): number {
     case "6M":
       return nowMs - 180 * 24 * 60 * 60 * 1000;
     case "A":
-      return 0;
+      // Um ano (não "desde sempre"); evita janela idêntica a 6M quando há poucos dados
+      return nowMs - 365 * 24 * 60 * 60 * 1000;
     default:
       return 0;
   }

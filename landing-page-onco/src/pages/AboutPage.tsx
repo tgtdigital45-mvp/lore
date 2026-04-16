@@ -14,7 +14,7 @@ export function AboutPage() {
             <div>
               <h2 className="text-2xl font-bold text-[#1C1C1E]">Por que existimos</h2>
               <p className="mt-4 text-lg leading-relaxed text-[#3A3A3C]">
-                O OncoCare nasceu de uma constatação dolorosa: viver um tratamento de câncer não é apenas "ir à quimioterapia". 
+                O Aura Onco nasceu de uma constatação dolorosa: viver um tratamento de câncer não é apenas "ir à quimioterapia". 
                 É lidar com uma cascata de remédios, sintomas voláteis e uma sobrecarga cognitiva brutal.
               </p>
               <p className="mt-4 text-lg leading-relaxed text-[#3A3A3C]">
@@ -62,7 +62,7 @@ export function AboutPage() {
         <section className="rounded-3xl bg-white p-8 shadow-sm ring-1 ring-black/5">
           <h2 className="text-2xl font-bold text-[#1C1C1E]">Um Ecossistema Conectado</h2>
           <p className="mt-4 text-lg leading-relaxed text-[#3A3A3C]">
-            O OncoCare não é um aplicativo isolado. Ele é o elo entre o paciente, sua rede de apoio e as instituições de saúde. 
+            O Aura Onco não é um aplicativo isolado. Ele é o elo entre o paciente, sua rede de apoio e as instituições de saúde. 
             Utilizamos Real World Data (RWD) para gerar insights que salvam vidas e otimizam recursos hospitalares, 
             sempre com o consentimento explícito e soberano do paciente.
           </p>
@@ -74,7 +74,7 @@ export function AboutPage() {
         </section>
 
         <div className="text-center pt-8">
-          <p className="text-[#8E8E93]">© {new Date().getFullYear()} OncoCare. Todos os direitos reservados.</p>
+          <p className="text-[#8E8E93]">© {new Date().getFullYear()} Aura Onco. Todos os direitos reservados.</p>
         </div>
       </div>
     </PageShell>

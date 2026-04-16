@@ -2,7 +2,8 @@ import type { Session } from "@supabase/supabase-js";
 import { router } from "expo-router";
 import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { formatAuthError } from "@/src/auth/authErrors";
-import { signInWithAppleNative, signInWithOAuthGoogle } from "@/src/auth/oauth";
+import { deleteAuthenticatedAccount } from "@/src/auth/deleteAccount";
+import { signInWithOAuthGoogle } from "@/src/auth/oauth";
 import { queryClient } from "@/src/lib/queryClient";
 import { supabase } from "@/src/lib/supabase";
 
@@ -12,8 +13,9 @@ type AuthContextValue = {
   signIn: (email: string, password: string) => Promise<{ error?: string }>;
   signUp: (email: string, password: string, fullName: string) => Promise<{ error?: string }>;
   signInWithGoogle: () => Promise<{ error?: string }>;
-  signInWithApple: () => Promise<{ error?: string }>;
   signOut: () => Promise<void>;
+  /** Apaga o utilizador no Auth e limpa sessão local; dados em Postgres em cascata. */
+  deleteAccount: () => Promise<{ error?: string }>;
 };
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -52,11 +54,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return { error: error ? formatAuthError(error) : undefined };
       },
       signInWithGoogle: () => signInWithOAuthGoogle(),
-      signInWithApple: () => signInWithAppleNative(),
       signOut: async () => {
         await supabase.auth.signOut();
         queryClient.clear();
         router.replace("/login");
+      },
+      deleteAccount: async () => {
+        const { error } = await deleteAuthenticatedAccount();
+        if (error) return { error };
+        queryClient.clear();
+        router.replace("/login");
+        return {};
       },
     }),
     [session, loading]

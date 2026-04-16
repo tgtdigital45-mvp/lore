@@ -11,7 +11,7 @@ export function SecuritySection() {
             <span className="text-brand-primary/80">proteção bancária.</span>
           </p>
           <p className="mt-6 text-lg leading-8 text-text-secondary">
-            Construído sob os pilares da LGPD, o OncoCare garante que suas informações clínicas 
+            Construído sob os pilares da LGPD, o Aura Onco garante que suas informações clínicas 
             estejam blindadas, acessíveis apenas a você e a quem você autorizar expressamente.
           </p>
         </div>

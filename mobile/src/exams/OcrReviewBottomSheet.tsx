@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useState } from "react";
-import { ActivityIndicator, Alert, Pressable, ScrollView, Text, TextInput, View, useWindowDimensions } from "react-native";
+import { ActivityIndicator, Pressable, ScrollView, Text, TextInput, View, useWindowDimensions } from "react-native";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { BottomSheetModal } from "@/src/components/BottomSheetModal";
 import { useAppTheme } from "@/src/hooks/useAppTheme";
+import { showAppToast } from "@/src/lib/appToast";
 import { supabase } from "@/src/lib/supabase";
 import type { OcrExtractedPayload } from "@/src/exams/ocrReviewTypes";
 import { dateInputToExamPerformedAt, formatProfessionalRegistriesDisplay, parseProfessionalRegistriesFromJson } from "@/src/exams/examHelpers";
@@ -64,7 +65,7 @@ export function OcrReviewBottomSheet({
         .eq("id", documentId)
         .eq("patient_id", patientId);
       if (error) {
-        Alert.alert("Exames", error.message);
+        showAppToast("error", "Exames", error.message);
         return;
       }
       onSaved();

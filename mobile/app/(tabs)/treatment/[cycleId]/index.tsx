@@ -14,7 +14,12 @@ import { useFocusEffect } from "@react-navigation/native";
 import { ResponsiveScreen } from "@/src/components/ResponsiveScreen";
 import { CircleChromeButton } from "@/src/health/components/MedicationChromeButtons";
 import { IOS_HEALTH } from "@/src/health/iosHealthTokens";
-import { labelInfusionStatus, labelTreatmentKind } from "@/src/i18n/treatment";
+import {
+  isPlaceholderProtocolName,
+  labelCycleStatus,
+  labelInfusionStatus,
+  labelTreatmentKind,
+} from "@/src/i18n/treatment";
 import { useAppTheme } from "@/src/hooks/useAppTheme";
 import { useStackBack } from "@/src/hooks/useStackBack";
 import { usePatient } from "@/src/hooks/usePatient";
@@ -34,6 +39,12 @@ function formatSessionAt(iso: string): string {
 
 function formatPredictedDay(iso: string): string {
   const d = new Date(iso);
+  return d.toLocaleDateString("pt-BR", { day: "2-digit", month: "short", year: "numeric" });
+}
+
+function formatCycleDatePt(value: string): string {
+  const d = value.includes("T") ? new Date(value) : new Date(`${value.trim()}T12:00:00`);
+  if (Number.isNaN(d.getTime())) return value;
   return d.toLocaleDateString("pt-BR", { day: "2-digit", month: "short", year: "numeric" });
 }
 
@@ -90,6 +101,13 @@ export default function TreatmentCycleDetailScreen() {
     return [...infusions].sort((a, b) => new Date(a.session_at).getTime() - new Date(b.session_at).getTime());
   }, [infusions]);
 
+  const headerTitle = cycle ? labelTreatmentKind(cycle.treatment_kind ?? "chemotherapy") : "Ciclo";
+  const headerSubtitle =
+    cycle && !isPlaceholderProtocolName(cycle.protocol_name) ? cycle.protocol_name.trim() : null;
+
+  const planned = cycle?.planned_sessions ?? 0;
+  const completed = Math.min(cycle?.completed_sessions ?? 0, planned > 0 ? planned : Infinity);
+
   function confirmDeleteCycle() {
     if (!cycle) return;
     Alert.alert("Eliminar ciclo", "Isto remove o ciclo e todo o histórico de infusões associado.", [
@@ -131,14 +149,24 @@ export default function TreatmentCycleDetailScreen() {
         <CircleChromeButton accessibilityLabel="Voltar" onPress={goBack}>
           <FontAwesome name="chevron-left" size={18} color={theme.colors.text.primary} />
         </CircleChromeButton>
-        <Text
-          style={[theme.typography.headline, { flex: 1, textAlign: "center", color: theme.colors.text.primary }]}
-          numberOfLines={1}
-        >
-          {cycle?.protocol_name ?? "Ciclo"}
-        </Text>
+        <View style={{ flex: 1, minWidth: 0, alignItems: "center", paddingHorizontal: theme.spacing.xs }}>
+          <Text
+            style={[theme.typography.title2, { textAlign: "center", color: theme.colors.text.primary }]}
+            numberOfLines={2}
+          >
+            {loading ? "…" : headerTitle}
+          </Text>
+          {headerSubtitle ? (
+            <Text
+              style={[theme.typography.body, { textAlign: "center", color: theme.colors.text.secondary, marginTop: 2 }]}
+              numberOfLines={1}
+            >
+              {headerSubtitle}
+            </Text>
+          ) : null}
+        </View>
         <Link href={`/treatment/${cycleId}/edit` as Href} asChild>
-          <Pressable accessibilityRole="button" style={{ padding: 8 }}>
+          <Pressable accessibilityRole="button" style={{ padding: 8, width: 34, alignItems: "center" }}>
             <FontAwesome name="pencil" size={18} color={IOS_HEALTH.blue} />
           </Pressable>
         </Link>
@@ -155,173 +183,317 @@ export default function TreatmentCycleDetailScreen() {
         >
           <View
             style={{
+              ...IOS_HEALTH.shadow.card,
               backgroundColor: theme.colors.background.primary,
-              borderRadius: theme.radius.md,
-              padding: theme.spacing.md,
-              marginBottom: theme.spacing.md,
+              borderRadius: IOS_HEALTH.groupedListRadius,
+              padding: theme.spacing.lg,
+              marginBottom: theme.spacing.lg,
+              borderWidth: 1,
+              borderColor: theme.colors.border.divider,
             }}
           >
-            <Text style={[theme.typography.body, { color: theme.colors.text.secondary }]}>
-              {labelTreatmentKind(cycle.treatment_kind ?? "chemotherapy")} · Início {cycle.start_date}
-            </Text>
-            {cycle.end_date ? (
-              <Text style={[theme.typography.body, { color: theme.colors.text.secondary, marginTop: 4 }]}>
-                Fim previsto/real: {cycle.end_date}
-              </Text>
+            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: theme.spacing.sm, marginBottom: theme.spacing.md }}>
+              <View
+                style={{
+                  paddingHorizontal: theme.spacing.sm,
+                  paddingVertical: 6,
+                  borderRadius: IOS_HEALTH.pillButtonRadius,
+                  backgroundColor: `${IOS_HEALTH.blue}18`,
+                }}
+              >
+                <Text style={{ fontSize: 13, fontWeight: "700", color: IOS_HEALTH.blue }}>
+                  {labelTreatmentKind(cycle.treatment_kind ?? "chemotherapy")}
+                </Text>
+              </View>
+              <View
+                style={{
+                  paddingHorizontal: theme.spacing.sm,
+                  paddingVertical: 6,
+                  borderRadius: IOS_HEALTH.pillButtonRadius,
+                  backgroundColor: theme.colors.background.secondary,
+                }}
+              >
+                <Text style={{ fontSize: 13, fontWeight: "600", color: theme.colors.text.secondary }}>
+                  {labelCycleStatus(cycle.status)}
+                </Text>
+              </View>
+            </View>
+
+            <View style={{ flexDirection: "row", gap: theme.spacing.md, marginBottom: theme.spacing.md }}>
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: 12, fontWeight: "600", color: theme.colors.text.tertiary, marginBottom: 4 }}>
+                  Início
+                </Text>
+                <Text style={[theme.typography.headline, { color: theme.colors.text.primary }]}>
+                  {formatCycleDatePt(cycle.start_date)}
+                </Text>
+              </View>
+              {cycle.end_date ? (
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: 12, fontWeight: "600", color: theme.colors.text.tertiary, marginBottom: 4 }}>
+                    Fim
+                  </Text>
+                  <Text style={[theme.typography.headline, { color: theme.colors.text.primary }]}>
+                    {formatCycleDatePt(cycle.end_date)}
+                  </Text>
+                </View>
+              ) : null}
+            </View>
+
+            {planned > 0 ? (
+              <View style={{ marginBottom: theme.spacing.md }}>
+                <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "baseline" }}>
+                  <Text style={{ fontSize: 12, fontWeight: "600", color: theme.colors.text.tertiary }}>Sessões</Text>
+                  <Text style={[theme.typography.body, { color: theme.colors.text.primary, fontWeight: "700" }]}>
+                    {completed} de {planned}
+                  </Text>
+                </View>
+                <View
+                  style={{
+                    marginTop: 8,
+                    flexDirection: "row",
+                    height: 8,
+                    borderRadius: 4,
+                    overflow: "hidden",
+                    backgroundColor: theme.colors.border.divider,
+                  }}
+                >
+                  <View
+                    style={{
+                      flex: Math.max(0, completed),
+                      backgroundColor: IOS_HEALTH.blue,
+                      minWidth: completed > 0 ? 4 : 0,
+                    }}
+                  />
+                  <View style={{ flex: Math.max(0, planned - completed) }} />
+                </View>
+              </View>
             ) : null}
-            <Text style={[theme.typography.body, { color: theme.colors.text.secondary, marginTop: 4 }]}>
-              Estado: {cycle.status}
-              {cycle.planned_sessions != null ? ` · ${cycle.completed_sessions ?? 0}/${cycle.planned_sessions} sessões` : ""}
-            </Text>
-            {cycle.notes ? (
-              <Text style={[theme.typography.body, { color: theme.colors.text.primary, marginTop: theme.spacing.sm }]}>
-                {cycle.notes}
-              </Text>
-            ) : null}
+
             {cycle.infusion_interval_days != null && cycle.infusion_interval_days >= 1 ? (
-              <Text style={[theme.typography.body, { color: theme.colors.text.secondary, marginTop: theme.spacing.sm }]}>
-                Intervalo no protocolo: {cycle.infusion_interval_days} dia(s) entre infusões
+              <Text style={[theme.typography.body, { color: theme.colors.text.secondary, marginBottom: theme.spacing.sm }]}>
+                Intervalo no protocolo: {cycle.infusion_interval_days} dia(s) entre sessões
               </Text>
             ) : null}
+
             {nextSuggestedAt ? (
-              <Text style={[theme.typography.body, { color: theme.colors.text.primary, marginTop: 6, fontWeight: "600" }]}>
-                Próxima infusão sugerida: {formatPtDateShort(nextSuggestedAt)}
-              </Text>
+              <View
+                style={{
+                  padding: theme.spacing.md,
+                  borderRadius: theme.radius.md,
+                  backgroundColor: theme.colors.background.secondary,
+                  marginBottom: theme.spacing.sm,
+                }}
+              >
+                <Text style={{ fontSize: 12, fontWeight: "600", color: theme.colors.text.tertiary, marginBottom: 4 }}>
+                  Próxima sessão sugerida
+                </Text>
+                <Text style={[theme.typography.headline, { color: theme.colors.text.primary }]}>
+                  {formatPtDateShort(nextSuggestedAt)}
+                </Text>
+              </View>
             ) : cycle.infusion_interval_days != null && cycle.infusion_interval_days >= 1 ? (
-              <Text style={[theme.typography.body, { color: theme.colors.text.tertiary, marginTop: 6 }]}>
-                Faça o check-in da próxima sessão agendada para atualizar a sugestão.
+              <Text style={[theme.typography.body, { color: theme.colors.text.tertiary, marginBottom: theme.spacing.sm }]}>
+                Confirme a próxima sessão agendada no check-in para atualizar a sugestão de data.
               </Text>
+            ) : null}
+
+            {cycle.notes ? (
+              <View
+                style={{
+                  padding: theme.spacing.md,
+                  borderRadius: theme.radius.md,
+                  borderWidth: 1,
+                  borderColor: theme.colors.border.divider,
+                  marginTop: theme.spacing.xs,
+                }}
+              >
+                <Text style={{ fontSize: 12, fontWeight: "600", color: theme.colors.text.tertiary, marginBottom: 6 }}>
+                  Notas
+                </Text>
+                <Text style={[theme.typography.body, { color: theme.colors.text.primary }]}>{cycle.notes}</Text>
+              </View>
             ) : null}
           </View>
 
-          <View style={{ marginBottom: theme.spacing.sm }}>
+          <View style={{ marginBottom: theme.spacing.md }}>
             <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
-              <Text style={[theme.typography.title2, { color: theme.colors.text.primary }]}>Check-ins</Text>
+              <Text style={[theme.typography.title2, { color: theme.colors.text.primary }]}>Sessões e check-ins</Text>
               <Link href={`/treatment/${cycleId}/infusion/new` as Href} asChild>
-                <Pressable>
-                  <Text style={{ color: theme.colors.text.tertiary, fontWeight: "600", fontSize: 13 }}>+ Registro manual</Text>
+                <Pressable hitSlop={8}>
+                  <Text style={{ color: IOS_HEALTH.blue, fontWeight: "700", fontSize: 14 }}>+ Manual</Text>
                 </Pressable>
               </Link>
             </View>
-            <Text style={[theme.typography.body, { color: theme.colors.text.tertiary, marginTop: 6, fontSize: 13 }]}>
-              Toque numa sessão pendente para confirmar que foi feita (antes ou depois da data prevista). Sem confirmação, continua em aberto.
+            <Text style={[theme.typography.body, { color: theme.colors.text.tertiary, marginTop: 8, fontSize: 13 }]}>
+              Sessões pendentes aparecem em destaque. Toque para confirmar após a visita; canceladas e concluídas ficam
+              registradas abaixo.
             </Text>
           </View>
 
           {sortedForDisplay.length === 0 ? (
-            <Text style={[theme.typography.body, { color: theme.colors.text.secondary }]}>
-              Sem sessões. Use &quot;Registro manual&quot; para adicionar ou edite o ciclo.
-            </Text>
+            <View
+              style={{
+                padding: theme.spacing.lg,
+                borderRadius: IOS_HEALTH.groupedListRadius,
+                backgroundColor: theme.colors.background.primary,
+                borderWidth: 1,
+                borderColor: theme.colors.border.divider,
+                ...IOS_HEALTH.shadow.card,
+              }}
+            >
+              <Text style={[theme.typography.body, { color: theme.colors.text.secondary, textAlign: "center" }]}>
+                Sem sessões neste ciclo. Use &quot;+ Manual&quot; ou edite o ciclo para planejar sessões.
+              </Text>
+            </View>
           ) : (
             sortedForDisplay.map((inf, idx) => {
               const n = idx + 1;
               const isDone = inf.status === "completed";
               const isScheduled = inf.status === "scheduled";
+              const isCancelled = inf.status === "cancelled";
               const overdue = isScheduled && isPastPredictedCalendarDay(inf.session_at);
 
-              const cardStyle = {
-                marginBottom: theme.spacing.sm,
+              const baseCard = {
+                marginBottom: theme.spacing.md,
                 backgroundColor: theme.colors.background.primary,
-                borderRadius: theme.radius.md,
+                borderRadius: IOS_HEALTH.groupedListRadius,
                 padding: theme.spacing.md,
+                borderWidth: 1,
+                borderColor: theme.colors.border.divider,
+                ...IOS_HEALTH.shadow.card,
               } as const;
 
-              const sessionBody = (
-                <View>
-                  <View style={{ flexDirection: "row", alignItems: "flex-start", gap: theme.spacing.sm }}>
+              const accentBorder =
+                overdue
+                  ? { borderLeftWidth: 4, borderLeftColor: theme.colors.semantic.vitals }
+                  : isScheduled
+                    ? { borderLeftWidth: 4, borderLeftColor: IOS_HEALTH.blue }
+                    : isCancelled
+                      ? { opacity: 0.92, backgroundColor: theme.colors.background.secondary }
+                      : {};
+
+              const chipLabel = isDone ? "Realizada" : isScheduled ? "Pendente" : labelInfusionStatus(inf.status);
+              const chipColor = isDone ? IOS_HEALTH.blue : isScheduled ? IOS_HEALTH.blue : theme.colors.text.tertiary;
+
+              const sessionHeader = (
+                <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", marginBottom: theme.spacing.sm }}>
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: theme.spacing.sm, flex: 1 }}>
                     <FontAwesome
-                      name={isDone ? "check-square" : "square-o"}
+                      name={isDone ? "check-circle" : isCancelled ? "ban" : "clock-o"}
                       size={22}
-                      color={isDone ? IOS_HEALTH.blue : theme.colors.text.tertiary}
-                      style={{ marginTop: 2 }}
+                      color={isDone ? IOS_HEALTH.blue : isCancelled ? theme.colors.text.tertiary : IOS_HEALTH.blue}
                     />
-                    <View style={{ flex: 1 }}>
-                      <Text style={[theme.typography.headline, { color: theme.colors.text.primary }]}>Sessão {n}</Text>
-                      {isDone ? (
-                        <>
-                          <Text style={[theme.typography.body, { color: theme.colors.text.secondary, marginTop: 4 }]}>
-                            Realizada: {formatSessionAt(inf.session_at)}
-                          </Text>
-                          {inf.weight_kg != null ? (
-                            <Text style={[theme.typography.body, { color: theme.colors.text.secondary, marginTop: 4 }]}>
-                              Peso: {inf.weight_kg} kg
-                            </Text>
-                          ) : null}
-                          {inf.notes ? (
-                            <Text
-                              style={[theme.typography.body, { color: theme.colors.text.primary, marginTop: 4 }]}
-                              numberOfLines={4}
-                            >
-                              {inf.notes}
-                            </Text>
-                          ) : null}
-                        </>
-                      ) : isScheduled ? (
-                        <>
-                          <Text style={[theme.typography.body, { color: theme.colors.text.secondary, marginTop: 4 }]}>
-                            Prevista no protocolo: {formatPredictedDay(inf.session_at)}
-                          </Text>
-                          {overdue ? (
-                            <Text
-                              style={[theme.typography.body, { color: theme.colors.semantic.vitals, marginTop: 4, fontWeight: "600" }]}
-                            >
-                              Ainda sem confirmação — toque para registrar se já foi feita.
-                            </Text>
-                          ) : (
-                            <Text style={[theme.typography.body, { color: theme.colors.text.tertiary, marginTop: 4, fontSize: 13 }]}>
-                              Pode confirmar assim que for à unidade; a hora gravada será a deste check-in.
-                            </Text>
-                          )}
-                          <View
-                            style={{
-                              marginTop: theme.spacing.sm,
-                              alignSelf: "flex-start",
-                              backgroundColor: IOS_HEALTH.blue,
-                              paddingVertical: 10,
-                              paddingHorizontal: 16,
-                              borderRadius: IOS_HEALTH.pillButtonRadius,
-                            }}
-                          >
-                            <Text style={{ color: "#FFFFFF", fontWeight: "700", fontSize: 15 }}>Fazer check-in</Text>
-                          </View>
-                        </>
-                      ) : (
-                        <Text style={[theme.typography.body, { color: theme.colors.text.secondary, marginTop: 4 }]}>
-                          {labelInfusionStatus(inf.status)} · {formatSessionAt(inf.session_at)}
-                        </Text>
-                      )}
-                    </View>
+                    <Text style={[theme.typography.headline, { color: theme.colors.text.primary }]}>Sessão {n}</Text>
                   </View>
-                  {!isScheduled ? (
-                    <Link href={`/treatment/${cycleId}/infusion/${inf.id}` as Href} asChild>
-                      <Pressable style={{ marginTop: theme.spacing.sm }}>
-                        <Text style={{ color: IOS_HEALTH.blue, fontWeight: "600", fontSize: 14 }}>Ver / editar registro</Text>
-                      </Pressable>
-                    </Link>
-                  ) : null}
+                  <View
+                    style={{
+                      paddingHorizontal: 10,
+                      paddingVertical: 4,
+                      borderRadius: 8,
+                      backgroundColor: isCancelled ? theme.colors.border.divider : `${chipColor}22`,
+                    }}
+                  >
+                    <Text style={{ fontSize: 12, fontWeight: "700", color: chipColor }}>{chipLabel}</Text>
+                  </View>
                 </View>
               );
 
-              return isScheduled ? (
-                <Link
-                  key={inf.id}
-                  href={`/treatment/${cycleId}/checkin?infusionId=${inf.id}` as Href}
-                  asChild
-                >
-                  <Pressable
-                    accessibilityRole="button"
-                    accessibilityLabel={`Confirmar check-in da sessão ${n}`}
-                    style={({ pressed }) => ({
-                      ...cardStyle,
-                      opacity: pressed ? 0.94 : 1,
-                    })}
+              const sessionDetails = (
+                <>
+                  {sessionHeader}
+                  {isDone ? (
+                    <>
+                      <Text style={[theme.typography.body, { color: theme.colors.text.secondary }]}>
+                        Registrada: {formatSessionAt(inf.session_at)}
+                      </Text>
+                      {inf.weight_kg != null ? (
+                        <Text style={[theme.typography.body, { color: theme.colors.text.secondary, marginTop: 6 }]}>
+                          Peso: {inf.weight_kg} kg
+                        </Text>
+                      ) : null}
+                      {inf.notes ? (
+                        <Text
+                          style={[theme.typography.body, { color: theme.colors.text.primary, marginTop: 8 }]}
+                          numberOfLines={4}
+                        >
+                          {inf.notes}
+                        </Text>
+                      ) : null}
+                    </>
+                  ) : isScheduled ? (
+                    <>
+                      <Text style={[theme.typography.body, { color: theme.colors.text.secondary }]}>
+                        Data prevista (protocolo): {formatPredictedDay(inf.session_at)}
+                      </Text>
+                      {overdue ? (
+                        <Text
+                          style={[
+                            theme.typography.body,
+                            { color: theme.colors.semantic.vitals, marginTop: 8, fontWeight: "700" },
+                          ]}
+                        >
+                          Sem confirmação — toque para registrar o check-in se a sessão já foi feita.
+                        </Text>
+                      ) : (
+                        <Text style={[theme.typography.body, { color: theme.colors.text.tertiary, marginTop: 8, fontSize: 13 }]}>
+                          Pode confirmar na unidade; a hora gravada será a do check-in.
+                        </Text>
+                      )}
+                      <View
+                        style={{
+                          marginTop: theme.spacing.md,
+                          alignSelf: "stretch",
+                          backgroundColor: IOS_HEALTH.blue,
+                          paddingVertical: 12,
+                          paddingHorizontal: theme.spacing.md,
+                          borderRadius: IOS_HEALTH.pillButtonRadius,
+                          alignItems: "center",
+                        }}
+                      >
+                        <Text style={{ color: "#FFFFFF", fontWeight: "800", fontSize: 15 }}>Fazer check-in</Text>
+                      </View>
+                    </>
+                  ) : (
+                    <Text style={[theme.typography.body, { color: theme.colors.text.secondary }]}>
+                      {labelInfusionStatus(inf.status)} · {formatSessionAt(inf.session_at)}
+                    </Text>
+                  )}
+                  {!isScheduled ? (
+                    <Link href={`/treatment/${cycleId}/infusion/${inf.id}` as Href} asChild>
+                      <Pressable style={{ marginTop: theme.spacing.md }}>
+                        <Text style={{ color: IOS_HEALTH.blue, fontWeight: "700", fontSize: 14 }}>Ver ou editar registro</Text>
+                      </Pressable>
+                    </Link>
+                  ) : null}
+                </>
+              );
+
+              if (isScheduled) {
+                return (
+                  <Link
+                    key={inf.id}
+                    href={`/treatment/${cycleId}/checkin?infusionId=${inf.id}` as Href}
+                    asChild
                   >
-                    {sessionBody}
-                  </Pressable>
-                </Link>
-              ) : (
-                <View key={inf.id} style={cardStyle}>
-                  {sessionBody}
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel={`Confirmar check-in da sessão ${n}`}
+                      style={({ pressed }) => ({
+                        ...baseCard,
+                        ...accentBorder,
+                        opacity: pressed ? 0.94 : 1,
+                      })}
+                    >
+                      {sessionDetails}
+                    </Pressable>
+                  </Link>
+                );
+              }
+
+              return (
+                <View key={inf.id} style={{ ...baseCard, ...accentBorder }}>
+                  {sessionDetails}
                 </View>
               );
             })
@@ -331,7 +503,7 @@ export default function TreatmentCycleDetailScreen() {
             onPress={confirmDeleteCycle}
             style={{ marginTop: theme.spacing.lg, padding: theme.spacing.md, alignItems: "center" }}
           >
-            <Text style={{ color: theme.colors.semantic.vitals, fontWeight: "600" }}>Eliminar ciclo</Text>
+            <Text style={{ color: theme.colors.semantic.vitals, fontWeight: "700" }}>Eliminar ciclo</Text>
           </Pressable>
         </ScrollView>
       )}

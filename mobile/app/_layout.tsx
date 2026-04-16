@@ -1,17 +1,19 @@
+import "@/src/lib/sentry.bootstrap";
 import "react-native-gesture-handler";
-import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { DarkTheme, DefaultTheme, ThemeProvider } from "@react-navigation/native";
 import { useFonts } from "expo-font";
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { useEffect } from "react";
-import { useColorScheme } from "react-native";
+import { useColorScheme, View } from "react-native";
 import "react-native-reanimated";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
 
 import { AuthProvider } from "@/src/auth/AuthContext";
 import { AppErrorBoundary } from "@/src/components/AppErrorBoundary";
+import { NetworkStatusBanner } from "@/src/components/NetworkStatusBanner";
+import { OnlineManagerBridge } from "@/src/components/OnlineManagerBridge";
 import { queryClient } from "@/src/lib/queryClient";
 import { usePushTokenRegistration } from "@/src/hooks/usePushToken";
 import { PatientProvider } from "@/src/patient/PatientContext";
@@ -19,15 +21,17 @@ import { usePatientLinkNotificationRoutes } from "@/src/hooks/usePatientLinkNoti
 import { darkTheme, lightTheme } from "@/src/theme/theme";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { SafeAreaProvider } from "react-native-safe-area-context";
+import Toast from "react-native-toast-message";
 
 export { ErrorBoundary } from "expo-router";
 
 SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
+  // Do not preload @expo/vector-icons fonts here: in dev they load via Metro HTTP and can
+  // reject at startup (ExpoAsset.downloadAsync) if :8081 is unreachable. Icons load on demand.
   const [loaded, error] = useFonts({
     SpaceMono: require("../assets/fonts/SpaceMono-Regular.ttf"),
-    ...FontAwesome.font,
   });
 
   useEffect(() => {
@@ -46,6 +50,7 @@ export default function RootLayout() {
         <SafeAreaProvider>
           <AppErrorBoundary>
             <QueryClientProvider client={queryClient}>
+              <OnlineManagerBridge />
               <AuthProvider>
                 <PatientProvider>
                   <PushTokenBridge />
@@ -85,12 +90,14 @@ function RootLayoutNav() {
 
   return (
     <ThemeProvider value={merged}>
-      <Stack
-        screenOptions={{
-          contentStyle: { backgroundColor: t.colors.background.primary },
-          animation: "default",
-        }}
-      >
+      <View style={{ flex: 1, backgroundColor: t.colors.background.primary }}>
+        <NetworkStatusBanner />
+        <Stack
+          screenOptions={{
+            contentStyle: { backgroundColor: t.colors.background.primary, flex: 1 },
+            animation: "default",
+          }}
+        >
         <Stack.Screen name="index" options={{ headerShown: false }} />
         <Stack.Screen name="login" options={{ title: "Entrar", headerShown: true }} />
         <Stack.Screen name="auth/callback" options={{ title: "Conectar", headerShown: false }} />
@@ -119,7 +126,7 @@ function RootLayoutNav() {
         />
         <Stack.Screen
           name="calendar"
-          options={{ title: "Calendário", headerShown: true, animation: "slide_from_right", animationDuration: 380 }}
+          options={{ title: "Agendamentos", headerShown: false, animation: "slide_from_right", animationDuration: 380 }}
         />
         <Stack.Screen
           name="authorizations"
@@ -134,7 +141,9 @@ function RootLayoutNav() {
           options={{ title: "Cuidador", headerShown: true, animation: "slide_from_right", animationDuration: 380 }}
         />
         <Stack.Screen name="+not-found" />
-      </Stack>
+        </Stack>
+        <Toast />
+      </View>
     </ThemeProvider>
   );
 }

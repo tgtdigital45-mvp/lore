@@ -1,4 +1,6 @@
+import NetInfo from "@react-native-community/netinfo";
 import { useCallback, useEffect, useState } from "react";
+import { enqueueVitalLog } from "@/src/lib/offlineMutationQueue";
 import { supabase } from "@/src/lib/supabase";
 import type { PatientRow } from "@/src/hooks/usePatient";
 import type { VitalLogRow, VitalType } from "@/src/types/vitalsNutrition";
@@ -47,7 +49,7 @@ export function useVitalLogs(patient: PatientRow | null) {
 
   const insertLog = useCallback(
     async (input: InsertVitalInput) => {
-      if (!patient) return { error: new Error("no patient") as Error | null };
+      if (!patient) return { error: new Error("no patient") };
       const row = {
         patient_id: patient.id,
         vital_type: input.vital_type,
@@ -58,6 +60,11 @@ export function useVitalLogs(patient: PatientRow | null) {
         notes: input.notes ?? null,
         logged_at: input.logged_at ?? new Date().toISOString(),
       };
+      const net = await NetInfo.fetch();
+      if (!net.isConnected) {
+        await enqueueVitalLog(patient.id, row);
+        return { error: null, queued: true };
+      }
       const { error } = await supabase.from("vital_logs").insert(row);
       if (!error) await refresh();
       return { error: error ? new Error(error.message) : null };

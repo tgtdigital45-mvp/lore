@@ -1,6 +1,8 @@
 import { Component, type ErrorInfo, type ReactNode } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
+import { captureAppError } from "@/src/lib/sentry";
+
 type Props = { children: ReactNode };
 
 type State = { error: Error | null };
@@ -18,6 +20,7 @@ export class AppErrorBoundary extends Component<Props, State> {
 
   componentDidCatch(error: Error, info: ErrorInfo): void {
     console.error("[AppErrorBoundary]", error.message, info.componentStack);
+    captureAppError(error, info.componentStack ?? null);
   }
 
   private reset = (): void => {

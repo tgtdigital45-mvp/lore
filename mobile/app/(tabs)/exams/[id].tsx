@@ -46,7 +46,9 @@ import { useAuth } from "@/src/auth/AuthContext";
 import { useAppTheme } from "@/src/hooks/useAppTheme";
 import { usePatient } from "@/src/hooks/usePatient";
 import { useStackBack } from "@/src/hooks/useStackBack";
+import { showAppToast } from "@/src/lib/appToast";
 import { getApiBaseUrl } from "@/src/lib/apiConfig";
+import { instrumentedFetch } from "@/src/lib/instrumentedFetch";
 import { supabase } from "@/src/lib/supabase";
 
 type BiomarkerRow = {
@@ -221,12 +223,12 @@ export default function ExamDetailScreen() {
   const shareExam = useCallback(async () => {
     if (!session?.access_token || !id) return;
     try {
-      const res = await fetch(`${getApiBaseUrl()}/api/exams/${id}/share`, {
+      const res = await instrumentedFetch(`${getApiBaseUrl()}/api/exams/${id}/share`, {
         headers: { Authorization: `Bearer ${session.access_token}` },
-      });
+      }, `exams:${id}/share`);
       const data = (await res.json()) as { url?: string; message?: string; error?: string };
       if (!res.ok) {
-        Alert.alert("Partilha", data.message ?? data.error ?? "Não foi possível gerar o link.");
+        showAppToast("error", "Partilha", data.message ?? data.error ?? "Não foi possível gerar o link.");
         return;
       }
       if (data.url) {
@@ -239,7 +241,7 @@ export default function ExamDetailScreen() {
         }
       }
     } catch {
-      Alert.alert("Partilha", "Não foi possível ligar ao servidor.");
+      showAppToast("error", "Partilha", "Não foi possível ligar ao servidor.");
     }
   }, [id, session?.access_token]);
 
@@ -303,12 +305,12 @@ export default function ExamDetailScreen() {
   async function openDocument() {
     if (!session?.access_token || !id) return;
     try {
-      const res = await fetch(`${getApiBaseUrl()}/api/exams/${id}/view`, {
+      const res = await instrumentedFetch(`${getApiBaseUrl()}/api/exams/${id}/view`, {
         headers: { Authorization: `Bearer ${session.access_token}` },
-      });
+      }, `exams:${id}/view`);
       const data = (await res.json()) as { url?: string; message?: string; error?: string };
       if (!res.ok) {
-        Alert.alert("Documento", data.message ?? data.error ?? "Não foi possível abrir o arquivo.");
+        showAppToast("error", "Documento", data.message ?? data.error ?? "Não foi possível abrir o arquivo.");
         return;
       }
       if (data.url) {
@@ -316,7 +318,7 @@ export default function ExamDetailScreen() {
         if (ok) await Linking.openURL(data.url);
       }
     } catch {
-      Alert.alert("Documento", "Não foi possível ligar ao servidor.");
+      showAppToast("error", "Documento", "Não foi possível ligar ao servidor.");
     }
   }
 
@@ -338,18 +340,18 @@ export default function ExamDetailScreen() {
   async function deleteExam() {
     if (!session?.access_token || !id) return;
     try {
-      const res = await fetch(`${getApiBaseUrl()}/api/exams/${id}`, {
+      const res = await instrumentedFetch(`${getApiBaseUrl()}/api/exams/${id}`, {
         method: "DELETE",
         headers: { Authorization: `Bearer ${session.access_token}` },
-      });
+      }, `exams:${id}/delete`);
       if (!res.ok) {
         const data = (await res.json()) as { error?: string };
-        Alert.alert("Exames", data.error ?? "Não foi possível excluir.");
+        showAppToast("error", "Exames", data.error ?? "Não foi possível excluir.");
         return;
       }
       goBack();
     } catch {
-      Alert.alert("Exames", "Não foi possível ligar ao servidor.");
+      showAppToast("error", "Exames", "Não foi possível ligar ao servidor.");
     }
   }
 

@@ -111,6 +111,8 @@ Na primeira vez, o EAS ajuda a criar a keystore Android; guarde as credenciais e
 | `npm run eas:configure` | `eas build:configure -p android` |
 | `npm run eas:build:android` | `eas build --platform android --profile production` |
 | `npm run eas:submit:android` | `eas submit --platform android --latest` |
+| `npm run store:feature-graphic` | Recurso 1024×500 para a ficha do app |
+| `npm run store:developer-page` | Ícone 512 + cabeçalho 4096×2304 + promo (ficheiros em `assets/store/`) |
 
 ## Notas
 

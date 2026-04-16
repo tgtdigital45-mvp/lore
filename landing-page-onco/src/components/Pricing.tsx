@@ -13,7 +13,7 @@ export function Pricing() {
             </p>
             <p className="mt-6 text-lg leading-8 text-text-secondary">
               Acreditamos que a tecnologia de suporte oncológico deve ser acessível a todos. 
-              Por isso, o aplicativo OncoCare é e sempre será gratuito para pacientes e cuidadores.
+              Por isso, o aplicativo Aura Onco é e sempre será gratuito para pacientes e cuidadores.
             </p>
             
             <div className="mt-10 grid grid-cols-1 gap-8 sm:grid-cols-2 text-left">

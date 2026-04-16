@@ -27,7 +27,7 @@ export function B2BTeaser() {
               <span className="text-brand-primary/80">Decisões Clínicas Precisas.</span>
             </p>
             <p className="mt-6 text-lg leading-8 text-text-secondary">
-              O Dashboard OncoCare permite que equipes de navegação visualizem alertas estruturados: febre, 
+              O Dashboard Aura Onco permite que equipes de navegação visualizem alertas estruturados: febre, 
               nadir imunológico e toxicidade extrema. Reduzimos internações evitáveis e otimizamos o tempo em consultório.
             </p>
 

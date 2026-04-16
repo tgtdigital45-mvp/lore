@@ -16,7 +16,7 @@ export function Hero() {
               <span className="text-brand-primary">um dia de cada vez.</span>
             </h1>
             <p className="mt-6 max-w-2xl text-pretty text-lg leading-8 text-text-secondary sm:text-xl lg:max-w-none">
-              OncoCare transforma a jornada oncológica em registros simples de 10 segundos. 
+              Aura Onco transforma a jornada oncológica em registros simples de 10 segundos. 
               Reduzimos a sobrecarga cognitiva para pacientes e entregamos dados acionáveis em tempo real para hospitais.
             </p>
 
@@ -54,7 +54,7 @@ export function Hero() {
                 <img
                   className="w-full object-cover"
                   src="/app-mockup.png"
-                  alt="OncoCare App Interface"
+                  alt="Aura Onco App Interface"
                 />
               </div>
               {/* Decorative elements */}

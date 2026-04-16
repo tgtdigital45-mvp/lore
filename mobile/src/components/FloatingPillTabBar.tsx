@@ -1,7 +1,8 @@
-import type { BottomTabBarProps } from "@react-navigation/bottom-tabs";
+import { BottomTabBarHeightCallbackContext, type BottomTabBarProps } from "@react-navigation/bottom-tabs";
 import { CommonActions } from "@react-navigation/native";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import * as Haptics from "expo-haptics";
+import { useContext } from "react";
 import { Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { IOS_HEALTH } from "@/src/health/iosHealthTokens";
@@ -12,6 +13,7 @@ const ICON_ACTIVE = IOS_HEALTH.blue;
 const ICON_IDLE = "#000000";
 
 export function FloatingPillTabBar({ state, navigation }: BottomTabBarProps) {
+  const onTabBarHeightChange = useContext(BottomTabBarHeightCallbackContext);
   const insets = useSafeAreaInsets();
   const current = state.routes[state.index];
   const routeName = current?.name ?? "";
@@ -24,12 +26,17 @@ export function FloatingPillTabBar({ state, navigation }: BottomTabBarProps) {
   return (
     <View
       pointerEvents="box-none"
+      collapsable={false}
+      onLayout={(e) => {
+        onTabBarHeightChange?.(e.nativeEvent.layout.height);
+      }}
       style={[
         styles.wrap,
         {
           paddingBottom: Math.max(insets.bottom, 12),
           paddingHorizontal: 16,
         },
+        Platform.OS === "android" && styles.wrapAndroid,
       ]}
     >
       <View style={styles.row}>
@@ -101,7 +108,11 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: "transparent",
+    backgroundColor: "rgba(0,0,0,0)",
+  },
+  /** Evita “faixa” sólida por elevação/surface no container full-width (Android). */
+  wrapAndroid: {
+    elevation: 0,
   },
   row: {
     flexDirection: "row",
@@ -126,7 +137,7 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.12,
         shadowRadius: 12,
       },
-      android: { elevation: 8 },
+      android: { elevation: 4 },
       default: {},
     }),
   },
@@ -158,7 +169,7 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.12,
         shadowRadius: 12,
       },
-      android: { elevation: 8 },
+      android: { elevation: 4 },
       default: {},
     }),
   },

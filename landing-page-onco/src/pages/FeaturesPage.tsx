@@ -13,7 +13,7 @@ export function FeaturesPage() {
       <div className="space-y-16">
         <section className="prose prose-onco max-w-none">
           <p className="text-xl leading-relaxed text-[#3A3A3C]">
-            O OncoCare não é apenas um diário. É um ecossistema de inteligência clínica que transforma dados subjetivos 
+            O Aura Onco não é apenas um diário. É um ecossistema de inteligência clínica que transforma dados subjetivos 
             em informações acionáveis. Através de um <strong>Código ID único e seguro</strong>, você escolhe com quem 
             compartilhar sua jornada, mantendo soberania total sobre seus dados.
           </p>
@@ -30,7 +30,7 @@ export function FeaturesPage() {
         <section className="rounded-2xl bg-[#004F63] p-12 text-center text-white shadow-2xl">
           <h2 className="text-3xl font-bold">Pronto para começar?</h2>
           <p className="mt-4 text-lg text-white/80">
-            Baixe o OncoCare agora e tenha o controle total do seu tratamento na palma da mão.
+            Baixe o Aura Onco agora e tenha o controle total do seu tratamento na palma da mão.
           </p>
           <div className="mt-8 flex justify-center gap-4">
             <Link

@@ -5,7 +5,8 @@ import { Platform } from "react-native";
 
 type Extra = { supabaseUrl?: string; supabaseAnonKey?: string };
 
-function resolveSupabaseConfig(): { url: string; anonKey: string } {
+/** URL e anon key (já expostas no cliente via Metro/EAS). Usado por chamadas diretas à Auth API. */
+export function resolveSupabaseConfig(): { url: string; anonKey: string } {
   const extra = Constants.expoConfig?.extra as Extra | undefined;
   const fromEnv = {
     url: typeof process.env.EXPO_PUBLIC_SUPABASE_URL === "string" ? process.env.EXPO_PUBLIC_SUPABASE_URL.trim() : "",

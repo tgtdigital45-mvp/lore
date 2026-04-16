@@ -213,6 +213,11 @@ GRANT EXECUTE ON FUNCTION public.search_patient_by_code(text, uuid) TO authentic
 -- ---------------------------------------------------------------------------
 ALTER TABLE public.patient_hospital_links ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "patient_hospital_links_select" ON public.patient_hospital_links;
+DROP POLICY IF EXISTS "patient_hospital_links_insert_staff" ON public.patient_hospital_links;
+DROP POLICY IF EXISTS "patient_hospital_links_update_patient" ON public.patient_hospital_links;
+DROP POLICY IF EXISTS "patient_hospital_links_update_staff" ON public.patient_hospital_links;
+
 CREATE POLICY "patient_hospital_links_select"
 ON public.patient_hospital_links FOR SELECT TO authenticated
 USING (

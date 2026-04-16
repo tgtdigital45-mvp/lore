@@ -44,17 +44,13 @@ export function symptomLabel(id: SymptomDetailKey): string {
   return row?.label ?? id;
 }
 
-/** Para onde navegar para registrar (PRD com região, escala única, temperatura ou legado 0–10). */
-export type SymptomLogDestination =
-  | { type: "pain_region" }
-  | { type: "single_intensity"; key: "fatigue" | "nausea" }
-  | { type: "fever_temp" }
-  | { type: "legacy_intensity"; key: SymptomDetailKey };
+/** Para onde navegar para registrar (temperatura ou legado verbal / CTCAE). */
+export type SymptomLogDestination = { type: "fever_temp" } | { type: "legacy_intensity"; key: SymptomDetailKey };
+
+/** Sintomas em que a UI oferece anexo de foto opcional no passo de registo. */
+export const SYMPTOM_KEYS_OPTIONAL_PHOTO = new Set<SymptomDetailKey>(["dry_skin", "breast_pain"]);
 
 export function logDestinationForSymptom(id: SymptomDetailKey): SymptomLogDestination {
-  if (id === "pain") return { type: "pain_region" };
-  if (id === "fatigue") return { type: "single_intensity", key: "fatigue" };
-  if (id === "nausea") return { type: "single_intensity", key: "nausea" };
   if (id === "fever") return { type: "fever_temp" };
   return { type: "legacy_intensity", key: id };
 }

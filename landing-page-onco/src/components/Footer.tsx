@@ -97,7 +97,7 @@ export function Footer() {
         </div>
 
         <div className="mt-12 border-t border-white/10 pt-8 text-center text-sm text-white/60">
-          <p>© {year} OncoCare. Todos os direitos reservados.</p>
+          <p>© {year} Aura Onco. Todos os direitos reservados.</p>
           <p className="mt-2">Feito com carinho para quem enfrenta o tratamento um dia de cada vez.</p>
         </div>
       </div>

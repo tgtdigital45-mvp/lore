@@ -14,7 +14,7 @@ export function FloatingHeader() {
           to="/"
           className="relative z-10 shrink-0 text-lg font-bold tracking-tight text-[#007AFF] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#007AFF] sm:text-xl"
         >
-          OncoCare
+          Aura Onco
         </Link>
 
         <nav

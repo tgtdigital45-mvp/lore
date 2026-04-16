@@ -13,7 +13,7 @@ export function CaregiversPage() {
         <section className="prose prose-onco max-w-none">
           <p className="text-xl leading-relaxed text-[#3A3A3C]">
             Sabemos que o câncer não afeta apenas o paciente, mas toda a sua rede de apoio. 
-            O OncoCare foi desenhado para aliviar a ansiedade dos familiares e organizar o cuidado compartilhado.
+            O Aura Onco foi desenhado para aliviar a ansiedade dos familiares e organizar o cuidado compartilhado.
           </p>
         </section>
 

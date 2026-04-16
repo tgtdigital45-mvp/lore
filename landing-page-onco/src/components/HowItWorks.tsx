@@ -22,7 +22,7 @@ export function HowItWorks() {
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-2xl text-center">
           <h2 id="how-heading" className="text-base font-semibold leading-7 text-brand-primary uppercase tracking-wide">
-            Jornada OncoCare
+            Jornada Aura Onco
           </h2>
           <p className="mt-2 text-3xl font-extrabold tracking-tight text-text-primary sm:text-4xl">
             Retome o controle em <br className="hidden sm:block" />

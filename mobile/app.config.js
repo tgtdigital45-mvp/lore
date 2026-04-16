@@ -31,13 +31,14 @@ module.exports = ({ config }) => {
     process.env.SUPABASE_ANON_KEY?.trim() ||
     "";
   const apiUrl = process.env.EXPO_PUBLIC_API_URL?.trim() || "";
+  const sentryDsn = process.env.EXPO_PUBLIC_SENTRY_DSN?.trim() || "";
 
   const plugins = Array.isArray(config.plugins) ? [...config.plugins] : [];
+  if (!plugins.some((p) => p === "@sentry/react-native" || (Array.isArray(p) && p[0] === "@sentry/react-native"))) {
+    plugins.push("@sentry/react-native");
+  }
   if (!plugins.some((p) => p === "@react-native-community/datetimepicker" || (Array.isArray(p) && p[0] === "@react-native-community/datetimepicker"))) {
     plugins.push("@react-native-community/datetimepicker");
-  }
-  if (!plugins.some((p) => p === "expo-apple-authentication" || (Array.isArray(p) && p[0] === "expo-apple-authentication"))) {
-    plugins.push("expo-apple-authentication");
   }
   if (!plugins.some((p) => p === "expo-secure-store" || (Array.isArray(p) && p[0] === "expo-secure-store"))) {
     plugins.push("expo-secure-store");
@@ -51,6 +52,7 @@ module.exports = ({ config }) => {
       supabaseUrl,
       supabaseAnonKey,
       apiUrl,
+      ...(sentryDsn ? { sentryDsn } : {}),
     },
   };
 };

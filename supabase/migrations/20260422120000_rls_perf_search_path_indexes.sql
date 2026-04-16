@@ -102,6 +102,40 @@ DROP POLICY IF EXISTS "Restrict Scan Downloads" ON storage.objects;
 DROP POLICY IF EXISTS "Users upload own scans" ON storage.objects;
 DROP POLICY IF EXISTS "Users update own scans" ON storage.objects;
 
+-- Políticas já criadas por aplicação anterior desta migração (re-push / BD alinhada)
+DROP POLICY IF EXISTS "hospitals_select_authenticated" ON public.hospitals;
+DROP POLICY IF EXISTS "hospitals_update_hospital_admin_assigned" ON public.hospitals;
+DROP POLICY IF EXISTS "profiles_select_consolidated" ON public.profiles;
+DROP POLICY IF EXISTS "profiles_update_own" ON public.profiles;
+DROP POLICY IF EXISTS "staff_assignments_select_own" ON public.staff_assignments;
+DROP POLICY IF EXISTS "staff_assignments_insert_demo" ON public.staff_assignments;
+DROP POLICY IF EXISTS "patients_select_consolidated" ON public.patients;
+DROP POLICY IF EXISTS "patients_insert_consolidated" ON public.patients;
+DROP POLICY IF EXISTS "patients_update_staff" ON public.patients;
+DROP POLICY IF EXISTS "patients_delete_staff" ON public.patients;
+DROP POLICY IF EXISTS "symptom_logs_insert_consolidated" ON public.symptom_logs;
+DROP POLICY IF EXISTS "symptom_logs_select_consolidated" ON public.symptom_logs;
+DROP POLICY IF EXISTS "treatment_cycles_select_consolidated" ON public.treatment_cycles;
+DROP POLICY IF EXISTS "treatment_cycles_staff_insert" ON public.treatment_cycles;
+DROP POLICY IF EXISTS "treatment_cycles_staff_update" ON public.treatment_cycles;
+DROP POLICY IF EXISTS "treatment_cycles_staff_delete" ON public.treatment_cycles;
+DROP POLICY IF EXISTS "medical_documents_select_consolidated" ON public.medical_documents;
+DROP POLICY IF EXISTS "medical_documents_insert_consolidated" ON public.medical_documents;
+DROP POLICY IF EXISTS "medical_documents_update_patient" ON public.medical_documents;
+DROP POLICY IF EXISTS "medical_documents_delete_patient" ON public.medical_documents;
+DROP POLICY IF EXISTS "audit_logs_select_consolidated" ON public.audit_logs;
+DROP POLICY IF EXISTS "audit_logs_insert_system" ON public.audit_logs;
+DROP POLICY IF EXISTS "biomarker_logs_select_consolidated" ON public.biomarker_logs;
+DROP POLICY IF EXISTS "biomarker_logs_insert_consolidated" ON public.biomarker_logs;
+DROP POLICY IF EXISTS "biomarker_logs_delete_patient" ON public.biomarker_logs;
+DROP POLICY IF EXISTS "outbound_messages_staff_select" ON public.outbound_messages;
+DROP POLICY IF EXISTS "health_wearable_select_consolidated" ON public.health_wearable_samples;
+DROP POLICY IF EXISTS "health_wearable_insert_patient" ON public.health_wearable_samples;
+DROP POLICY IF EXISTS "health_wearable_update_patient" ON public.health_wearable_samples;
+DROP POLICY IF EXISTS "storage_medical_scans_select" ON storage.objects;
+DROP POLICY IF EXISTS "storage_medical_scans_insert" ON storage.objects;
+DROP POLICY IF EXISTS "storage_medical_scans_update" ON storage.objects;
+
 -- ---------------------------------------------------------------------------
 -- Policies consolidadas (initplan: (select auth.uid()))
 -- ---------------------------------------------------------------------------

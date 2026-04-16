@@ -9,6 +9,7 @@ import { isVitalType } from "@/src/health/vitalsConfig";
 import { useAppTheme } from "@/src/hooks/useAppTheme";
 import { usePatient } from "@/src/hooks/usePatient";
 import { useStackBack } from "@/src/hooks/useStackBack";
+import { showAppToast } from "@/src/lib/appToast";
 import { useVitalLogs } from "@/src/hooks/useVitalLogs";
 import type { VitalType } from "@/src/types/vitalsNutrition";
 
@@ -65,7 +66,7 @@ export default function VitalLogScreen() {
           setSaving(false);
           return;
         }
-        const { error } = await insertLog({
+        const { error, queued } = await insertLog({
           vital_type: "blood_pressure",
           value_systolic: s,
           value_diastolic: d,
@@ -74,7 +75,10 @@ export default function VitalLogScreen() {
           logged_at: loggedAtIso,
         });
         if (error) Alert.alert("Erro", error.message);
-        else router.replace(fallback);
+        else {
+          if (queued) showAppToast("success", "Sinais vitais", "Guardado localmente; sincroniza quando estiver online.");
+          router.replace(fallback);
+        }
       } else {
         const v = parseFloat(valueNum.replace(",", "."));
         if (!Number.isFinite(v)) {
@@ -92,7 +96,7 @@ export default function VitalLogScreen() {
                 : vitalType === "weight"
                   ? "kg"
                   : "mg/dL";
-        const { error } = await insertLog({
+        const { error, queued } = await insertLog({
           vital_type: vitalType,
           value_numeric: v,
           unit,
@@ -100,7 +104,10 @@ export default function VitalLogScreen() {
           logged_at: loggedAtIso,
         });
         if (error) Alert.alert("Erro", error.message);
-        else router.replace(fallback);
+        else {
+          if (queued) showAppToast("success", "Sinais vitais", "Guardado localmente; sincroniza quando estiver online.");
+          router.replace(fallback);
+        }
       }
     } finally {
       setSaving(false);

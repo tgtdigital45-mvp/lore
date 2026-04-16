@@ -29,16 +29,20 @@ export default function TabLayout() {
         screenOptions={{
           headerShown: false,
           tabBarShowLabel: false,
+          tabBarBackground: () => null,
           animation: "fade",
           transitionSpec: {
             animation: "timing",
             config: { duration: 240 },
           },
-          sceneStyle: { backgroundColor: sceneBg },
+          // Cena opaca + barra flutuante no Android pode formar uma faixa por baixo da pill.
+          // O fundo vem das próprias telas (ex.: ResponsiveScreen com gradiente).
+          sceneStyle: { backgroundColor: "transparent" },
           tabBarStyle: {
             backgroundColor: "transparent",
             borderTopWidth: 0,
             elevation: 0,
+            shadowOpacity: 0,
             position: "absolute",
             bottom: 0,
             left: 0,

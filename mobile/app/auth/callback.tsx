@@ -3,12 +3,11 @@ import { ActivityIndicator, Pressable, Text, View } from "react-native";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import * as Linking from "expo-linking";
 import { useRouter } from "expo-router";
-import { parseAuthParamsFromUrl } from "@/src/auth/oauth";
-import { supabase } from "@/src/lib/supabase";
+import { completeOAuthRedirect } from "@/src/auth/oauth";
 
 /**
  * Conclui OAuth quando a app abre via deep link (cold start ou background).
- * O fluxo principal continua em `openAuthSessionAsync`; este tela cobre universal links / scheme.
+ * O fluxo principal continua em `openAuthSessionAsync`; esta tela cobre universal links / scheme.
  */
 export default function AuthCallbackScreen() {
   const router = useRouter();
@@ -18,16 +17,9 @@ export default function AuthCallbackScreen() {
   useEffect(() => {
     async function handleUrl(url: string) {
       if (done.current) return;
-      const p = parseAuthParamsFromUrl(url);
-      const access_token = p.access_token;
-      const refresh_token = p.refresh_token;
-      if (!access_token || !refresh_token) {
-        setErr("Tokens OAuth em falta no URL. Confirme o redirect no Supabase.");
-        return;
-      }
-      const { error } = await supabase.auth.setSession({ access_token, refresh_token });
-      if (error) {
-        setErr(error.message);
+      const res = await completeOAuthRedirect(url);
+      if (res.error) {
+        setErr(res.error);
         return;
       }
       done.current = true;

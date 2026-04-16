@@ -10,6 +10,8 @@ import { ResponsiveScreen } from "@/src/components/ResponsiveScreen";
 import { DEMO_HOSPITAL_ID } from "@/src/constants/hospital";
 import { labelCancerType } from "@/src/i18n/ui";
 import { usePatient } from "@/src/patient/PatientContext";
+import { onboardingPatientInsertSchema } from "@/src/validation/onboardingPatient";
+import { ZodError } from "zod";
 
 const CANCER_TYPES = ["breast", "lung", "prostate", "leukemia", "colorectal", "other"] as const;
 
@@ -80,12 +82,23 @@ export default function OnboardingScreen() {
       Alert.alert("Cadastro", pe.message);
       return;
     }
-    const { error } = await supabase.from("patients").insert({
-      profile_id: session.user.id,
-      primary_cancer_type: cancer,
-      current_stage: stage.trim() || null,
-      hospital_id: DEMO_HOSPITAL_ID,
-    });
+    let insertRow: ReturnType<typeof onboardingPatientInsertSchema.parse>;
+    try {
+      insertRow = onboardingPatientInsertSchema.parse({
+        profile_id: session.user.id,
+        primary_cancer_type: cancer,
+        current_stage: stage.trim() || null,
+        hospital_id: DEMO_HOSPITAL_ID,
+      });
+    } catch (e) {
+      setBusy(false);
+      if (e instanceof ZodError) {
+        Alert.alert("Validação", e.errors.map((x) => x.message).join("\n"));
+        return;
+      }
+      throw e;
+    }
+    const { error } = await supabase.from("patients").insert(insertRow);
     setBusy(false);
     if (error) {
       Alert.alert("Cadastro", error.message);

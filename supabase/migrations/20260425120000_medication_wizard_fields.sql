@@ -26,6 +26,11 @@ CREATE INDEX IF NOT EXISTS idx_medication_schedules_med ON public.medication_sch
 
 ALTER TABLE public.medication_schedules ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "medication_schedules_select" ON public.medication_schedules;
+DROP POLICY IF EXISTS "medication_schedules_insert_patient" ON public.medication_schedules;
+DROP POLICY IF EXISTS "medication_schedules_update_patient" ON public.medication_schedules;
+DROP POLICY IF EXISTS "medication_schedules_delete_patient" ON public.medication_schedules;
+
 CREATE POLICY "medication_schedules_select"
 ON public.medication_schedules FOR SELECT TO authenticated
 USING (
@@ -93,6 +98,11 @@ CREATE INDEX IF NOT EXISTS idx_medication_logs_med ON public.medication_logs (me
 CREATE INDEX IF NOT EXISTS idx_medication_logs_taken ON public.medication_logs (taken_at);
 
 ALTER TABLE public.medication_logs ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "medication_logs_select" ON public.medication_logs;
+DROP POLICY IF EXISTS "medication_logs_insert_patient" ON public.medication_logs;
+DROP POLICY IF EXISTS "medication_logs_update_patient" ON public.medication_logs;
+DROP POLICY IF EXISTS "medication_logs_delete_patient" ON public.medication_logs;
 
 CREATE POLICY "medication_logs_select"
 ON public.medication_logs FOR SELECT TO authenticated

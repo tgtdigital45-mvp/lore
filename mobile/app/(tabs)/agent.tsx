@@ -6,6 +6,7 @@ import { useAuth } from "@/src/auth/AuthContext";
 import { useAppTheme } from "@/src/hooks/useAppTheme";
 import { usePatient } from "@/src/hooks/usePatient";
 import { getApiBaseUrl } from "@/src/lib/apiConfig";
+import { instrumentedFetch } from "@/src/lib/instrumentedFetch";
 import { notifyEmergency, ensureNotificationPermissions } from "@/src/utils/notifications";
 
 type AgentMode = "triagem" | "suporte";
@@ -32,14 +33,14 @@ export default function AgentScreen() {
     setReply(null);
     const path = mode === "suporte" ? "/api/support/chat" : "/api/agent/process";
     try {
-      const res = await fetch(`${getApiBaseUrl()}${path}`, {
+      const res = await instrumentedFetch(`${getApiBaseUrl()}${path}`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${session.access_token}`,
         },
         body: JSON.stringify({ message: text }),
-      });
+      }, `agent:${mode}`);
       const data = (await res.json()) as {
         reply?: string;
         emergency?: boolean;

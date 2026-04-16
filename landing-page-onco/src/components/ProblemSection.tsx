@@ -2,7 +2,7 @@ const problems = [
   {
     title: 'A Luta contra o "Chemo-Brain"',
     body:
-      'A toxicidade do tratamento afeta a memória. "Tomei a dose das 8h?" A incerteza gera ansiedade. OncoCare elimina a dúvida com registros instantâneos.',
+      'A toxicidade do tratamento afeta a memória. "Tomei a dose das 8h?" A incerteza gera ansiedade. Aura Onco elimina a dúvida com registros instantâneos.',
     icon: ClockIcon,
     color: 'clinical-vitals',
   },
@@ -16,7 +16,7 @@ const problems = [
   {
     title: 'Informação que Liberta',
     body:
-      'Exames no app do laboratório, receitas em papel, dúvidas no WhatsApp. Fragmentação consome energia. OncoCare centraliza o que importa.',
+      'Exames no app do laboratório, receitas em papel, dúvidas no WhatsApp. Fragmentação consome energia. Aura Onco centraliza o que importa.',
     icon: DocumentTextIcon,
     color: 'clinical-treatment',
   },

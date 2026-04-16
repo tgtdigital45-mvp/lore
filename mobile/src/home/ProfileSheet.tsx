@@ -101,7 +101,8 @@ export function ProfileSheet({
   const insets = useSafeAreaInsets();
   const profileSheetModalRef = useRef<ElementRef<typeof BottomSheetModal>>(null);
   const snapPoints = useMemo(() => ["92%"], []);
-  const { session } = useAuth();
+  const { session, deleteAccount } = useAuth();
+  const [deleteAccountBusy, setDeleteAccountBusy] = useState(false);
   const uid = session?.user?.id;
   const qc = useQueryClient();
   const { patient, loading: patientLoading, refresh } = usePatient();
@@ -1079,11 +1080,74 @@ export function ProfileSheet({
                 </View>
                 <Pressable
                   onPress={() => {
+                    if (deleteAccountBusy) return;
+                    Alert.alert(
+                      "Excluir conta",
+                      "Todos os seus dados na Aura Onco serão apagados de forma permanente (perfil, registos de saúde, ficheiros associados). Esta ação não pode ser desfeita.",
+                      [
+                        { text: "Cancelar", style: "cancel" },
+                        {
+                          text: "Continuar",
+                          style: "destructive",
+                          onPress: () => {
+                            Alert.alert(
+                              "Confirmação final",
+                              "Tem a certeza absoluta que deseja excluir a sua conta?",
+                              [
+                                { text: "Não", style: "cancel" },
+                                {
+                                  text: "Sim, excluir",
+                                  style: "destructive",
+                                  onPress: () => {
+                                    void (async () => {
+                                      setDeleteAccountBusy(true);
+                                      try {
+                                        const { error } = await deleteAccount();
+                                        if (error) {
+                                          Alert.alert("Não foi possível excluir", error);
+                                          return;
+                                        }
+                                        onClose();
+                                      } finally {
+                                        setDeleteAccountBusy(false);
+                                      }
+                                    })();
+                                  },
+                                },
+                              ],
+                            );
+                          },
+                        },
+                      ],
+                    );
+                  }}
+                  disabled={deleteAccountBusy}
+                  style={{
+                    marginTop: theme.spacing.md,
+                    padding: theme.spacing.md,
+                    borderRadius: radius,
+                    borderWidth: 1,
+                    borderColor: theme.colors.semantic.vitals,
+                    backgroundColor: theme.colors.background.primary,
+                    flexDirection: "row",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: 8,
+                    opacity: deleteAccountBusy ? 0.6 : 1,
+                  }}
+                >
+                  <FontAwesome name="trash" size={18} color={theme.colors.semantic.vitals} />
+                  <Text style={{ fontWeight: "700", fontSize: 16, color: theme.colors.semantic.vitals }}>
+                    {deleteAccountBusy ? "A excluir…" : "Excluir conta"}
+                  </Text>
+                </Pressable>
+                <Pressable
+                  onPress={() => {
                     onSignOut();
                     onClose();
                   }}
                   style={{
-                    marginTop: theme.spacing.md,
+                    marginTop: theme.spacing.sm,
                     padding: theme.spacing.md,
                     borderRadius: radius,
                     backgroundColor: theme.colors.background.tertiary,

@@ -25,6 +25,10 @@ CREATE TABLE IF NOT EXISTS public.patient_consents (
 
 ALTER TABLE public.patient_consents ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "patient_consents_select_own" ON public.patient_consents;
+DROP POLICY IF EXISTS "patient_consents_insert_own" ON public.patient_consents;
+DROP POLICY IF EXISTS "patient_consents_update_own" ON public.patient_consents;
+
 CREATE POLICY "patient_consents_select_own"
 ON public.patient_consents FOR SELECT TO authenticated
 USING (profile_id = (select auth.uid()));
@@ -71,6 +75,14 @@ CREATE INDEX IF NOT EXISTS idx_medication_logs_patient_sched ON public.medicatio
 
 ALTER TABLE public.medications ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.medication_logs ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "medications_select_patient" ON public.medications;
+DROP POLICY IF EXISTS "medications_insert_patient" ON public.medications;
+DROP POLICY IF EXISTS "medications_update_patient" ON public.medications;
+DROP POLICY IF EXISTS "medications_delete_patient" ON public.medications;
+DROP POLICY IF EXISTS "medication_logs_select_patient" ON public.medication_logs;
+DROP POLICY IF EXISTS "medication_logs_insert_patient" ON public.medication_logs;
+DROP POLICY IF EXISTS "medication_logs_update_patient" ON public.medication_logs;
 
 CREATE POLICY "medications_select_patient"
 ON public.medications FOR SELECT TO authenticated
@@ -176,6 +188,9 @@ CREATE TABLE IF NOT EXISTS public.patient_appointments (
 CREATE INDEX IF NOT EXISTS idx_patient_appointments_patient_starts ON public.patient_appointments (patient_id, starts_at);
 
 ALTER TABLE public.patient_appointments ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "patient_appointments_select" ON public.patient_appointments;
+DROP POLICY IF EXISTS "patient_appointments_mutate_patient" ON public.patient_appointments;
 
 CREATE POLICY "patient_appointments_select"
 ON public.patient_appointments FOR SELECT TO authenticated
@@ -334,6 +349,8 @@ CREATE TABLE IF NOT EXISTS public.medication_reminder_dispatches (
 );
 
 ALTER TABLE public.medication_reminder_dispatches ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "medication_reminder_dispatches_service" ON public.medication_reminder_dispatches;
 
 CREATE POLICY "medication_reminder_dispatches_service"
 ON public.medication_reminder_dispatches FOR ALL TO authenticated

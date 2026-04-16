@@ -187,6 +187,29 @@ ALTER TABLE public.symptom_logs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.medical_documents ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.audit_logs ENABLE ROW LEVEL SECURITY;
 
+-- Idempotente: remoto pode já ter políticas (schema criado antes do histórico de migrações alinhar)
+DROP POLICY IF EXISTS "hospitals_select_authenticated" ON public.hospitals;
+DROP POLICY IF EXISTS "Users can view own profile" ON public.profiles;
+DROP POLICY IF EXISTS "Users can update own profile" ON public.profiles;
+DROP POLICY IF EXISTS "Medical staff can view hospital patients profiles" ON public.profiles;
+DROP POLICY IF EXISTS "Patients read own chart" ON public.patients;
+DROP POLICY IF EXISTS "Patients insert own chart row" ON public.patients;
+DROP POLICY IF EXISTS "Hospital staff read write patients in hospital" ON public.patients;
+DROP POLICY IF EXISTS "Patients can insert own symptoms" ON public.symptom_logs;
+DROP POLICY IF EXISTS "Patients can view own symptoms" ON public.symptom_logs;
+DROP POLICY IF EXISTS "Hospital staff can view patient symptoms" ON public.symptom_logs;
+DROP POLICY IF EXISTS "Patients read own cycles" ON public.treatment_cycles;
+DROP POLICY IF EXISTS "Hospital staff manage cycles" ON public.treatment_cycles;
+DROP POLICY IF EXISTS "Patients manage own documents metadata" ON public.medical_documents;
+DROP POLICY IF EXISTS "Hospital staff read documents" ON public.medical_documents;
+DROP POLICY IF EXISTS "Staff sees own assignments" ON public.staff_assignments;
+DROP POLICY IF EXISTS "Staff read audit logs" ON public.audit_logs;
+DROP POLICY IF EXISTS "Patients read own audit logs" ON public.audit_logs;
+DROP POLICY IF EXISTS "System insert audit logs" ON public.audit_logs;
+DROP POLICY IF EXISTS "Restrict Scan Downloads" ON storage.objects;
+DROP POLICY IF EXISTS "Users upload own scans" ON storage.objects;
+DROP POLICY IF EXISTS "Users update own scans" ON storage.objects;
+
 -- hospitals: readable by authenticated (minimal); staff may need list
 CREATE POLICY "hospitals_select_authenticated"
 ON public.hospitals FOR SELECT

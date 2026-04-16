@@ -12,7 +12,7 @@ export function Accessibility() {
     },
     {
       title: 'Fontes Escalonáveis',
-      body: 'Respeita as configurações de acessibilidade do sistema. Se você precisa de fontes maiores, o OncoCare se adapta.',
+      body: 'Respeita as configurações de acessibilidade do sistema. Se você precisa de fontes maiores, o Aura Onco se adapta.',
       icon: TypeIcon,
     },
     {

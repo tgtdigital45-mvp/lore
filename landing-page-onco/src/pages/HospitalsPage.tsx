@@ -15,7 +15,7 @@ export function HospitalsPage() {
           <p className="text-xl leading-relaxed text-[#3A3A3C]">
             Oferecemos uma plataforma robusta para instituições que buscam excelência clínica. Através do 
             <strong>Vínculo via ID</strong>, sua equipe adiciona pacientes instantaneamente com consentimento digital 
-            nativo, eliminando barreiras burocráticas e garantindo monitoramento em tempo real com o OncoCare.
+            nativo, eliminando barreiras burocráticas e garantindo monitoramento em tempo real com o Aura Onco.
           </p>
         </section>
 
@@ -30,7 +30,7 @@ export function HospitalsPage() {
         <section className="rounded-2xl border-2 border-[#004F63]/10 bg-white p-12 text-center shadow-xl">
           <h2 className="text-3xl font-bold text-[#004F63]">Vamos agendar uma conversa?</h2>
           <p className="mt-4 text-lg text-[#3A3A3C]">
-            Nossa equipe de especialistas está pronta para mostrar como o OncoCare pode se integrar ao seu fluxo clínico.
+            Nossa equipe de especialistas está pronta para mostrar como o Aura Onco pode se integrar ao seu fluxo clínico.
           </p>
           <div className="mt-8 flex justify-center gap-4">
             <a

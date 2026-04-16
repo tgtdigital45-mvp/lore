@@ -1,5 +1,11 @@
 /**
- * Runs `adb reverse tcp:8081 tcp:8081` so the Android emulator can reach Metro on the host.
+ * Runs `adb reverse tcp:8081 tcp:8081` so the Android device/emulator can reach Metro on the host.
+ * In dev, fonts and other assets are fetched over HTTP from Metro (:8081); if the device cannot
+ * reach the packager (e.g. ExpoAsset.downloadAsync failures for .ttf), fix connectivity first:
+ *   • USB: this reverse (or ensure it ran; check logs for "tcp:8081 → tcp:8081 ok").
+ *   • Wi‑Fi / Expo Go: PC and phone on same LAN; allow inbound TCP 8081 on the dev machine firewall;
+ *     or use `npm run start:tunnel` so the device does not rely on the LAN IP.
+ *
  * Requires ANDROID_HOME / ANDROID_SDK_ROOT, or default Windows SDK path under LocalAppData.
  *
  * Usage: node adb-reverse.mjs [--soft]
@@ -51,6 +57,7 @@ function printAuthHelp() {
       "  • Unlock the phone/emulator and accept the USB debugging (RSA) prompt.\n" +
       "  • Or: Android Studio Device Manager → Cold Boot the emulator.\n" +
       "  • Or: run: adb kill-server && adb start-server\n" +
+      "  • If Metro assets fail to load on Android: allow TCP 8081 on the PC firewall (Wi‑Fi), or run: npm run start:tunnel\n" +
       "  • Workaround: use the exp:// LAN URL Metro prints (same Wi‑Fi) or: npm run start:tunnel"
   );
 }

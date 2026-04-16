@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useFocusEffect } from "@react-navigation/native";
-import { Alert, Pressable, ScrollView, Text, View } from "react-native";
+import { ActivityIndicator, Pressable, RefreshControl, ScrollView, Text, View } from "react-native";
+import type { CategoryShortcutId } from "@/src/home/pinnedCategoryShortcuts";
+import { categoryShortcutDef, loadPinnedCategoryIds } from "@/src/home/pinnedCategoryShortcuts";
 import { Image } from "expo-image";
 import type { Href } from "expo-router";
 import { Link, useRouter } from "expo-router";
@@ -11,7 +13,8 @@ import { OncoCard } from "@/components/OncoCard";
 import { ResponsiveScreen } from "@/src/components/ResponsiveScreen";
 import { ProfileSheet } from "@/src/home/ProfileSheet";
 import { AVATAR_STORAGE_KEY, getWidgetLabel, loadPinnedWidgetIds, savePinnedWidgetIds } from "@/src/home/resumoWidgets";
-import { TreatmentActivityRings } from "@/src/home/TreatmentActivityRings";
+import { ActiveTreatmentCycleCard } from "@/src/home/ActiveTreatmentCycleCard";
+import { HomeSummarySkeleton } from "@/src/home/HomeSummarySkeleton";
 import { useHomeSummary } from "@/src/home/useHomeSummary";
 import { WidgetPickerModal } from "@/src/home/WidgetPickerModal";
 import { useAuth } from "@/src/auth/AuthContext";
@@ -24,15 +27,13 @@ import {
 import { useMedications } from "@/src/hooks/useMedications";
 import { usePatientConsentNotifications } from "@/src/hooks/usePatientConsentNotifications";
 import { usePatient } from "@/src/hooks/usePatient";
-import { useProtocolMonitoring } from "@/src/hooks/useProtocolMonitoring";
 import { useTreatmentCycles } from "@/src/hooks/useTreatmentCycles";
-import { ProtocolGuidelinesSection } from "@/src/home/ProtocolGuidelinesSection";
 import { nextMedicationSlot } from "@/src/lib/medicationNotifications";
-import { nextPendingScheduledInfusion } from "@/src/lib/treatmentInfusionSchedule";
 import { labelTreatmentKind } from "@/src/i18n/treatment";
 import { documentTypeLabel, labelCancerType, labelSymptomCategory } from "@/src/i18n/ui";
+import { showAppToast } from "@/src/lib/appToast";
 import { supabase } from "@/src/lib/supabase";
-import type { TreatmentCycleRow, TreatmentInfusionRow } from "@/src/types/treatment";
+import type { TreatmentInfusionRow } from "@/src/types/treatment";
 
 const MONTHS_SHORT = ["jan.", "fev.", "mar.", "abr.", "mai.", "jun.", "jul.", "ago.", "set.", "out.", "nov.", "dez."];
 
@@ -51,28 +52,6 @@ function formatDayMonth(iso: string): string {
 function formatSessionAt(iso: string): string {
   const d = new Date(iso);
   return d.toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" });
-}
-
-function cycleDayNumber(startDate: string): number {
-  const s = new Date(startDate.includes("T") ? startDate : `${startDate}T12:00:00`);
-  const diff = Math.floor((Date.now() - s.getTime()) / 86400000) + 1;
-  return Math.max(1, diff);
-}
-
-function lastNextInfusion(infusions: TreatmentInfusionRow[], cycleLast: string | null) {
-  const completed = infusions
-    .filter((i) => i.status === "completed")
-    .sort((a, b) => new Date(b.session_at).getTime() - new Date(a.session_at).getTime());
-  const lastIso = completed[0]?.session_at ?? cycleLast;
-  const next = nextPendingScheduledInfusion(infusions);
-  return { lastIso, next };
-}
-
-function sessionRingProgress(cycle: TreatmentCycleRow): number {
-  const planned = cycle.planned_sessions;
-  const done = cycle.completed_sessions ?? 0;
-  if (planned != null && planned > 0) return Math.min(1, done / planned);
-  return 0;
 }
 
 function hrefForPinnedWidget(widgetId: string): Href | null {
@@ -105,19 +84,13 @@ export default function HomeScreen() {
     nextAppointment,
     refresh: refreshSummary,
     formatWidgetValue,
+    loading: summaryLoading,
+    isFetching: summaryFetching,
+    isError: summaryQueryError,
+    error: summaryQueryErrorDetail,
   } = useHomeSummary(patient);
   const { medications, refresh: refreshMeds } = useMedications();
   const { fetchInfusions } = useTreatmentCycles(patient);
-  const {
-    protocolWithGuidelines,
-    displayGuidelines,
-    firedAlerts,
-    loading: protocolGuidelinesLoading,
-    source: protocolSource,
-  } = useProtocolMonitoring(
-    patient,
-    activeCycle
-  );
   const allPatientInfusions = usePatientInfusions(patient?.id);
   const { data: consentNotifs } = usePatientConsentNotifications();
   useAdaptiveSymptomReminders({
@@ -145,6 +118,8 @@ export default function HomeScreen() {
   const [avatarUri, setAvatarUri] = useState<string | null>(null);
   const [avatarEpoch, setAvatarEpoch] = useState(0);
   const [infusions, setInfusions] = useState<TreatmentInfusionRow[]>([]);
+  const [pullRefreshing, setPullRefreshing] = useState(false);
+  const [pinnedCategoryIds, setPinnedCategoryIds] = useState<CategoryShortcutId[]>([]);
 
   const firstName = useMemo(() => {
     const t = profileName.trim();
@@ -159,11 +134,6 @@ export default function HomeScreen() {
     if (p.length === 1) return p[0].slice(0, 1).toUpperCase();
     return `${p[0].slice(0, 1)}${p[p.length - 1].slice(0, 1)}`.toUpperCase();
   }, [profileName]);
-
-  const { lastIso, next: nextInfusion } = useMemo(
-    () => lastNextInfusion(infusions, activeCycle?.last_session_at ?? null),
-    [infusions, activeCycle?.last_session_at]
-  );
 
   const loadInfusions = useCallback(async () => {
     if (!activeCycle?.id) {
@@ -182,10 +152,18 @@ export default function HomeScreen() {
     void (async () => {
       const ids = await loadPinnedWidgetIds();
       setPinnedIds(ids);
+      const cats = await loadPinnedCategoryIds();
+      setPinnedCategoryIds(cats);
       const a = await appStorage.getItem(AVATAR_STORAGE_KEY);
       if (a) setAvatarUri(a);
     })();
   }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      void loadPinnedCategoryIds().then(setPinnedCategoryIds);
+    }, [])
+  );
 
   const lastFetchRef = useRef(0);
   useFocusEffect(
@@ -194,15 +172,27 @@ export default function HomeScreen() {
       if (now - lastFetchRef.current < 15000) return; // Skip if less than 15s
       lastFetchRef.current = now;
 
-      try {
-        void refreshSummary();
-        void refreshMeds();
-        void loadInfusions();
-      } catch (e) {
-        console.warn("[HomeScreen focus] Error refreshing summary:", e);
-      }
+      void (async () => {
+        try {
+          await Promise.all([refreshSummary(), refreshMeds(), loadInfusions()]);
+        } catch (e) {
+          console.warn("[HomeScreen focus] Error refreshing summary:", e);
+          showAppToast("error", "Resumo", e instanceof Error ? e.message : "Não foi possível atualizar ao voltar ao ecrã.");
+        }
+      })();
     }, [refreshSummary, refreshMeds, loadInfusions])
   );
+
+  const onPullRefresh = useCallback(async () => {
+    setPullRefreshing(true);
+    try {
+      await Promise.all([refreshSummary(), refreshMeds(), loadInfusions()]);
+    } catch (e) {
+      showAppToast("error", "Resumo", e instanceof Error ? e.message : "Falha ao atualizar.");
+    } finally {
+      setPullRefreshing(false);
+    }
+  }, [refreshSummary, refreshMeds, loadInfusions]);
 
   const openTreatmentCycle = useCallback(() => {
     if (activeCycle?.id) {
@@ -228,15 +218,12 @@ export default function HomeScreen() {
       status: "taken",
     });
     if (error) {
-      Alert.alert("Medicamento", error.message);
+      showAppToast("error", "Medicamento", error.message);
       return;
     }
     await refreshMeds();
     await refreshSummary();
   }
-
-  const ringSize = 118;
-  const track = theme.colors.background.tertiary;
 
   return (
     <ResponsiveScreen variant="tabGradient">
@@ -244,7 +231,46 @@ export default function HomeScreen() {
         style={{ flex: 1, backgroundColor: "transparent" }}
         contentContainerStyle={{ paddingBottom: theme.spacing.xl }}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={pullRefreshing}
+            onRefresh={() => {
+              void onPullRefresh();
+            }}
+            tintColor={theme.colors.semantic.treatment}
+          />
+        }
       >
+        {patient && summaryQueryError ? (
+          <OncoCard style={{ marginBottom: theme.spacing.md, borderWidth: 1, borderColor: theme.colors.semantic.symptoms }}>
+            <Text style={[theme.typography.headline, { color: theme.colors.text.primary }]}>Resumo indisponível</Text>
+            <Text style={[theme.typography.body, { color: theme.colors.text.secondary, marginTop: theme.spacing.xs }]}>
+              {summaryQueryErrorDetail?.message ?? "Erro ao carregar dados do resumo."}
+            </Text>
+            <Pressable
+              onPress={() => {
+                void refreshSummary();
+              }}
+              style={{
+                marginTop: theme.spacing.md,
+                alignSelf: "flex-start",
+                backgroundColor: theme.colors.semantic.treatment,
+                paddingVertical: theme.spacing.sm,
+                paddingHorizontal: theme.spacing.md,
+                borderRadius: theme.radius.md,
+              }}
+            >
+              <Text style={{ color: "#FFFFFF", fontWeight: "700" }}>Tentar novamente</Text>
+            </Pressable>
+          </OncoCard>
+        ) : null}
+        {patient && summaryLoading && !summaryQueryError ? <HomeSummarySkeleton theme={theme} /> : null}
+        {patient && summaryFetching && !summaryLoading && !summaryQueryError ? (
+          <View style={{ flexDirection: "row", alignItems: "center", gap: theme.spacing.sm, marginBottom: theme.spacing.sm }}>
+            <ActivityIndicator size="small" color={theme.colors.semantic.treatment} />
+            <Text style={[theme.typography.caption1, { color: theme.colors.text.secondary }]}>A atualizar o resumo…</Text>
+          </View>
+        ) : null}
         <View style={{ paddingTop: theme.spacing.lg, flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
           <View style={{ flex: 1, paddingRight: theme.spacing.md }}>
             <Text style={[theme.typography.body, { color: theme.colors.text.secondary, textTransform: "uppercase", letterSpacing: 0.6 }]}>
@@ -287,6 +313,58 @@ export default function HomeScreen() {
           </Pressable>
         </View>
 
+        {patient && pinnedCategoryIds.length > 0 ? (
+          <View style={{ marginTop: theme.spacing.md, marginBottom: theme.spacing.xs }}>
+            <Text
+              style={{
+                fontSize: 13,
+                fontWeight: "700",
+                color: theme.colors.text.secondary,
+                letterSpacing: 0.4,
+                marginBottom: theme.spacing.sm,
+              }}
+            >
+              Atalhos fixados
+            </Text>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={{ flexDirection: "row", gap: theme.spacing.sm, paddingRight: theme.spacing.md }}
+            >
+              {pinnedCategoryIds.map((id) => {
+                const def = categoryShortcutDef(id);
+                if (!def) return null;
+                return (
+                  <Pressable
+                    key={id}
+                    onPress={() => router.push(def.href)}
+                    style={({ pressed }) => ({
+                      flexDirection: "row",
+                      alignItems: "center",
+                      gap: 8,
+                      paddingVertical: 10,
+                      paddingHorizontal: 14,
+                      borderRadius: theme.radius.md,
+                      backgroundColor: theme.colors.background.primary,
+                      borderWidth: 1,
+                      borderColor: theme.colors.border.divider,
+                      opacity: pressed ? 0.88 : 1,
+                      shadowColor: "#000",
+                      shadowOffset: { width: 0, height: 1 },
+                      shadowOpacity: 0.06,
+                      shadowRadius: 4,
+                      elevation: 2,
+                    })}
+                  >
+                    <FontAwesome name={def.icon} size={16} color={theme.colors.semantic.treatment} />
+                    <Text style={{ fontSize: 15, fontWeight: "600", color: theme.colors.text.primary }}>{def.label}</Text>
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
+          </View>
+        ) : null}
+
         <View style={{ paddingVertical: theme.spacing.md }}>
           {!patientLoading && !patient && (
             <OncoCard>
@@ -311,63 +389,13 @@ export default function HomeScreen() {
           )}
 
           {patient && activeCycle ? (
-            <Pressable
+            <ActiveTreatmentCycleCard
+              theme={theme}
+              activeCycle={activeCycle}
+              infusions={infusions}
               onPress={openTreatmentCycle}
-              accessibilityRole="button"
-              accessibilityLabel="Abrir acompanhamento do ciclo de tratamento"
-              style={({ pressed }) => ({ opacity: pressed ? 0.92 : 1 })}
-            >
-              <OncoCard style={{ backgroundColor: theme.colors.background.primary }}>
-                <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" }}>
-                  <View style={{ flex: 1, paddingRight: theme.spacing.sm, minWidth: 0 }}>
-                    <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-                      <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: theme.colors.semantic.vitals }} />
-                      <Text style={{ fontSize: 11, fontWeight: "700", color: theme.colors.text.secondary, letterSpacing: 0.8 }}>
-                        TRATAMENTO ATIVO
-                      </Text>
-                    </View>
-                    <Text style={{ fontSize: 12, fontWeight: "600", color: theme.colors.text.secondary, marginTop: 4 }}>
-                      {labelTreatmentKind(activeCycle.treatment_kind ?? "chemotherapy")}
-                    </Text>
-                    <Text style={[theme.typography.title2, { color: theme.colors.text.primary, marginTop: theme.spacing.xs }]} numberOfLines={2}>
-                      {activeCycle.protocol_name}
-                    </Text>
-                    {activeCycle.planned_sessions != null ? (
-                      <Text style={[theme.typography.body, { color: theme.colors.text.secondary, marginTop: 4 }]}>
-                        {activeCycle.completed_sessions ?? 0} / {activeCycle.planned_sessions} sessões
-                      </Text>
-                    ) : null}
-                    <View style={{ marginTop: theme.spacing.md, gap: 6 }}>
-                      <Text style={{ fontSize: 13, color: theme.colors.text.secondary }}>
-                        <Text style={{ fontWeight: "700", color: theme.colors.text.primary }}>Última infusão: </Text>
-                        {lastIso ? formatSessionAt(lastIso) : "—"}
-                      </Text>
-                      <Text style={{ fontSize: 13, color: theme.colors.text.secondary }}>
-                        <Text style={{ fontWeight: "700", color: theme.colors.text.primary }}>Próxima: </Text>
-                        {nextInfusion ? formatSessionAt(nextInfusion.session_at) : "Sem sessão agendada"}
-                      </Text>
-                    </View>
-                    <View style={{ flexDirection: "row", alignItems: "center", marginTop: theme.spacing.md, gap: 4 }}>
-                      <Text style={{ fontSize: 13, fontWeight: "600", color: theme.colors.semantic.respiratory }}>Ver acompanhamento do ciclo</Text>
-                      <FontAwesome name="chevron-right" size={12} color={theme.colors.semantic.respiratory} />
-                    </View>
-                  </View>
-                  <View style={{ alignItems: "center", justifyContent: "flex-start" }}>
-                    <TreatmentActivityRings
-                      size={ringSize}
-                      trackColor={track}
-                      ring={{
-                        radius: 46,
-                        strokeWidth: 9,
-                        progress: sessionRingProgress(activeCycle),
-                        color: theme.colors.semantic.vitals,
-                      }}
-                    />
-                    <Text style={{ fontSize: 11, fontWeight: "700", color: theme.colors.text.secondary, marginTop: 4 }}>Dia {cycleDayNumber(activeCycle.start_date)}</Text>
-                  </View>
-                </View>
-              </OncoCard>
-            </Pressable>
+              hideProtocolName={false}
+            />
           ) : patient ? (
             <OncoCard style={{ backgroundColor: theme.colors.background.primary }}>
               <Text style={[theme.typography.headline, { color: theme.colors.text.primary }]}>Tratamento</Text>
@@ -387,16 +415,6 @@ export default function HomeScreen() {
                 <Text style={[theme.typography.headline, { color: "#FFFFFF" }]}>Abrir tratamento</Text>
               </Pressable>
             </OncoCard>
-          ) : null}
-
-          {patient ? (
-            <ProtocolGuidelinesSection
-              loading={protocolGuidelinesLoading}
-              source={protocolSource}
-              protocolName={protocolWithGuidelines?.name ?? null}
-              guidelines={displayGuidelines}
-              firedAlerts={firedAlerts}
-            />
           ) : null}
 
           {patient ? (

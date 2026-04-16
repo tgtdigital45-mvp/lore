@@ -4,6 +4,64 @@ Este guia cobre o caminho desde a configuração local até publicar o app **Aur
 
 **Identificador Android no projeto:** `com.auraonco.app` (`expo.android.package` em `mobile/app.json`). Esse ID é **definitivo** depois que a primeira versão com ele é publicada na Play — não mude sem migrar app na loja.
 
+Este documento **não substitui** as políticas oficiais. Para o texto integral e atualizações, use sempre a [Central de ajuda para programadores](https://support.google.com/googleplay/android-developer/) e a pré-visualização de **Requisitos da Play Console** na própria consola.
+
+---
+
+## Requisitos da Play Console e apps de saúde (Aura Onco)
+
+A Aura Onco enquadra-se em **apps médicas e de saúde**. O Google Play exige, entre outras coisas, o **tipo de conta correto**, declarações na consola, privacidade e revisão. Resumo operacional (alinhado à política pública; em caso de dúvida prevalece sempre a política integral na Google):
+
+### Conta de programador: pessoal vs organização
+
+- Para **apps de saúde** (incl. médicas e apps de investigação em seres humanos), o registo deve ser como **organização**, não como conta pessoal, quando a política assim o exige.
+- Organizações precisam de dados **legais** (nome, morada), **DUNS** (Dun & Bradstreet) quando aplicável, contactos válidos e coerência com o perfil de pagamentos / identidade apresentada na Play.
+- Se a app estiver numa **conta pessoal** e a consola indicar violação de “requisitos da Play Console”, o caminho típico é: **conta de organização** + **transferência da app** ou do programador pelo fluxo oficial (ver “Transferência de propriedade” na consola).
+
+**Política de transferência de contas (anúncio recente):** a Google reforça o uso do fluxo oficial **Transfer ownership** na Play Console para transferências elegíveis; há pré-visualização do artigo “Requisitos da Play Console” atualizado na consola. **Data referida nas comunicações:** 27 de maio de 2026 para parte das regras — confirme sempre a data no documento oficial vigente.
+
+### Formulário declarativo para apps de saúde
+
+- Em **Monitorizar e melhorar → Política → Conteúdo da app**, preencha o **formulário declarativo para apps de saúde** com precisão (categorias, dados, funcionalidades).
+- O que declarar na consola tem de ser **consistente** com a app real, a **Secção segurança dos dados** e a **Política de privacidade**.
+
+### Política de privacidade e divulgação
+
+- **Na Play Console:** URL da política no campo indicado; a página tem de estar **acessível**, em princípio **HTML** (evitar PDF como único meio se a política exigir URL “sem perímetro” — siga o que a consola e a política de dados pedirem).
+- **Na app:** link ou texto de política de privacidade acessível ao utilizador (no Aura Onco existem ligações nos ajustes do perfil; mantenha URLs atualizados e coerentes com a ficha da loja).
+- A política deve cobrir **acesso, recolha, uso e partilha** de dados pessoais e sensíveis de forma abrangente, não só o resumo da “segurança dos dados”.
+
+### Leis de proteção de dados e privacidade (COPPA, GDPR, LGPD, …)
+
+As regras da **Play Console** e a **Secção segurança dos dados** ajudam a alinhar a ficha com o que a Google exige, mas **não substituem** as leis aplicáveis no sítio onde os utilizadores vivem ou onde a vossa organização opera.
+
+- **GDPR (UE/EEE):** se tratam dados pessoais de residentes na União Europeia, podem aplicar-se obrigações sobre base legal, transparência, direitos dos titulares (acesso, apagamento, portabilidade, etc.), contratos com subprocessadores, transferências internacionais e, em certos casos, avaliação de impacto ou DPO.
+- **COPPA (EUA):** se a app for **dirigida a crianças** nos EUA ou recolher dados de menores de 13 anos de forma abrangida à lei, há requisitos específicos (incl. consentimento parental verificável onde aplicável). Isto **cruza** com o **público-alvo** e a **Política para famílias** na Play quando incluem crianças.
+- **LGPD (Brasil):** se há utilizadores ou operações no Brasil, avaliem bases legais, direitos dos titulares, registo de operações, DPO quando obrigatório e medidas de segurança adequadas a dados sensíveis de saúde, quando couber.
+
+**Manual:** definir com **assessoria jurídica** qual o enquadramento (mercados, idades, dados de saúde), atualizar **política de privacidade**, processos internos e o que declarar na consola de forma **coerente**. Este repositório não fornece aconselhamento jurídico.
+
+### Permissões e dados de saúde
+
+- Pedir apenas permissões **necessárias** à funcionalidade essencial; remover permissões não usadas.
+- Dados de saúde / sensíveis: alinhar com a política de **apps de saúde** e com a lista de permissações no âmbito de dados confidenciais (documentação Google: “Que autorizações estão no âmbito…”).
+
+### Funcionalidades médicas e descrição na loja
+
+- Apps **não** reguladas como dispositivo médico devem incluir **exclusão de responsabilidade** clara na descrição (ex.: a app **não** é um dispositivo médico e **não** diagnostica, trata, cura nem previne doenças — adapte ao texto aprovado pela vossa assessoria).
+- Reforçar que o utilizador deve **consultar um profissional de saúde** para diagnóstico ou tratamento.
+- Se no futuro houver classificação como dispositivo médico ou comprovativos regulamentares, siga os requisitos específicos da política e da consola.
+
+### Conta de demonstração para revisão
+
+- Fornecer **credenciais de teste** ativas (utilizador + palavra-passe ou método acordado pela consola), mais instruções para chegar às áreas sensíveis (ex.: ecrã pós-login). Sem isto, a revisão pode falhar ou atrasar.
+
+### O que a equipa deve rever periodicamente
+
+- Contrato de distribuição e **Políticas do programa para programadores** na íntegra.
+- **Data safety** e declarações sempre alinhadas com novas funcionalidades ou SDKs.
+- Apelos (“contestação”) só depois de corrigir ou documentar o que a Google indicar nos detalhes do problema.
+
 ---
 
 ## Parte 0 — O que você precisa antes
@@ -105,8 +163,10 @@ cd mobile
 npx eas secret:create --scope project --name EXPO_PUBLIC_SUPABASE_URL --value "https://SEU_PROJETO.supabase.co"
 npx eas secret:create --scope project --name EXPO_PUBLIC_SUPABASE_ANON_KEY --value "SUA_CHAVE_ANON"
 npx eas secret:create --scope project --name EXPO_PUBLIC_API_URL --value "https://sua-api-publica.com/"
+npx eas secret:create --scope project --name EXPO_PUBLIC_SENTRY_DSN --value "https://SUA_DSN_SENTRY.ingest.sentry.io/..."
 ```
 
+- **Sentry (opcional mas recomendado):** `EXPO_PUBLIC_SENTRY_DSN` é lida em `mobile/app.config.js` e injetada em `expo.extra.sentryDsn` para o cliente mobile (`initSentry`). O DSN de projeto Sentry não é segredo crítico como uma chave de API privada, mas mantenha-o nos **EAS Secrets** em vez de em texto no repositório.
 - Se já existir segredo com o mesmo nome, use `--force` para sobrescrever (veja `eas secret:create --help`).
 - Alternativa: painel **expo.dev** → seu projeto → **Secrets**.
 
@@ -224,13 +284,18 @@ Isso exige configurar a **conta de serviço** da Google Cloud ligada à Play Con
 
 | Etapa | Feito? |
 |--------|--------|
-| Conta desenvolvedor Google Play ativa | ☐ |
+| Conta desenvolvedor Google Play ativa (**tipo adequado**: organização para app de saúde, conforme política) | ☐ |
+| Dados legais / DUNS / contactos coerentes com a organização | ☐ |
 | Conta Expo + `eas login` | ☐ |
 | `eas build:configure` e `projectId` commitado | ☐ |
 | Segredos `EXPO_PUBLIC_*` no EAS | ☐ |
 | Build EAS Android `production` → `.aab` | ☐ |
 | App criado na Play com pacote `com.auraonco.app` | ☐ |
-| Política de privacidade + formulários obrigatórios | ☐ |
+| Política de privacidade (URL na consola + acesso na app) | ☐ |
+| **Formulário declarativo para apps de saúde** + Secção segurança dos dados alinhadas | ☐ |
+| Descrição na loja com **exclusão de responsabilidade** médica adequada (se não for dispositivo médico) | ☐ |
+| **Conta de demonstração** + instruções para revisores | ☐ |
+| Transferências de app/conta apenas via fluxo oficial na consola (política de transferência) | ☐ |
 | Teste interno com `.aab` e testers | ☐ |
 | Produção com `.aab` e revisão aprovada | ☐ |
 
@@ -241,5 +306,6 @@ Isso exige configurar a **conta de serviço** da Google Cloud ligada à Play Con
 - Comandos resumidos: [`mobile/README.md`](../mobile/README.md) (secção EAS).
 - Perfis de build: [`mobile/eas.json`](../mobile/eas.json).
 - Variáveis injetadas no app: [`mobile/app.config.js`](../mobile/app.config.js).
+- **Página do programador** (ícone 512×512, cabeçalho 4096×2304, texto ≤140 caracteres): gere com `npm run store:developer-page` em `mobile/`. Ficheiros em [`mobile/assets/store/`](../mobile/assets/store/): `play-developer-icon-512.jpg`, `play-developer-header-4096x2304.jpg`, `play-developer-promo-pt.txt` (copie o texto para a consola; pode adicionar traduções por país).
 
 Se algo falhar no build (por exemplo **Nova Arquitetura**), veja o log do EAS e a documentação Expo para o SDK do projeto.

@@ -1,7 +1,7 @@
 export function FAQ() {
   const faqs = [
     {
-      q: 'O aplicativo OncoCare é realmente gratuito?',
+      q: 'O aplicativo Aura Onco é realmente gratuito?',
       a: 'Sim, 100% gratuito para pacientes e cuidadores. Nosso compromisso é com a democratização do suporte oncológico.',
     },
     {
@@ -10,7 +10,7 @@ export function FAQ() {
     },
     {
       q: 'Funciona sem conexão com a internet?',
-      a: 'Sim. Você pode registrar sintomas e biometria offline. O OncoCare sincroniza tudo automaticamente assim que detectar uma conexão.',
+      a: 'Sim. Você pode registrar sintomas e biometria offline. O Aura Onco sincroniza tudo automaticamente assim que detectar uma conexão.',
     },
     {
       q: 'Como meu médico acessa o meu dossiê?',

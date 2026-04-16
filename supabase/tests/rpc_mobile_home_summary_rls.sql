@@ -1,0 +1,15 @@
+-- Verificação manual RLS + RPC `rpc_mobile_home_summary` (não é teste automatizado CI).
+--
+-- Pré-requisito: migração aplicada (função `public.rpc_mobile_home_summary(uuid)` existe).
+--
+-- 1) Sessão como **paciente** (JWT do próprio utilizador):
+--    SELECT auth.uid();  -- deve coincidir com patients.user_id ou política equivalente
+--    SELECT public.rpc_mobile_home_summary('<uuid_do_paciente>'::uuid);
+--
+-- 2) Sessão como **cuidador** com acesso ao paciente (políticas de caregiver):
+--    SELECT public.rpc_mobile_home_summary('<uuid_do_paciente>'::uuid);
+--    Esperado: JSON do bundle quando há permissão; vazio/erro quando RLS nega.
+--
+-- 3) Utilizador **sem** relação com o paciente:
+--    SELECT public.rpc_mobile_home_summary('<uuid_alheio>'::uuid);
+--    Esperado: agregados vazios / nulls conforme RLS (sem vazar linhas de outras tabelas).

@@ -1,8 +1,16 @@
+import Constants from "expo-constants";
 import { Platform } from "react-native";
 
 type ExpoNotifications = typeof import("expo-notifications");
 
 let notificationsModule: ExpoNotifications | null | undefined;
+
+/** Expo Go SDK 53+ removed remote push; importing expo-notifications still runs native FX and logs errors. */
+function shouldLoadExpoNotifications(): boolean {
+  if (Platform.OS === "web") return false;
+  if (Constants.appOwnership === "expo") return false;
+  return true;
+}
 
 /**
  * Metro/Hermes dynamic `import("expo-notifications")` pode expor APIs em `default`
@@ -18,7 +26,7 @@ function resolveExpoNotificationsModule(imported: unknown): ExpoNotifications | 
 }
 
 function tryRequireExpoNotifications(): ExpoNotifications | null {
-  if (Platform.OS === "web") return null;
+  if (!shouldLoadExpoNotifications()) return null;
   try {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     return resolveExpoNotificationsModule(require("expo-notifications"));
@@ -29,6 +37,10 @@ function tryRequireExpoNotifications(): ExpoNotifications | null {
 
 export async function loadExpoNotificationsModule(): Promise<ExpoNotifications | null> {
   if (notificationsModule !== undefined) return notificationsModule;
+  if (!shouldLoadExpoNotifications()) {
+    notificationsModule = null;
+    return null;
+  }
   const fromRequire = tryRequireExpoNotifications();
   if (fromRequire) {
     notificationsModule = fromRequire;

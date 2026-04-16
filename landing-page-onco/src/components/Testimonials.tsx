@@ -16,7 +16,7 @@ export function Testimonials() {
       name: 'Dra. Ana Luiza',
       role: 'Médica',
       context: 'Oncologista Clínica',
-      quote: 'Pacientes que usam o OncoCare chegam com dados objetivos. Consigo ajustar doses e manejar toxicidades com muito mais precisão e segurança clínica.',
+      quote: 'Pacientes que usam o Aura Onco chegam com dados objetivos. Consigo ajustar doses e manejar toxicidades com muito mais precisão e segurança clínica.',
     },
   ]
 
@@ -29,7 +29,7 @@ export function Testimonials() {
           </h2>
           <p className="mt-2 text-3xl font-extrabold tracking-tight text-text-primary sm:text-4xl">
             Quem vive o cuidado, <br className="hidden sm:block" />
-            <span className="text-brand-primary/80">confia no OncoCare.</span>
+            <span className="text-brand-primary/80">confia no Aura Onco.</span>
           </p>
         </div>
 

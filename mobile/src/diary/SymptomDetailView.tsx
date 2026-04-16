@@ -1,14 +1,21 @@
 import { useMemo, useState } from "react";
-import { Pressable, Text, View } from "react-native";
+import { Dimensions, Pressable, Text, View } from "react-native";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { LineChart } from "react-native-gifted-charts";
 import { OncoCard } from "@/components/OncoCard";
+import { labelPainRegion } from "@/src/diary/painRegions";
 import { symptomLabel, type SymptomDetailKey } from "@/src/diary/symptomCatalog";
 import type { SymptomLogRow } from "@/src/diary/symptomLogTypes";
-import { valueForSymptomDetail, filterLogsForSymptomChart, type TimeframeKey } from "@/src/diary/symptomLogValue";
-import { labelSeverity } from "@/src/i18n/ui";
+import {
+  valueForSymptomDetail,
+  filterLogsForSymptomChart,
+  historyPrimaryLabelForRow,
+  type TimeframeKey,
+} from "@/src/diary/symptomLogValue";
+import { labelForCtcaeGrade } from "@/src/diary/verbalSeverity";
 import type { AppTheme } from "@/src/theme/theme";
 import { StyleSheet } from "react-native";
+import { CircleChromeButton } from "@/src/health/components/MedicationChromeButtons";
 
 const TIMEFRAMES: { key: TimeframeKey; label: string }[] = [
   { key: "D", label: "D" },
@@ -19,13 +26,13 @@ const TIMEFRAMES: { key: TimeframeKey; label: string }[] = [
 ];
 
 const ABOUT_DEFAULT =
-  "Sintomas como este são frequentes em contexto oncológico. Registrar a intensidade ao longo do tempo ajuda você e a equipe de saúde.";
+  "Sintomas como este são frequentes em contexto oncológico. Registrar a intensidade ao longo do tempo ajuda você e a equipe.";
 
 const ABOUT_EXTRA: Partial<Record<SymptomDetailKey, string>> = {
   pain: "A dor pode variar com o tratamento, a posição ou o esforço. Registrar ajuda a perceber padrões e a comunicar com a equipe.",
   fatigue: "A fadiga oncológica é cansaço persistente, não sempre proporcional ao esforço. O registro ajuda a planejar o dia e o descanso.",
   nausea: "A náusea é uma sensação de desconforto no estômago que muitas vezes vem antes do vômito.",
-  fever: "A febre pode indicar mudança clínica. Registre a temperatura e acompanhe a evolução no diário para análise da equipa no dashboard.",
+  fever: "A febre pode indicar mudança clínica. Registre a temperatura e acompanhe a evolução no diário para análise da equipe no dashboard.",
   diarrhea: "Alterações do hábito intestinal podem estar ligadas ao tratamento ou a outras causas. O registro ajuda o acompanhamento clínico.",
   hydration: "Manter-se hidratado é importante durante o tratamento. Este registro é orientativo — ajuste com a sua equipe.",
   vomiting: "O vómito pode acompanhar náusea ou ser efeito do tratamento. Registre para ajudar na hidratação e no ajuste terapêutico.",
@@ -37,6 +44,19 @@ const ABOUT_EXTRA: Partial<Record<SymptomDetailKey, string>> = {
 
 function aboutFor(key: SymptomDetailKey): string {
   return ABOUT_EXTRA[key] ?? ABOUT_DEFAULT;
+}
+
+function notesLineForDetail(notes: string | null, symptomKey: SymptomDetailKey): string | null {
+  if (!notes?.trim()) return null;
+  try {
+    const j = JSON.parse(notes) as { kind?: string; painRegion?: string };
+    if (j.kind === "prd_meta" && j.painRegion && symptomKey === "pain") {
+      return `Região: ${labelPainRegion(j.painRegion)}`;
+    }
+  } catch {
+    /* plain text */
+  }
+  return notes;
 }
 
 const DIGESTIVE_ACCENT = new Set<SymptomDetailKey>([
@@ -74,6 +94,8 @@ export function SymptomDetailView({ theme, symptomKey, logs, onBack, onAdd }: Pr
   const accent = chartColor(theme, symptomKey);
   const isFever = symptomKey === "fever";
 
+  const chartWidth = Math.min(Dimensions.get("window").width - theme.spacing.md * 4, 360);
+
   const series = useMemo(
     () => filterLogsForSymptomChart(logs, symptomKey, tf, Date.now()),
     [logs, symptomKey, tf]
@@ -83,7 +105,7 @@ export function SymptomDetailView({ theme, symptomKey, logs, onBack, onAdd }: Pr
     return series.map((p) => ({
       value: p.value,
       label: shortDayLabel(p.logged_at),
-      dataPointText: isFever ? `${p.value.toFixed(1)}°` : String(Math.round(p.value)),
+      dataPointText: isFever ? `${p.value.toFixed(1)}°` : labelForCtcaeGrade(p.value),
     }));
   }, [series, isFever]);
 
@@ -92,41 +114,15 @@ export function SymptomDetailView({ theme, symptomKey, logs, onBack, onAdd }: Pr
   return (
     <View style={{ marginBottom: theme.spacing.lg }}>
       <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: theme.spacing.md }}>
-        <Pressable
-          onPress={onBack}
-          hitSlop={12}
-          accessibilityRole="button"
-          accessibilityLabel="Voltar"
-          style={{
-            width: 40,
-            height: 40,
-            borderRadius: 20,
-            backgroundColor: theme.colors.background.secondary,
-            alignItems: "center",
-            justifyContent: "center",
-          }}
-        >
+        <CircleChromeButton onPress={onBack} accessibilityLabel="Voltar">
           <FontAwesome name="chevron-left" size={18} color={theme.colors.text.primary} />
-        </Pressable>
+        </CircleChromeButton>
         <Text style={[theme.typography.title1, { color: theme.colors.text.primary, flex: 1, textAlign: "center" }]} numberOfLines={1}>
           {title}
         </Text>
-        <Pressable
-          onPress={onAdd}
-          hitSlop={12}
-          accessibilityRole="button"
-          accessibilityLabel="Novo registro"
-          style={{
-            width: 40,
-            height: 40,
-            borderRadius: 20,
-            backgroundColor: theme.colors.background.secondary,
-            alignItems: "center",
-            justifyContent: "center",
-          }}
-        >
+        <CircleChromeButton onPress={onAdd} accessibilityLabel="Novo registro">
           <FontAwesome name="plus" size={18} color={accent} />
-        </Pressable>
+        </CircleChromeButton>
       </View>
 
       <OncoCard style={{ marginBottom: theme.spacing.md }}>
@@ -137,6 +133,8 @@ export function SymptomDetailView({ theme, symptomKey, logs, onBack, onAdd }: Pr
             borderRadius: theme.radius.md,
             padding: 4,
             marginBottom: theme.spacing.md,
+            zIndex: 2,
+            elevation: 3,
           }}
         >
           {TIMEFRAMES.map((seg) => {
@@ -145,6 +143,9 @@ export function SymptomDetailView({ theme, symptomKey, logs, onBack, onAdd }: Pr
               <Pressable
                 key={seg.key}
                 onPress={() => setTf(seg.key)}
+                accessibilityRole="button"
+                accessibilityState={{ selected: active }}
+                hitSlop={{ top: 6, bottom: 6, left: 2, right: 2 }}
                 style={{
                   flex: 1,
                   paddingVertical: 8,
@@ -172,10 +173,13 @@ export function SymptomDetailView({ theme, symptomKey, logs, onBack, onAdd }: Pr
             <Text style={{ fontSize: 11, color: theme.colors.text.secondary, marginBottom: 8 }}>°C (temperatura)</Text>
             {hasChart ? (
               <LineChart
+                key={`fever-chart-${tf}`}
                 data={lineData}
+                width={chartWidth}
+                height={200}
                 color={accent}
                 thickness={3}
-                spacing={Math.max(20, 280 / Math.max(lineData.length, 1))}
+                spacing={Math.max(20, chartWidth / Math.max(lineData.length, 1))}
                 hideDataPoints={lineData.length > 8}
                 yAxisColor={theme.colors.border.divider}
                 xAxisColor={theme.colors.border.divider}
@@ -199,28 +203,28 @@ export function SymptomDetailView({ theme, symptomKey, logs, onBack, onAdd }: Pr
           </View>
         ) : (
           <View style={{ marginBottom: theme.spacing.sm }}>
-            <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 4 }}>
-              <Text style={{ fontSize: 10, color: theme.colors.text.tertiary, width: "18%" }}>Grave</Text>
-              <Text style={{ fontSize: 10, color: theme.colors.text.tertiary, width: "18%", textAlign: "center" }}>Moderado</Text>
-              <Text style={{ fontSize: 10, color: theme.colors.text.tertiary, width: "18%", textAlign: "center" }}>Suave</Text>
-              <Text style={{ fontSize: 10, color: theme.colors.text.tertiary, width: "22%", textAlign: "center" }}>Presente</Text>
-              <Text style={{ fontSize: 10, color: theme.colors.text.tertiary, width: "22%", textAlign: "right" }}>Não</Text>
-            </View>
+            <Text style={{ fontSize: 11, color: theme.colors.text.secondary, marginBottom: 8 }}>
+              Grau CTCAE (0 = menor … 5 = maior); eixo Y de baixo para cima.
+            </Text>
             {hasChart ? (
               <LineChart
+                key={`sev-chart-${tf}-${lineData.length}`}
                 data={lineData}
+                width={chartWidth}
+                height={200}
                 color={accent}
                 thickness={3}
-                spacing={Math.max(18, 260 / Math.max(lineData.length, 1))}
+                spacing={Math.max(18, chartWidth / Math.max(lineData.length, 1))}
                 hideDataPoints={lineData.length > 12}
                 yAxisColor={theme.colors.border.divider}
                 xAxisColor={theme.colors.border.divider}
                 yAxisTextStyle={{ color: theme.colors.text.secondary, fontSize: 10 }}
                 xAxisLabelTextStyle={{ color: theme.colors.text.secondary, fontSize: 9 }}
                 curved
-                maxValue={10}
+                maxValue={5}
+                mostNegativeValue={0}
                 noOfSections={5}
-                yAxisLabelTexts={["10", "8", "6", "4", "2", "0"]}
+                yAxisLabelTexts={["0", "1", "2", "3", "4", "5"]}
               />
             ) : (
               <Text style={[theme.typography.body, { color: theme.colors.text.secondary, textAlign: "center", paddingVertical: theme.spacing.lg }]}>
@@ -271,7 +275,7 @@ export function SymptomDetailView({ theme, symptomKey, logs, onBack, onAdd }: Pr
             return (
               <View style={{ padding: theme.spacing.lg, alignItems: "center" }}>
                 <Text style={[theme.typography.body, { color: theme.colors.text.tertiary }]}>
-                  Nenhum registro histórico para este sintoma.
+                  Nenhum registro no histórico para este sintoma.
                 </Text>
               </View>
             );
@@ -279,6 +283,8 @@ export function SymptomDetailView({ theme, symptomKey, logs, onBack, onAdd }: Pr
 
           return filtered.map((l, idx) => {
             const val = valueForSymptomDetail(l, symptomKey);
+            const primary = historyPrimaryLabelForRow(l, symptomKey, val);
+            const noteLine = notesLineForDetail(l.notes, symptomKey);
             return (
               <View
                 key={l.id}
@@ -289,28 +295,19 @@ export function SymptomDetailView({ theme, symptomKey, logs, onBack, onAdd }: Pr
                   borderBottomColor: theme.colors.border.divider,
                 }}
               >
-                <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+                <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" }}>
                   <View style={{ flex: 1 }}>
-                    <Text style={[theme.typography.headline, { color: theme.colors.text.primary }]}>
-                      {isFever ? `${val?.toFixed(1)}°C` : `Nível ${val ?? "—"}`}
-                    </Text>
+                    <Text style={[theme.typography.headline, { color: theme.colors.text.primary }]}>{primary}</Text>
                     <Text style={[theme.typography.body, { color: theme.colors.text.secondary, marginTop: 2 }]}>
                       {new Date(l.logged_at).toLocaleString("pt-BR", { dateStyle: "medium", timeStyle: "short" })}
                     </Text>
                   </View>
-                  {l.severity && (
-                    <View style={{ backgroundColor: theme.colors.background.tertiary, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 }}>
-                      <Text style={{ fontSize: 11, fontWeight: "600", color: theme.colors.text.secondary }}>
-                        {labelSeverity(l.severity)}
-                      </Text>
-                    </View>
-                  )}
                 </View>
-                {l.notes && (
+                {noteLine ? (
                   <Text style={[theme.typography.caption1, { color: theme.colors.text.tertiary, marginTop: 4 }]} numberOfLines={2}>
-                    {l.notes}
+                    {noteLine}
                   </Text>
-                )}
+                ) : null}
               </View>
             );
           });

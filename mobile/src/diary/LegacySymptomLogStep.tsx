@@ -4,12 +4,20 @@ import DateTimePicker from "@react-native-community/datetimepicker";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import * as Haptics from "expo-haptics";
+import * as ImagePicker from "expo-image-picker";
+import { showAppToast } from "@/src/lib/appToast";
+import { PAIN_REGIONS, type PainRegionId } from "@/src/diary/painRegions";
+import {
+  SYMPTOM_KEYS_OPTIONAL_PHOTO,
+  symptomLabel,
+  type SymptomDetailKey,
+} from "@/src/diary/symptomCatalog";
 import {
   VERBAL_SYMPTOM_LEVELS,
   type VerbalSymptomDbSeverity,
   type VerbalSymptomKey,
 } from "@/src/diary/verbalSeverity";
-import { symptomLabel, type SymptomDetailKey } from "@/src/diary/symptomCatalog";
+import { CircleChromeButton } from "@/src/health/components/MedicationChromeButtons";
 import type { AppTheme } from "@/src/theme/theme";
 
 type PickerTarget = { which: "start" | "end"; mode: "date" | "time" };
@@ -39,6 +47,13 @@ function mergeTimePart(base: Date, from: Date): Date {
   return o;
 }
 
+/** Uma única base temporal evita início e fim idênticos (dois `new Date()` separados no mount). */
+function initialEpisodeRange(): { start: Date; end: Date } {
+  const end = new Date();
+  const start = new Date(end.getTime() - 60 * 60 * 1000);
+  return { start, end };
+}
+
 type Props = {
   theme: AppTheme;
   symptomKey: SymptomDetailKey;
@@ -50,15 +65,24 @@ type Props = {
     symptom_started_at: string;
     symptom_ended_at: string;
     logged_at: string;
+    notes: string | null;
+    photoUri: string | null;
   }) => void;
 };
 
 export function LegacySymptomLogStep({ theme, symptomKey, accent, onBack, busy, onSubmit }: Props) {
   const title = symptomLabel(symptomKey);
+  const showOptionalPhoto = SYMPTOM_KEYS_OPTIONAL_PHOTO.has(symptomKey);
+  const showPainRegion = symptomKey === "pain";
+
   const [verbal, setVerbal] = useState<VerbalSymptomKey>("present");
-  const [startAt, setStartAt] = useState(() => new Date());
-  const [endAt, setEndAt] = useState(() => new Date());
-  const [picker, setPicker] = useState<PickerTarget | null>(null);
+  const [episode, setEpisode] = useState(() => initialEpisodeRange());
+  const startAt = episode.start;
+  const endAt = episode.end;
+  const [iosPicker, setIosPicker] = useState<PickerTarget | null>(null);
+  const [androidPicker, setAndroidPicker] = useState<PickerTarget | null>(null);
+  const [painRegion, setPainRegion] = useState<PainRegionId | null>(null);
+  const [photoUri, setPhotoUri] = useState<string | null>(null);
 
   const verbalDb = (k: VerbalSymptomKey): VerbalSymptomDbSeverity => {
     const row = VERBAL_SYMPTOM_LEVELS.find((x) => x.key === k);
@@ -67,20 +91,48 @@ export function LegacySymptomLogStep({ theme, symptomKey, accent, onBack, busy, 
 
   const openPicker = (which: "start" | "end", mode: "date" | "time") => {
     void Haptics.selectionAsync();
-    setPicker({ which, mode });
+    if (Platform.OS === "android") {
+      setAndroidPicker({ which, mode });
+    } else {
+      setIosPicker({ which, mode });
+    }
   };
 
-  const onPickerChange = (_: unknown, date?: Date) => {
-    const current = picker;
-    if (Platform.OS === "android") {
-      setPicker(null);
+  const applyPickerDate = (current: PickerTarget, date: Date) => {
+    setEpisode((prev) => {
+      if (current.which === "start") {
+        const next =
+          current.mode === "date" ? mergeDatePart(prev.start, date) : mergeTimePart(prev.start, date);
+        return { ...prev, start: next };
+      }
+      const next = current.mode === "date" ? mergeDatePart(prev.end, date) : mergeTimePart(prev.end, date);
+      return { ...prev, end: next };
+    });
+  };
+
+  const onIosPickerChange = (_: unknown, date?: Date) => {
+    if (!date || !iosPicker) return;
+    applyPickerDate(iosPicker, date);
+  };
+
+  const onAndroidPickerChange = (event: { type?: string }, date?: Date) => {
+    const current = androidPicker;
+    setAndroidPicker(null);
+    if (event.type === "dismissed" || !date || !current) return;
+    applyPickerDate(current, date);
+  };
+
+  const pickPhoto = async () => {
+    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!perm.granted) {
+      showAppToast("info", "Fotos", "Permita o acesso à galeria para anexar uma imagem.");
+      return;
     }
-    if (!date || !current) return;
-    if (current.which === "start") {
-      setStartAt((prev) => (current.mode === "date" ? mergeDatePart(prev, date) : mergeTimePart(prev, date)));
-    } else {
-      setEndAt((prev) => (current.mode === "date" ? mergeDatePart(prev, date) : mergeTimePart(prev, date)));
-    }
+    const res = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      quality: 0.85,
+    });
+    if (!res.canceled && res.assets[0]?.uri) setPhotoUri(res.assets[0].uri);
   };
 
   const save = () => {
@@ -91,31 +143,90 @@ export function LegacySymptomLogStep({ theme, symptomKey, accent, onBack, busy, 
       return;
     }
     const logged = new Date();
+    let notes: string | null = null;
+    if (showPainRegion && painRegion) {
+      notes = JSON.stringify({ kind: "prd_meta", painRegion });
+    }
     onSubmit({
       severity: verbalDb(verbal),
       symptom_started_at: startAt.toISOString(),
       symptom_ended_at: endAt.toISOString(),
       logged_at: logged.toISOString(),
+      notes,
+      photoUri: showOptionalPhoto ? photoUri : null,
     });
   };
 
+  const activePicker = Platform.OS === "android" ? androidPicker : iosPicker;
   const pickerValue =
-    picker?.which === "start" ? startAt : picker?.which === "end" ? endAt : new Date();
+    activePicker?.which === "start" ? startAt : activePicker?.which === "end" ? endAt : new Date();
 
   return (
     <View>
-      <Pressable
-        onPress={onBack}
-        hitSlop={12}
-        style={{ flexDirection: "row", alignItems: "center", marginBottom: theme.spacing.md }}
-      >
-        <Text style={{ fontSize: 22, color: accent, fontWeight: "600" }}>‹</Text>
-        <Text style={[theme.typography.body, { color: accent, marginLeft: 4 }]}>Voltar</Text>
-      </Pressable>
+      <View style={{ flexDirection: "row", alignItems: "center", marginBottom: theme.spacing.md }}>
+        <CircleChromeButton onPress={onBack} accessibilityLabel="Voltar">
+          <FontAwesome name="chevron-left" size={18} color={theme.colors.text.primary} />
+        </CircleChromeButton>
+      </View>
       <Text style={[theme.typography.title1, { color: theme.colors.text.primary }]}>{title}</Text>
       <Text style={[theme.typography.body, { color: theme.colors.text.secondary, marginTop: theme.spacing.xs }]}>
-        Sugestão: agora — ajuste o período em que sentiu o sintoma.
+        Por omissão: <Text style={{ fontWeight: "700" }}>termina agora</Text> e{" "}
+        <Text style={{ fontWeight: "700" }}>começa 1 h antes</Text>. Ajuste data e hora em cada campo.
       </Text>
+
+      {showPainRegion ? (
+        <View style={{ marginTop: theme.spacing.md }}>
+          <Text style={[theme.typography.body, { color: theme.colors.text.secondary, marginBottom: theme.spacing.sm }]}>
+            Onde sente mais? (opcional)
+          </Text>
+          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: theme.spacing.sm }}>
+            {PAIN_REGIONS.map((r) => {
+              const sel = painRegion === r.id;
+              return (
+                <Pressable
+                  key={r.id}
+                  onPress={() => {
+                    void Haptics.selectionAsync();
+                    setPainRegion(sel ? null : r.id);
+                  }}
+                  style={{
+                    paddingVertical: 10,
+                    paddingHorizontal: theme.spacing.sm,
+                    borderRadius: theme.radius.md,
+                    backgroundColor: theme.colors.background.primary,
+                    borderWidth: sel ? 2 : 1,
+                    borderColor: sel ? accent : theme.colors.border.divider,
+                  }}
+                >
+                  <Text style={{ fontSize: 14, fontWeight: "600", color: theme.colors.text.primary }}>{r.label}</Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        </View>
+      ) : null}
+
+      {showOptionalPhoto ? (
+        <Pressable
+          onPress={() => void pickPhoto()}
+          style={{
+            marginTop: theme.spacing.lg,
+            paddingVertical: 12,
+            paddingHorizontal: theme.spacing.md,
+            borderRadius: theme.radius.lg,
+            backgroundColor: theme.colors.background.primary,
+            borderWidth: StyleSheet.hairlineWidth,
+            borderColor: theme.colors.border.divider,
+          }}
+        >
+          <Text style={[theme.typography.headline, { color: theme.colors.text.primary }]}>
+            {photoUri ? "Foto anexada (tocar para alterar)" : "Anexar foto (opcional)"}
+          </Text>
+          <Text style={[theme.typography.body, { color: theme.colors.text.secondary, marginTop: 4 }]}>
+            Útil para alterações de pele ou lesões — fica no dossier da equipe.
+          </Text>
+        </Pressable>
+      ) : null}
 
       <View
         style={{
@@ -230,22 +341,22 @@ export function LegacySymptomLogStep({ theme, symptomKey, accent, onBack, busy, 
         </Pressable>
       </View>
 
-      {picker ? (
-        <DateTimePicker
-          value={pickerValue}
-          mode={picker.mode}
-          display={Platform.OS === "ios" ? "spinner" : "default"}
-          onChange={onPickerChange}
-        />
+      {Platform.OS === "ios" && iosPicker ? (
+        <>
+          <DateTimePicker value={pickerValue} mode={iosPicker.mode} display="spinner" onChange={onIosPickerChange} />
+          <Pressable onPress={() => setIosPicker(null)} style={{ marginTop: theme.spacing.sm, alignSelf: "center" }}>
+            <Text style={{ color: accent, fontWeight: "600" }}>Fechar seletor</Text>
+          </Pressable>
+        </>
       ) : null}
 
-      {Platform.OS === "ios" && picker ? (
-        <Pressable
-          onPress={() => setPicker(null)}
-          style={{ marginTop: theme.spacing.sm, alignSelf: "center" }}
-        >
-          <Text style={{ color: accent, fontWeight: "600" }}>Fechar seletor</Text>
-        </Pressable>
+      {Platform.OS === "android" && androidPicker ? (
+        <DateTimePicker
+          value={pickerValue}
+          mode={androidPicker.mode}
+          display="default"
+          onChange={onAndroidPickerChange}
+        />
       ) : null}
 
       <Pressable

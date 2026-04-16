@@ -4,6 +4,8 @@
 ALTER TABLE public.audit_logs
   ADD COLUMN IF NOT EXISTS metadata jsonb NOT NULL DEFAULT '{}'::jsonb;
 
+DROP POLICY IF EXISTS "hospitals_update_hospital_admin_assigned" ON public.hospitals;
+
 CREATE POLICY "hospitals_update_hospital_admin_assigned"
 ON public.hospitals FOR UPDATE
 TO authenticated

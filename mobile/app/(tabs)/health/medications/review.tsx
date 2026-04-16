@@ -1,4 +1,5 @@
 import { useRef, useState } from "react";
+import { z } from "zod";
 import { Alert, Keyboard, Platform, Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import type { Href } from "expo-router";
@@ -105,6 +106,22 @@ export default function MedicationReviewScreen() {
     const schedule_weekdays =
       draft.frequency === "weekdays" && draft.weekdays?.length ? draft.weekdays : null;
 
+    const nameCheck = z.string().trim().min(1, "Indique o nome do medicamento").max(500).safeParse(displayName);
+    if (!nameCheck.success) {
+      setBusy(false);
+      Alert.alert("Validação", nameCheck.error.errors.map((e) => e.message).join("\n"));
+      return;
+    }
+
+    const { data: maxSortRow } = await supabase
+      .from("medications")
+      .select("sort_order")
+      .eq("patient_id", patient.id)
+      .order("sort_order", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    const nextSortOrder = (maxSortRow?.sort_order ?? -1) + 1;
+
     const { data: inserted, error } = await supabase
       .from("medications")
       .insert({
@@ -116,6 +133,8 @@ export default function MedicationReviewScreen() {
         anchor_at: anchorSource.toISOString(),
         end_date: draft.endDate ? toISODate(draft.endDate) : null,
         active: true,
+        archived: false,
+        sort_order: nextSortOrder,
         notes: draft.notes?.trim() || null,
         shape: draft.shapeId,
         color_left: draft.colorLeft,

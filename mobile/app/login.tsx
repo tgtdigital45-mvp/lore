@@ -8,7 +8,7 @@ import { ResponsiveScreen } from "@/src/components/ResponsiveScreen";
 import { useAppTheme } from "@/src/hooks/useAppTheme";
 
 export default function LoginScreen() {
-  const { signIn, signUp, signInWithGoogle, signInWithApple } = useAuth();
+  const { signIn, signUp, signInWithGoogle } = useAuth();
   const { theme } = useAppTheme();
   const router = useRouter();
   const [email, setEmail] = useState("");
@@ -136,37 +136,6 @@ export default function LoginScreen() {
         <Ionicons name="logo-google" size={22} color={theme.colors.text.primary} />
         <Text style={[theme.typography.headline, { color: theme.colors.text.primary }]}>Continuar com Google</Text>
       </Pressable>
-
-      {Platform.OS === "ios" ? (
-        <Pressable
-          onPress={async () => {
-            setBusy(true);
-            const res = await signInWithApple();
-            setBusy(false);
-            if (res.error) Alert.alert("Apple", res.error);
-            else router.replace("/");
-          }}
-          disabled={busy}
-          accessibilityRole="button"
-          accessibilityLabel="Continuar com Apple"
-          style={{
-            marginTop: theme.spacing.sm,
-            flexDirection: "row",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: theme.spacing.sm,
-            backgroundColor: "#000000",
-            paddingVertical: theme.spacing.md,
-            paddingHorizontal: theme.spacing.lg,
-            minHeight: 48,
-            borderRadius: theme.radius.md,
-            opacity: busy ? 0.6 : 1,
-          }}
-        >
-          <FontAwesome name="apple" size={22} color="#FFFFFF" />
-          <Text style={[theme.typography.headline, { color: "#FFFFFF" }]}>Continuar com Apple</Text>
-        </Pressable>
-      ) : null}
 
       <Pressable onPress={() => setMode(mode === "login" ? "signup" : "login")} style={{ marginTop: theme.spacing.md }}>
         <Text style={[theme.typography.body, { color: theme.colors.semantic.respiratory }]}>

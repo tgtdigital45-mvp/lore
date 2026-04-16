@@ -1,0 +1,32 @@
+# Smoke E2E (Maestro): https://maestro.mobile.dev/
+#
+# appId Android (produção / dev client com este package):
+#   com.auraonco.app  (expo.android.package em app.json)
+# iOS: use o bundle identifier do Xcode/EAS (ex.: com.auraonco.app se coincidir).
+#
+# Pré-requisitos: app instalado no emulador/dispositivo; Maestro CLI no PATH.
+# Sessão: o fluxo aceita ecrã de login OU utilizador já autenticado (Resumo).
+
+appId: com.auraonco.app
+---
+- launchApp
+- extendedWaitUntil:
+    visible: "Entrar"
+    timeout: 45000
+    optional: true
+- extendedWaitUntil:
+    visible: "Resumo"
+    timeout: 45000
+    optional: true
+- extendedWaitUntil:
+    visible: "Bom dia"
+    timeout: 15000
+    optional: true
+- extendedWaitUntil:
+    visible: "Boa tarde"
+    timeout: 15000
+    optional: true
+- extendedWaitUntil:
+    visible: "Boa noite"
+    timeout: 15000
+    optional: true

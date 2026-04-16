@@ -4,7 +4,6 @@ import type { Env } from "./config.js";
 import { runGeminiTriagem } from "./gemini.js";
 import { logStructured } from "./logger.js";
 import { evaluateNadirFeverEmergency } from "./nadirFeverRules.js";
-
 const EMERGENCY_MESSAGE =
   "Atenção: devido à fase atual do seu tratamento, febre ou calafrios exigem avaliação urgente. Dirija-se ao pronto-socorro mais próximo agora e avise sua equipe de cuidados.";
 
@@ -136,7 +135,7 @@ export async function processAgentMessage(
       patient_id: patient.id,
       cycle_id: activeCycle?.id ?? null,
       symptom_category: structured.log_symptom.symptom_category,
-      severity: structured.log_symptom.severity,
+      severity: structured.log_symptom.severity ?? "mild",
       body_temperature: structured.log_symptom.body_temperature ?? null,
       notes: structured.log_symptom.notes ?? null,
     });
