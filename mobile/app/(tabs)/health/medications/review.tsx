@@ -17,6 +17,7 @@ import { supabase } from "@/src/lib/supabase";
 import { useMedicationWizard } from "@/src/medications/MedicationWizardContext";
 import { MedicationWizardStepBadge } from "@/src/medications/components/MedicationWizardStepBadge";
 import { PillPreview } from "@/src/medications/components/PillPreview";
+import { formatDosageLine } from "@/src/medications/medicationFormatters";
 import { scheduleItemToTimeOfDay } from "@/src/medications/scheduleUtils";
 import type { DraftFrequency } from "@/src/medications/types";
 
@@ -33,19 +34,6 @@ function combineDateTime(day: Date, hours: number, minutes: number): Date {
 
 function repeatModeFromDraft(f: DraftFrequency): "daily" | "weekdays" | "interval_hours" | "as_needed" {
   return f;
-}
-
-function formatDosageLine(draft: {
-  form: string | null;
-  dosageAmount: string | null;
-  unit: string | null;
-}): string {
-  const parts: string[] = [];
-  if (draft.form) parts.push(draft.form);
-  if (draft.dosageAmount?.trim()) {
-    parts.push(`${draft.dosageAmount.trim()}${draft.unit ? ` ${draft.unit}` : ""}`);
-  }
-  return parts.join(", ");
 }
 
 function freqSummaryPt(f: DraftFrequency, intervalHours: number | null): string {
@@ -152,7 +140,11 @@ export default function MedicationReviewScreen() {
 
     if (error || !inserted) {
       setBusy(false);
-      Alert.alert("Medicamento", error?.message ?? "Não foi possível guardar.");
+      const raw = error?.message ?? "";
+      const msg = raw.includes("medications_repeat_mode_check")
+        ? "A base de dados ainda não aceita medicamentos SOS. Peça para aplicar a migração Supabase mais recente em «supabase/migrations» (repeat_mode com as_needed) ou execute «supabase db push» no projeto."
+        : raw || "Não foi possível guardar.";
+      Alert.alert("Medicamento", msg);
       return;
     }
 
@@ -170,7 +162,15 @@ export default function MedicationReviewScreen() {
       }
     }
 
-    const { data: slots } = await supabase.from("medication_schedules").select("id, time_of_day, quantity").eq("medication_id", inserted.id);
+    const { data: slots, error: slotsErr } = await supabase
+      .from("medication_schedules")
+      .select("id, time_of_day, quantity")
+      .eq("medication_id", inserted.id);
+    if (slotsErr) {
+      setBusy(false);
+      Alert.alert("Medicamento", slotsErr.message ?? "Não foi possível carregar os horários para agendar lembretes.");
+      return;
+    }
 
     setBusy(false);
     const full = { ...inserted, medication_schedules: slots ?? [] };

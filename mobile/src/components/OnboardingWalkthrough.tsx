@@ -13,6 +13,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/src/auth/AuthContext";
 import { appStorage } from "@/src/lib/appStorage";
+import { DEVICE_INTRO_SEEN_KEY } from "@/src/lib/deviceOnboardingFlags";
 import { useAppTheme } from "@/src/hooks/useAppTheme";
 import { OnboardingIllustration } from "@/src/components/onboarding/OnboardingIllustration";
 
@@ -27,7 +28,25 @@ function secureWalkthroughKey(userId: string): string {
   return `aura_onboarding_walkthrough_ss_${userId}`;
 }
 
+async function persistWalkthroughDone(userId: string): Promise<void> {
+  const k = onboardingKeyForUser(userId);
+  await appStorage.setItem(k, "1");
+  await appStorage.setItem(LEGACY_STORAGE_KEY, "1");
+  if (Platform.OS !== "web") {
+    try {
+      await SecureStore.setItemAsync(secureWalkthroughKey(userId), "1");
+    } catch {
+      /* */
+    }
+  }
+}
+
 async function shouldShowOnboarding(userId: string): Promise<boolean> {
+  if ((await appStorage.getItem(DEVICE_INTRO_SEEN_KEY)) === "1") {
+    await persistWalkthroughDone(userId);
+    return false;
+  }
+
   const k = onboardingKeyForUser(userId);
 
   if (Platform.OS !== "web") {
@@ -130,16 +149,7 @@ export function OnboardingWalkthrough() {
   const finish = useCallback(async () => {
     visibilityGateRef.current += 1;
     if (userId) {
-      const k = onboardingKeyForUser(userId);
-      await appStorage.setItem(k, "1");
-      await appStorage.setItem(LEGACY_STORAGE_KEY, "1");
-      if (Platform.OS !== "web") {
-        try {
-          await SecureStore.setItemAsync(secureWalkthroughKey(userId), "1");
-        } catch {
-          /* */
-        }
-      }
+      await persistWalkthroughDone(userId);
     }
     setVisible(false);
     setChecking(false);

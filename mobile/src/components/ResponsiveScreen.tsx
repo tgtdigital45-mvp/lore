@@ -14,10 +14,12 @@ type Props = {
   style?: StyleProp<ViewStyle>;
   /** Fundo em gradiente edge-to-edge. Telas fora das abas usam `default`. */
   variant?: "default" | "tabGradient";
+  /** Quando um Stack header já cuida do safe-area top; evita padding duplicado e faixa sólida. */
+  headerShown?: boolean;
 };
 
 /** Envolve telas com largura máxima em tablet e margens seguras em celular. */
-export function ResponsiveScreen({ children, style, variant = "default" }: Props) {
+export function ResponsiveScreen({ children, style, variant = "default", headerShown = false }: Props) {
   const { theme } = useAppTheme();
   const { isTablet, maxContentWidth, gutter } = useResponsiveLayout();
   const insets = useSafeAreaInsets();
@@ -25,13 +27,16 @@ export function ResponsiveScreen({ children, style, variant = "default" }: Props
 
   const tabGradient = variant === "tabGradient";
 
+  /** Barra em pílula (tabs): `tabBarExtra` é folga positiva além do safe area inferior. */
+  const paddingBottom = insets.bottom + tabBarExtra;
+
   const innerStyle = {
     flex: 1,
     width: "100%" as const,
     maxWidth: maxContentWidth,
     paddingHorizontal: gutter,
-    paddingTop: insets.top,
-    paddingBottom: insets.bottom + tabBarExtra,
+    paddingTop: headerShown ? 0 : insets.top,
+    paddingBottom,
     backgroundColor: "transparent" as const,
   };
 

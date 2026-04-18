@@ -2,7 +2,6 @@ import { useMemo, useRef, useState } from "react";
 import { Keyboard, Platform, Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import DateTimePicker from "@react-native-community/datetimepicker";
-import type { Href } from "expo-router";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { ResponsiveScreen } from "@/src/components/ResponsiveScreen";
 import { CircleChromeButton } from "@/src/health/components/MedicationChromeButtons";
@@ -10,6 +9,7 @@ import { IOS_HEALTH } from "@/src/health/iosHealthTokens";
 import { KeyboardAccessoryDone, KEYBOARD_ACCESSORY_ID } from "@/src/components/KeyboardAccessoryDone";
 import { useAppTheme } from "@/src/hooks/useAppTheme";
 import { useStackBack } from "@/src/hooks/useStackBack";
+import { TREATMENT_HREF } from "@/src/navigation/treatmentRoutes";
 
 function toDateOnly(d: Date): string {
   const y = d.getFullYear();
@@ -23,7 +23,7 @@ const INTERVAL_PRESETS = [7, 14, 21] as const;
 export default function TreatmentScheduleWizardScreen() {
   const { theme } = useAppTheme();
   const router = useRouter();
-  const goBack = useStackBack("/treatment/kind" as Href);
+  const goBack = useStackBack(TREATMENT_HREF.kind);
   const { kind } = useLocalSearchParams<{ kind?: string }>();
   const treatmentKind = typeof kind === "string" && kind.length > 0 ? kind : "other";
 
@@ -65,7 +65,7 @@ export default function TreatmentScheduleWizardScreen() {
     if (!canNext) return;
     Keyboard.dismiss();
     router.push({
-      pathname: "/treatment/name",
+      pathname: TREATMENT_HREF.details,
       params: {
         kind: treatmentKind,
         startDate: toDateOnly(start),
@@ -73,7 +73,7 @@ export default function TreatmentScheduleWizardScreen() {
         completed: completed.trim(),
         infusionIntervalDays: intervalDays.trim(),
       },
-    } as Href);
+    });
   }
 
   return (

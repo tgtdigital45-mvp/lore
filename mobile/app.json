@@ -3,7 +3,7 @@
     "owner": "lore-onco",
     "name": "Aura Onco",
     "slug": "lore-onco",
-    "version": "1.0.1",
+    "version": "1.0.3",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "auraonco",
@@ -15,6 +15,7 @@
       "backgroundColor": "#0f766e"
     },
     "ios": {
+      "bundleIdentifier": "com.auraonco.app",
       "supportsTablet": true,
       "infoPlist": {
         "NSPhotoLibraryUsageDescription": "O Aura Onco acede às suas fotos para a imagem de perfil e para anexar laudos e exames.",
@@ -27,7 +28,7 @@
       "blockedPermissions": [
         "com.google.android.gms.permission.AD_ID"
       ],
-      "versionCode": 9,
+      "versionCode": 16,
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#0f766e"

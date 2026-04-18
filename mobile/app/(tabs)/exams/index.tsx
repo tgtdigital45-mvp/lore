@@ -466,7 +466,7 @@ export default function ExamsScreen() {
     <ResponsiveScreen variant="tabGradient">
       <ScrollView
         style={{ flex: 1, backgroundColor: "transparent" }}
-        contentContainerStyle={{ paddingBottom: theme.spacing.xl * 2, flexGrow: 1 }}
+        contentContainerStyle={{ paddingBottom: theme.spacing.xl+30 * 2, flexGrow: 1 }}
         showsVerticalScrollIndicator={false}
         nestedScrollEnabled
       >

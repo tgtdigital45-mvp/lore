@@ -12,19 +12,7 @@ import { MedicationWizardStepBadge } from "@/src/medications/components/Medicati
 import { ColorPalette } from "@/src/medications/components/ColorPalette";
 import { PillPreview } from "@/src/medications/components/PillPreview";
 import { PILL_BACKGROUND_COLORS, PILL_HALVES_COLORS } from "@/src/medications/constants";
-
-function formatDosageLine(draft: {
-  form: string | null;
-  dosageAmount: string | null;
-  unit: string | null;
-}): string {
-  const parts: string[] = [];
-  if (draft.form) parts.push(draft.form);
-  if (draft.dosageAmount?.trim()) {
-    parts.push(`${draft.dosageAmount.trim()}${draft.unit ? ` ${draft.unit}` : ""}`);
-  }
-  return parts.join(", ");
-}
+import { formatDosageLine } from "@/src/medications/medicationFormatters";
 
 export default function MedicationColorScreen() {
   const { theme } = useAppTheme();

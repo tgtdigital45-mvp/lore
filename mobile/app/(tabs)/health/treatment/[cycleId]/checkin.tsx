@@ -11,7 +11,6 @@ import {
   View,
 } from "react-native";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
-import type { Href } from "expo-router";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { KeyboardAccessoryDone, KEYBOARD_ACCESSORY_ID } from "@/src/components/KeyboardAccessoryDone";
 import { ResponsiveScreen } from "@/src/components/ResponsiveScreen";
@@ -19,6 +18,7 @@ import { CircleChromeButton } from "@/src/health/components/MedicationChromeButt
 import { IOS_HEALTH } from "@/src/health/iosHealthTokens";
 import { useAppTheme } from "@/src/hooks/useAppTheme";
 import { useStackBack } from "@/src/hooks/useStackBack";
+import { TREATMENT_HREF, treatmentCycleHref } from "@/src/navigation/treatmentRoutes";
 import { usePatient } from "@/src/hooks/usePatient";
 import { supabase } from "@/src/lib/supabase";
 import { reschedulePendingSessionAtsAfterCheckIn } from "@/src/lib/treatmentInfusionSchedule";
@@ -30,7 +30,7 @@ export default function TreatmentCheckInScreen() {
   const { cycleId, infusionId } = useLocalSearchParams<{ cycleId: string; infusionId: string }>();
   const { patient } = usePatient();
   const backFallback = useMemo(
-    () => (cycleId ? (`/treatment/${cycleId}` as Href) : ("/treatment" as Href)),
+    () => (cycleId ? treatmentCycleHref(cycleId) : TREATMENT_HREF.index),
     [cycleId]
   );
   const goBack = useStackBack(backFallback);
@@ -121,11 +121,17 @@ export default function TreatmentCheckInScreen() {
         .order("session_at", { ascending: true });
       if (!pendErr && pendingRows?.length) {
         const updates = reschedulePendingSessionAtsAfterCheckIn(nowIso, intervalDays, pendingRows as { id: string }[]);
-        await Promise.all(
+        const results = await Promise.all(
           updates.map((u) =>
             supabase.from("treatment_infusions").update({ session_at: u.session_at }).eq("id", u.id).eq("patient_id", patient.id)
           )
         );
+        const batchErr = results.find((r) => r.error)?.error;
+        if (batchErr) {
+          setBusy(false);
+          Alert.alert("Erro", batchErr.message ?? "Não foi possível reagendar todas as sessões.");
+          return;
+        }
       }
     }
 
@@ -134,13 +140,32 @@ export default function TreatmentCheckInScreen() {
       .select("id", { count: "exact", head: true })
       .eq("cycle_id", cycleId)
       .eq("status", "completed");
-    if (!cErr && count != null) {
-      await supabase.from("treatment_cycles").update({ completed_sessions: count }).eq("id", cycleId).eq("patient_id", patient.id);
+    if (cErr) {
+      setBusy(false);
+      Alert.alert("Aviso", cErr.message ?? "Não foi possível atualizar o contador de sessões concluídas.");
+      router.replace(treatmentCycleHref(cycleId));
+      return;
+    }
+    if (count != null) {
+      const { error: upErr } = await supabase
+        .from("treatment_cycles")
+        .update({ completed_sessions: count })
+        .eq("id", cycleId)
+        .eq("patient_id", patient.id);
+      if (upErr) {
+        setBusy(false);
+        Alert.alert(
+          "Aviso",
+          "Check-in registado, mas o contador do ciclo não foi atualizado: " + (upErr.message ?? "erro desconhecido.")
+        );
+        router.replace(treatmentCycleHref(cycleId));
+        return;
+      }
     }
 
     setBusy(false);
 
-    router.replace(`/treatment/${cycleId}` as Href);
+    router.replace(treatmentCycleHref(cycleId));
   }
 
   if (!cycleId || !infusionId) {

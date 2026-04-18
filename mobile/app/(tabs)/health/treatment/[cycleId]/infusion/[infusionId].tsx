@@ -12,8 +12,8 @@ import {
 } from "react-native";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import DateTimePicker from "@react-native-community/datetimepicker";
-import type { Href } from "expo-router";
 import { useLocalSearchParams, useRouter } from "expo-router";
+import { AndroidDateTimePicker } from "@/src/components/AndroidDateTimePicker";
 import { KeyboardAccessoryDone, KEYBOARD_ACCESSORY_ID } from "@/src/components/KeyboardAccessoryDone";
 import { ResponsiveScreen } from "@/src/components/ResponsiveScreen";
 import { CircleChromeButton } from "@/src/health/components/MedicationChromeButtons";
@@ -21,6 +21,7 @@ import { IOS_HEALTH } from "@/src/health/iosHealthTokens";
 import { labelInfusionStatus } from "@/src/i18n/treatment";
 import { useAppTheme } from "@/src/hooks/useAppTheme";
 import { useStackBack } from "@/src/hooks/useStackBack";
+import { TREATMENT_HREF, treatmentCycleHref } from "@/src/navigation/treatmentRoutes";
 import { usePatient } from "@/src/hooks/usePatient";
 import { supabase } from "@/src/lib/supabase";
 import type { InfusionSessionStatus, TreatmentInfusionRow } from "@/src/types/treatment";
@@ -33,7 +34,7 @@ export default function EditInfusionScreen() {
   const { cycleId, infusionId } = useLocalSearchParams<{ cycleId: string; infusionId: string }>();
   const { patient } = usePatient();
   const backFallback = useMemo(
-    () => (cycleId ? (`/treatment/${cycleId}` as Href) : ("/treatment" as Href)),
+    () => (cycleId ? treatmentCycleHref(cycleId) : TREATMENT_HREF.index),
     [cycleId]
   );
   const goBack = useStackBack(backFallback);
@@ -44,8 +45,6 @@ export default function EditInfusionScreen() {
   const [status, setStatus] = useState<InfusionSessionStatus>("completed");
   const [weight, setWeight] = useState("");
   const [notes, setNotes] = useState("");
-  const [showPicker, setShowPicker] = useState(Platform.OS === "ios");
-
   const load = useCallback(async () => {
     if (!infusionId || !patient) {
       setLoading(false);
@@ -106,7 +105,7 @@ export default function EditInfusionScreen() {
       Alert.alert("Erro", error.message);
       return;
     }
-    router.replace(`/treatment/${cycleId}` as Href);
+    router.replace(treatmentCycleHref(cycleId));
   }
 
   function confirmDelete() {
@@ -122,7 +121,7 @@ export default function EditInfusionScreen() {
             Alert.alert("Erro", error.message);
             return;
           }
-          router.replace(`/treatment/${cycleId}` as Href);
+          router.replace(treatmentCycleHref(cycleId));
         },
       },
     ]);
@@ -134,7 +133,11 @@ export default function EditInfusionScreen() {
   }, [isScheduled]);
 
   if (!infusionId) {
-    return null;
+    return (
+      <ResponsiveScreen variant="tabGradient">
+        <Text style={{ padding: 16 }}>Identificador da infusão em falta.</Text>
+      </ResponsiveScreen>
+    );
   }
 
   return (
@@ -174,24 +177,9 @@ export default function EditInfusionScreen() {
           {Platform.OS === "ios" ? (
             <DateTimePicker value={sessionAt} mode="datetime" display="spinner" onChange={(_, d) => d && setSessionAt(d)} />
           ) : (
-            <>
-              <Pressable onPress={() => setShowPicker(true)}>
-                <Text style={{ marginTop: 8, color: theme.colors.text.primary }}>
-                  {sessionAt.toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}
-                </Text>
-              </Pressable>
-              {showPicker ? (
-                <DateTimePicker
-                  value={sessionAt}
-                  mode="datetime"
-                  display="default"
-                  onChange={(e, d) => {
-                    setShowPicker(Platform.OS === "ios");
-                    if (d) setSessionAt(d);
-                  }}
-                />
-              ) : null}
-            </>
+            <View style={{ marginTop: 8 }}>
+              <AndroidDateTimePicker value={sessionAt} onChange={setSessionAt} accentColor={theme.colors.text.primary} />
+            </View>
           )}
 
           <Text style={[theme.typography.body, { color: theme.colors.text.secondary, marginTop: theme.spacing.md }]}>

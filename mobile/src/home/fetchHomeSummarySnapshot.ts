@@ -78,6 +78,7 @@ export async function fetchHomeSummarySnapshotParallel(patient: PatientRow): Pro
       .from("patient_appointments")
       .select("title, kind, starts_at")
       .eq("patient_id", patient.id)
+      .eq("pinned", true)
       .gte("starts_at", nowIso)
       .order("starts_at", { ascending: true })
       .limit(24),

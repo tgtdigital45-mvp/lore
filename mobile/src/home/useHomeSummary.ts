@@ -82,16 +82,31 @@ export function useHomeSummary(patient: PatientRow | null) {
 
   const resolveLabWidget = useCallback(
     (slug: string, biomarkerByNorm: Map<string, BiomarkerLatest>): BiomarkerLatest | null => {
-      const n = normalizeBiomarkerKey(slug);
+      /** Alinha `lab:ferro_serico` etc. às chaves normalizadas dos nomes canônicos ("Ferro sérico" → ferro serico). */
+      const n = normalizeBiomarkerKey(slug.replace(/_/g, " "));
       const direct = biomarkerByNorm.get(n);
       if (direct) return direct;
       const slugSynonyms: Record<string, string[]> = {
         leucocitos: ["wbc", "leuco", "gb"],
         hemoglobina: ["hgb", "hb"],
         plaquetas: ["plt", "platelet"],
+        hematocrito: ["hct", "ht", "hematocrit"],
+        vcm: ["mcv"],
+        hcm: ["mch"],
+        chcm: ["mchc"],
+        neutrofilos: ["neu", "neut", "neutrophils", "rod"],
+        linfocitos: ["lymph", "lymphocytes"],
+        monocitos: ["mono", "monocytes"],
+        eosinofilos: ["eos", "eosinophils"],
+        basofilos: ["baso", "basophils"],
+        ferritina: ["ferritin"],
+        ferro_serico: ["ferro serico", "serum iron", "iron"],
+        creatinina: ["creatinine", "cr"],
+        ureia: ["urea", "bun"],
       };
       for (const syn of slugSynonyms[slug] ?? []) {
-        const bySyn = biomarkerByNorm.get(syn);
+        const synKey = normalizeBiomarkerKey(syn);
+        const bySyn = biomarkerByNorm.get(synKey) ?? biomarkerByNorm.get(syn);
         if (bySyn) return bySyn;
       }
       for (const [, v] of biomarkerByNorm) {
@@ -99,9 +114,10 @@ export function useHomeSummary(patient: PatientRow | null) {
         if (nn.includes(n) || n.includes(nn)) return v;
       }
       for (const syn of slugSynonyms[slug] ?? []) {
+        const synKey = normalizeBiomarkerKey(syn);
         for (const [, v] of biomarkerByNorm) {
           const nn = normalizeBiomarkerKey(v.name);
-          if (nn.includes(syn)) return v;
+          if (nn.includes(synKey) || nn.includes(syn)) return v;
         }
       }
       return null;

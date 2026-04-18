@@ -1,3 +1,4 @@
+import { SYMPTOM_NAV_ITEMS } from "@/src/diary/symptomCatalog";
 import { appStorage } from "@/src/lib/appStorage";
 import type { VitalType } from "@/src/types/vitalsNutrition";
 
@@ -5,20 +6,48 @@ const STORAGE_KEY = "resumo_pinned_widget_ids_v1";
 
 export type WidgetCategory = "exames" | "sintomas" | "sinais_vitais" | "atividade" | "nutricao";
 
+/** Ordem fixa das seções no seletor de métricas (evita ordem aleatória do Map). */
+export const RESUMO_WIDGET_CATEGORY_ORDER: WidgetCategory[] = [
+  "exames",
+  "sintomas",
+  "sinais_vitais",
+  "atividade",
+  "nutricao",
+];
+
 export type WidgetDef = {
   id: string;
   label: string;
   category: WidgetCategory;
 };
 
-export const RESUMO_WIDGET_CATALOG: WidgetDef[] = [
+/** Biomarcadores alinhados a `canonicalBiomarkerName` (exames / hemograma e química sanguínea). */
+const LAB_WIDGET_DEFS: WidgetDef[] = [
   { id: "lab:plaquetas", label: "Plaquetas", category: "exames" },
   { id: "lab:hemoglobina", label: "Hemoglobina", category: "exames" },
   { id: "lab:leucocitos", label: "Leucócitos", category: "exames" },
-  { id: "symptom:nausea", label: "Náusea", category: "sintomas" },
-  { id: "symptom:diarrhea", label: "Diarreia", category: "sintomas" },
-  { id: "symptom:pain", label: "Dor", category: "sintomas" },
-  { id: "symptom:fever", label: "Febre", category: "sintomas" },
+  { id: "lab:hematocrito", label: "Hematócrito", category: "exames" },
+  { id: "lab:vcm", label: "VCM", category: "exames" },
+  { id: "lab:hcm", label: "HCM", category: "exames" },
+  { id: "lab:chcm", label: "CHCM", category: "exames" },
+  { id: "lab:neutrofilos", label: "Neutrófilos", category: "exames" },
+  { id: "lab:linfocitos", label: "Linfócitos", category: "exames" },
+  { id: "lab:monocitos", label: "Monócitos", category: "exames" },
+  { id: "lab:eosinofilos", label: "Eosinófilos", category: "exames" },
+  { id: "lab:basofilos", label: "Basófilos", category: "exames" },
+  { id: "lab:ferritina", label: "Ferritina", category: "exames" },
+  { id: "lab:ferro_serico", label: "Ferro sérico", category: "exames" },
+  { id: "lab:creatinina", label: "Creatinina", category: "exames" },
+  { id: "lab:ureia", label: "Ureia", category: "exames" },
+];
+
+const SYMPTOM_WIDGETS: WidgetDef[] = SYMPTOM_NAV_ITEMS.map((s) => ({
+  id: `symptom:${s.id}`,
+  label: s.label,
+  category: "sintomas" as const,
+}));
+
+const OTHER_WIDGETS: WidgetDef[] = [
   { id: "vital:temp", label: "Temperatura", category: "sinais_vitais" },
   { id: "vital:hr", label: "Freq. cardíaca", category: "sinais_vitais" },
   { id: "vital:bp", label: "Pressão arterial", category: "sinais_vitais" },
@@ -32,6 +61,8 @@ export const RESUMO_WIDGET_CATALOG: WidgetDef[] = [
   { id: "nutrition:calories", label: "Calorias", category: "nutricao" },
   { id: "nutrition:appetite", label: "Apetite", category: "nutricao" },
 ];
+
+export const RESUMO_WIDGET_CATALOG: WidgetDef[] = [...LAB_WIDGET_DEFS, ...SYMPTOM_WIDGETS, ...OTHER_WIDGETS];
 
 const DEFAULT_IDS = [
   "lab:plaquetas",

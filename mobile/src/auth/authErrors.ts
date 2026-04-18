@@ -21,5 +21,11 @@ export function formatAuthError(err: { message: string; status?: number } | null
   if (msg.includes("network") || msg.includes("failed to fetch") || msg.includes("connection")) {
     return "Erro de conexão. Verifique sua internet e tente novamente.";
   }
+  if (msg.includes("refresh token") && (msg.includes("invalid") || msg.includes("not found"))) {
+    return "Sessão antiga inválida. Toque em «Voltar ao login» e entre de novo (ou use Continuar com Google outra vez).";
+  }
+  if (msg.includes("jwt expired") || msg.includes("jwt invalid") || msg === "jwt expired") {
+    return "A sua sessão expirou. Por favor, entre novamente.";
+  }
   return err.message;
 }

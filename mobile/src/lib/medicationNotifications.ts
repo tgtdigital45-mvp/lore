@@ -143,3 +143,18 @@ export function nextMedicationSlot(meds: MedicationRow[]): { med: MedicationRow;
   }
   return best;
 }
+
+/** Doses esperadas no intervalo (horários fixos ou intervalo em horas), respeitando end_date. */
+export function enumerateDoseTimesInRange(med: MedicationRow, fromMs: number, untilMs: number): Date[] {
+  const mode = med.repeat_mode ?? "interval_hours";
+  if (mode === "as_needed") return [];
+  const hasSlots = (med.medication_schedules?.length ?? 0) > 0;
+  const useSlots = hasSlots && (mode === "daily" || mode === "weekdays");
+  const endLimit = med.end_date ? endOfDayMsFromDateString(med.end_date) : untilMs;
+  const horizon = Math.min(untilMs, endLimit);
+  if (useSlots) {
+    return enumerateSlotDoses(med, fromMs, horizon);
+  }
+  const anchor = new Date(med.anchor_at).getTime();
+  return enumerateDoses(anchor, med.frequency_hours, fromMs, horizon);
+}

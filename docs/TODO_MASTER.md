@@ -40,11 +40,47 @@
 
 ---
 
+## TRABALHO RECENTE — concluído (abr–mai 2026)
+
+### Mobile (app)
+
+- [x] OAuth **Google** com fluxo **PKCE** (`supabase.auth.exchangeCodeForSession`), conclusão unificada em `completeOAuthRedirect` — [`mobile/src/auth/oauth.ts`](../mobile/src/auth/oauth.ts)
+- [x] Remoção de **Sign in with Apple** (UI + `AuthContext`); pacote e plugin `expo-apple-authentication` removidos — `mobile/app/login.tsx`, `mobile/src/auth/AuthContext.tsx`, `mobile/app.config.js`, `mobile/package.json`
+- [x] **`auth/callback`** com o mesmo tratamento de redirect/código que o browser (deep link / cold start) — [`mobile/app/auth/callback.tsx`](../mobile/app/auth/callback.tsx)
+- [x] **Home / resumo:** RPC Supabase `rpc_mobile_home_summary` + tipos, parse, skeleton, cartão de ciclo ativo, atalhos por categoria — `fetchHomeSummarySnapshot`, `parseHomeSummaryRpc`, `useHomeSummary`, `HomeSummarySkeleton`, `ActiveTreatmentCycleCard`, `pinnedCategoryShortcuts`
+- [x] **Sintomas:** severidade verbal persistida como **TEXT** (migração ENUM→TEXT); diary e filas offline alinhados (`verbalSeverity`, `SymptomQuickLog`, `offlineMutationQueue`)
+- [x] **Conta:** eliminar conta autenticada — [`mobile/src/auth/deleteAccount.ts`](../mobile/src/auth/deleteAccount.ts) + `AuthContext.deleteAccount`
+- [x] **Observabilidade / rede:** Sentry (`sentry.bootstrap`, `sentry.ts`), `instrumentedFetch`, `NetworkStatusBanner`, `OnlineManagerBridge`, `ScreenLoading`, `appToast`
+- [x] **Saúde / UI:** `CategoryMoreSection`, `MedicationCalendarStrip`, validação Zod onboarding — [`mobile/src/validation/onboardingPatient.ts`](../mobile/src/validation/onboardingPatient.ts)
+- [x] **Remoção de legado:** módulos de “monitorização de protocolo” (`protocolMonitoring*`, `ProtocolGuidelinesSection`, hooks/types associados)
+- [x] **Loja / branding:** assets Play (feature graphic, developer page), `logo-A`, scripts `generate-icons-from-logo.mjs`, `generate-play-feature-graphic.mjs`, `generate-play-developer-page-assets.mjs`
+- [x] **Smoke E2E (Maestro):** [`mobile/maestro/smoke.yaml`](../mobile/maestro/smoke.yaml) — base instalada; cenários adicionais em backlog
+- [x] **Auditoria QA mobile** — [QA-AUDIT-MOBILE.md](QA-AUDIT-MOBILE.md)
+
+### Supabase / dados
+
+- [x] RPC e índices **`mobile_home_summary`** + ping auxiliar — `20260520140000_rpc_mobile_home_summary.sql`, `20260418140000_mobile_home_summary_rpc_ping.sql`
+- [x] Teste SQL RLS do RPC — [`supabase/tests/rpc_mobile_home_summary_rls.sql`](../supabase/tests/rpc_mobile_home_summary_rls.sql)
+- [x] Severidade de sintoma **ENUM → TEXT** + CHECK — `20260521120000_severity_enum_to_text.sql`
+- [x] Meds arquivo/ordenação — `20260415160000_medications_archive_sort.sql`; ordenação de migração `treatment_kind_infusions` → `20260425120100_*`
+
+### Landing, docs e backend (mesmo período)
+
+- [x] Landing: componentes, favicon, páginas (About, Caregivers, Features, Hospitals, etc.)
+- [x] Documentação Play Store Android — [play-store-android-passo-a-passo.md](play-store-android-passo-a-passo.md)
+- [x] Backend: ajustes em agente/OCR e biomarcadores; espelho JS em [`shared/lib/biomarkerCanonical.js`](../shared/lib/biomarkerCanonical.js)
+
+### Build Expo (EAS)
+
+- Scripts em [`mobile/package.json`](../mobile/package.json): `eas:build:android` (perfil `production`), `eas:login`, `eas:configure`, `eas:submit:android` — perfis em [`mobile/eas.json`](../mobile/eas.json)
+
+---
+
 ## PRD MVP — IMPLEMENTADO
 
 ### Épico 1: Onboarding e Perfil Clínico
 
-- [x] **US1.1** Login/cadastro OAuth (Apple, Google) + email — `mobile/app/login.tsx`, `mobile/src/auth/AuthContext.tsx`, `mobile/src/auth/oauth.ts`
+- [x] **US1.1** Login/cadastro OAuth (**Google**, PKCE) + email/senha — **Apple removido do MVP mobile** — `mobile/app/login.tsx`, `mobile/src/auth/AuthContext.tsx`, `mobile/src/auth/oauth.ts`, `mobile/app/auth/callback.tsx`
 - [x] **US1.2** Perfil com tipo de câncer e estadiamento — `patients.cancer_type`, `patients.cancer_stage` (schema inicial)
 - [x] **US1.3** Contatos de emergência — `patients.emergency_contact_*` + botão emergência na Home
 - [x] Consentimento LGPD granular — `patient_consents` table + `mobile/app/lgpd-consent.tsx`, hook `useConsent.ts`
@@ -99,15 +135,15 @@
 
 ### Mobile
 
-- [ ] Deep linking universal (contrato OAuth callback iOS/Android)
-- [ ] Testes E2E (Detox ou Maestro)
+- [ ] **Universal Links / App Links** (HTTPS → app) para marketing; redirect **OAuth in-app** já usa scheme (`auraonco://auth/callback` / `makeRedirectUri`) + PKCE no cliente
+- [ ] Expandir testes E2E além do smoke Maestro — [`mobile/maestro/smoke.yaml`](../mobile/maestro/smoke.yaml) (Detox opcional)
 - [ ] Onboarding walkthrough/tutorial interativo
 - [ ] Dark Mode completo (já suportado parcialmente via tema)
 - [ ] Accessibility audit (touch targets, VoiceOver, TalkBack)
 
 ### Backend / Supabase
 
-- [ ] Testes de integração RLS + RPC contra Supabase de teste
+- [ ] Testes de integração RLS + RPC **automatizados no CI** contra instância de teste (existe SQL manual: `supabase/tests/rpc_mobile_home_summary_rls.sql`)
 - [ ] Cron job / agendamento para **lembretes de consultas** (`patient_appointments`) — além dos lembretes de medicação e infusão já cobertos por Edge Functions
 - [ ] Webhook ou fila para equipe médica quando **`requires_action = true`** em sintomas gerais (hoje há fluxo de emergência nadir+febre + webhook assinado para esse caso; generalizar se necessário)
 - [ ] Revisão pontual de funções `SECURITY DEFINER` antigas sem `SET search_path = public` (se ainda existirem após migrações)

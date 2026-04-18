@@ -71,7 +71,7 @@ export function CategoryMoreSection({
             paddingVertical: theme.spacing.sm,
           }}
         >
-          Os tópicos fixados aparecem na parte superior do Resumo.
+          Os tópicos fixados aparecem no Resumo, acima de Próximas doses.
         </Text>
         <Pressable
           onPress={onExportPdf}

@@ -1,6 +1,7 @@
 import type { Session } from "@supabase/supabase-js";
 import { router } from "expo-router";
 import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { InteractionManager } from "react-native";
 import { formatAuthError } from "@/src/auth/authErrors";
 import { deleteAuthenticatedAccount } from "@/src/auth/deleteAccount";
 import { signInWithOAuthGoogle } from "@/src/auth/oauth";
@@ -29,8 +30,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setSession(data.session ?? null);
       setLoading(false);
     });
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, next) => {
+    const { data: sub } = supabase.auth.onAuthStateChange((event, next) => {
+      console.log("[auth] onAuthStateChange:", event, next?.user?.id ?? "(sem utilizador)");
       setSession(next);
+      /**
+       * Navega para "/" após login bem-sucedido.
+       * Isso funciona como fallback essencial quando o deep link do Google OAuth
+       * chega via `auth/callback.tsx` (cold-start ou Android background) em vez de
+       * ser capturado diretamente pelo `openAuthSessionAsync` no `login.tsx`.
+       * `InteractionManager.runAfterInteractions` corre após o React aplicar `setSession`,
+       * evitando corrida em que `app/index.tsx` lia `session === null` após `SIGNED_IN`.
+       */
+      if (event === "SIGNED_IN" && next) {
+        InteractionManager.runAfterInteractions(() => {
+          router.replace("/");
+        });
+      }
+
+      if (event === "TOKEN_REFRESHED" && next) {
+        setSession(next);
+      }
+
+      /** Limpa cache; navegação fica a cargo de `signOut` no contexto ou do ecrã (ex.: `/login`). */
+      if (event === "SIGNED_OUT") {
+        queryClient.clear();
+      }
     });
     return () => {
       sub.subscription.unsubscribe();
@@ -57,13 +81,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       signOut: async () => {
         await supabase.auth.signOut();
         queryClient.clear();
-        router.replace("/login");
+        router.replace("/");
       },
       deleteAccount: async () => {
         const { error } = await deleteAuthenticatedAccount();
         if (error) return { error };
         queryClient.clear();
-        router.replace("/login");
+        router.replace("/");
         return {};
       },
     }),

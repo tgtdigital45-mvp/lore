@@ -8,13 +8,7 @@ import { OncoCard } from "@/components/OncoCard";
 import { ResponsiveScreen } from "@/src/components/ResponsiveScreen";
 import { type TimeframeKey } from "@/src/diary/symptomLogValue";
 import { chartLayoutFor, filterVitalLogsForChart } from "@/src/health/vitalsChart";
-import {
-  FEVER_THRESHOLD_C,
-  isVitalType,
-  VITAL_HUB_ORDER,
-  VITAL_HUB_META,
-  VITAL_TAB_SHORT,
-} from "@/src/health/vitalsConfig";
+import { FEVER_THRESHOLD_C, isVitalType, VITAL_HUB_META } from "@/src/health/vitalsConfig";
 import { useAppTheme } from "@/src/hooks/useAppTheme";
 import { usePatient } from "@/src/hooks/usePatient";
 import { useStackBack } from "@/src/hooks/useStackBack";
@@ -126,10 +120,6 @@ export default function VitalTypeDetailScreen() {
   function goAdd() {
     if (!vitalType) return;
     router.push(`/(tabs)/health/vitals/log?type=${vitalType}` as Href);
-  }
-
-  function switchType(next: VitalType) {
-    router.replace(`/(tabs)/health/vitals/${next}` as Href);
   }
 
   if (!vitalType || !meta) {

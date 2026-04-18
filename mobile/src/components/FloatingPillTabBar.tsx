@@ -1,42 +1,36 @@
-import { BottomTabBarHeightCallbackContext, type BottomTabBarProps } from "@react-navigation/bottom-tabs";
+import type { MaterialTopTabBarProps } from "@react-navigation/material-top-tabs";
 import { CommonActions } from "@react-navigation/native";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import * as Haptics from "expo-haptics";
-import { useContext } from "react";
 import { Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { IOS_HEALTH } from "@/src/health/iosHealthTokens";
+import { FLOATING_TAB_BAR_SURFACE_TRANSPARENT } from "@/src/navigation/TabBarInsetContext";
 
 const PILL_BG = "#FFFFFF";
 const ACTIVE_SEGMENT = "#E5E5EA";
 const ICON_ACTIVE = IOS_HEALTH.blue;
 const ICON_IDLE = "#000000";
 
-export function FloatingPillTabBar({ state, navigation }: BottomTabBarProps) {
-  const onTabBarHeightChange = useContext(BottomTabBarHeightCallbackContext);
+export function FloatingPillTabBar({ state, navigation }: MaterialTopTabBarProps) {
   const insets = useSafeAreaInsets();
   const current = state.routes[state.index];
   const routeName = current?.name ?? "";
 
   const resumoActive = routeName === "index";
   const examesActive = routeName === "exams";
-  const buscaContext =
-    routeName === "health" || routeName === "diary" || routeName === "agent" || routeName === "treatment";
+  const buscaContext = routeName === "health";
 
   return (
     <View
       pointerEvents="box-none"
       collapsable={false}
-      onLayout={(e) => {
-        onTabBarHeightChange?.(e.nativeEvent.layout.height);
-      }}
       style={[
         styles.wrap,
         {
           paddingBottom: Math.max(insets.bottom, 12),
           paddingHorizontal: 16,
         },
-        Platform.OS === "android" && styles.wrapAndroid,
       ]}
     >
       <View style={styles.row}>
@@ -63,7 +57,12 @@ export function FloatingPillTabBar({ state, navigation }: BottomTabBarProps) {
             accessibilityState={{ selected: examesActive }}
             onPress={() => {
               void Haptics.selectionAsync();
-              navigation.navigate("exams" as never);
+              navigation.dispatch(
+                CommonActions.navigate({
+                  name: "exams",
+                  params: { screen: "index" },
+                })
+              );
             }}
             style={({ pressed }) => [
               styles.segment,
@@ -93,6 +92,7 @@ export function FloatingPillTabBar({ state, navigation }: BottomTabBarProps) {
             styles.searchOrb,
             pressed && { opacity: 0.88 },
             buscaContext && { borderWidth: 2, borderColor: ICON_ACTIVE },
+            !buscaContext && { borderWidth: 2, borderColor: "transparent" },
           ]}
         >
           <FontAwesome name="search" size={22} color={buscaContext ? ICON_ACTIVE : ICON_IDLE} />
@@ -108,69 +108,53 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: "rgba(0,0,0,0)",
-  },
-  /** Evita “faixa” sólida por elevação/surface no container full-width (Android). */
-  wrapAndroid: {
-    elevation: 0,
+    zIndex: 9999,
+    // Android: elevação maior que cards com elevation para a pílula não ficar “por baixo” do scroll
+    elevation: Platform.OS === "android" ? 24 : 10,
+    backgroundColor: FLOATING_TAB_BAR_SURFACE_TRANSPARENT,
   },
   row: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     gap: 12,
-    maxWidth: 420,
-    alignSelf: "center",
-    width: "100%",
   },
   pill: {
-    flex: 1,
     flexDirection: "row",
+    alignItems: "center",
     backgroundColor: PILL_BG,
-    borderRadius: 28,
+    borderRadius: 999,
     padding: 4,
     gap: 4,
-    ...Platform.select({
-      ios: {
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.12,
-        shadowRadius: 12,
-      },
-      android: { elevation: 4 },
-      default: {},
-    }),
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.12,
+    shadowRadius: 8,
+    elevation: Platform.OS === "android" ? 12 : 4,
   },
   segment: {
-    flex: 1,
+    flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
+    gap: 8,
     paddingVertical: 10,
-    borderRadius: 24,
-    minWidth: 0,
+    paddingHorizontal: 16,
+    borderRadius: 999,
   },
   label: {
-    fontSize: 10,
-    fontWeight: "500",
-    marginTop: 4,
-    letterSpacing: 0.2,
+    fontSize: 15,
+    fontWeight: "600",
   },
   searchOrb: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+    width: 52,
+    height: 52,
+    borderRadius: 26,
     backgroundColor: PILL_BG,
     alignItems: "center",
     justifyContent: "center",
-    ...Platform.select({
-      ios: {
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.12,
-        shadowRadius: 12,
-      },
-      android: { elevation: 4 },
-      default: {},
-    }),
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.12,
+    shadowRadius: 8,
+    elevation: Platform.OS === "android" ? 12 : 4,
   },
 });

@@ -9,7 +9,7 @@ import { useAppTheme } from "@/src/hooks/useAppTheme";
 import { ResponsiveScreen } from "@/src/components/ResponsiveScreen";
 import { DEMO_HOSPITAL_ID } from "@/src/constants/hospital";
 import { labelCancerType } from "@/src/i18n/ui";
-import { usePatient } from "@/src/patient/PatientContext";
+import { usePatient } from "@/src/hooks/usePatient";
 import { onboardingPatientInsertSchema } from "@/src/validation/onboardingPatient";
 import { ZodError } from "zod";
 

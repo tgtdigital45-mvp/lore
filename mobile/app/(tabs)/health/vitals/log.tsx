@@ -4,7 +4,9 @@ import FontAwesome from "@expo/vector-icons/FontAwesome";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import type { Href } from "expo-router";
 import { useLocalSearchParams, useRouter } from "expo-router";
+import { AndroidDateTimePicker } from "@/src/components/AndroidDateTimePicker";
 import { ResponsiveScreen } from "@/src/components/ResponsiveScreen";
+import { CircleChromeButton } from "@/src/health/components/MedicationChromeButtons";
 import { isVitalType } from "@/src/health/vitalsConfig";
 import { useAppTheme } from "@/src/hooks/useAppTheme";
 import { usePatient } from "@/src/hooks/usePatient";
@@ -41,8 +43,6 @@ export default function VitalLogScreen() {
     d.setSeconds(0, 0);
     return d;
   });
-  const [showPicker, setShowPicker] = useState(false);
-
   const fallback = useMemo(() => `/(tabs)/health/vitals/${vitalType}` as Href, [vitalType]);
   const goBack = useStackBack(fallback);
 
@@ -117,9 +117,9 @@ export default function VitalLogScreen() {
   return (
     <ResponsiveScreen variant="tabGradient">
       <View style={{ flexDirection: "row", alignItems: "center", paddingTop: theme.spacing.md, marginBottom: theme.spacing.md }}>
-        <Pressable onPress={goBack} hitSlop={12}>
-          <FontAwesome name="chevron-left" size={22} color={theme.colors.semantic.respiratory} />
-        </Pressable>
+        <CircleChromeButton onPress={goBack} accessibilityLabel="Voltar">
+          <FontAwesome name="chevron-left" size={18} color={theme.colors.text.primary} />
+        </CircleChromeButton>
         <Text style={[theme.typography.title2, { color: theme.colors.text.primary, marginLeft: theme.spacing.sm }]}>Novo registro</Text>
       </View>
 
@@ -154,22 +154,15 @@ export default function VitalLogScreen() {
         </Text>
         {Platform.OS === "ios" ? (
           <DateTimePicker value={sessionAt} mode="datetime" display="spinner" onChange={(_, d) => d && setSessionAt(d)} />
-        ) : showPicker ? (
-          <DateTimePicker
-            value={sessionAt}
-            mode="datetime"
-            display="default"
-            onChange={(_, d) => {
-              setShowPicker(false);
-              if (d) setSessionAt(d);
-            }}
-          />
         ) : (
-          <Pressable onPress={() => setShowPicker(true)} style={{ marginTop: theme.spacing.xs }}>
-            <Text style={{ color: theme.colors.semantic.treatment, fontSize: 17 }}>
-              {sessionAt.toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}
-            </Text>
-          </Pressable>
+          <View style={{ marginTop: theme.spacing.xs }}>
+            <AndroidDateTimePicker
+              value={sessionAt}
+              onChange={setSessionAt}
+              accentColor={theme.colors.semantic.treatment}
+              secondaryColor={theme.colors.text.tertiary}
+            />
+          </View>
         )}
 
         {vitalType === "blood_pressure" ? (

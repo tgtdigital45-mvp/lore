@@ -12,20 +12,8 @@ import { useMedicationWizard } from "@/src/medications/MedicationWizardContext";
 import { MedicationWizardStepBadge } from "@/src/medications/components/MedicationWizardStepBadge";
 import { ShapeGrid } from "@/src/medications/components/ShapeGrid";
 import { PillPreview } from "@/src/medications/components/PillPreview";
+import { formatDosageLine } from "@/src/medications/medicationFormatters";
 import type { MedicationShapeId } from "@/src/medications/types";
-
-function formatDosageLine(draft: {
-  form: string | null;
-  dosageAmount: string | null;
-  unit: string | null;
-}): string {
-  const parts: string[] = [];
-  if (draft.form) parts.push(draft.form);
-  if (draft.dosageAmount?.trim()) {
-    parts.push(`${draft.dosageAmount.trim()}${draft.unit ? ` ${draft.unit}` : ""}`);
-  }
-  return parts.join(", ");
-}
 
 export default function MedicationShapeScreen() {
   const { theme } = useAppTheme();

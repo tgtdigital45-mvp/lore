@@ -1,7 +1,6 @@
 import { useMemo, useState } from "react";
 import { ActivityIndicator, Alert, Keyboard, Platform, Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
-import type { Href } from "expo-router";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { KeyboardAccessoryDone, KEYBOARD_ACCESSORY_ID } from "@/src/components/KeyboardAccessoryDone";
 import { ResponsiveScreen } from "@/src/components/ResponsiveScreen";
@@ -9,9 +8,11 @@ import { CircleChromeButton } from "@/src/health/components/MedicationChromeButt
 import { IOS_HEALTH } from "@/src/health/iosHealthTokens";
 import { useAppTheme } from "@/src/hooks/useAppTheme";
 import { useStackBack } from "@/src/hooks/useStackBack";
+import { TREATMENT_HREF, treatmentCycleHref } from "@/src/navigation/treatmentRoutes";
 import { usePatient } from "@/src/hooks/usePatient";
 import { predictedSessionAtIso } from "@/src/lib/treatmentInfusionSchedule";
 import { supabase } from "@/src/lib/supabase";
+import { labelTreatmentKind } from "@/src/i18n/treatment";
 import type { TreatmentKind } from "@/src/types/treatment";
 
 function parseRequiredPositiveInt(s: string): number | null {
@@ -40,7 +41,7 @@ function parseInfusionIntervalDays(s: string): number | null | -1 {
 export default function TreatmentDetailsWizardScreen() {
   const { theme } = useAppTheme();
   const router = useRouter();
-  const goBack = useStackBack("/treatment/name" as Href);
+  const goBack = useStackBack(TREATMENT_HREF.schedule);
   const { patient } = usePatient();
   const params = useLocalSearchParams<{
     kind?: string;
@@ -48,7 +49,6 @@ export default function TreatmentDetailsWizardScreen() {
     planned?: string;
     completed?: string;
     infusionIntervalDays?: string;
-    protocolName?: string;
   }>();
 
   const [notes, setNotes] = useState("");
@@ -59,8 +59,6 @@ export default function TreatmentDetailsWizardScreen() {
     return (
       !!patient &&
       plannedOk != null &&
-      typeof params.protocolName === "string" &&
-      params.protocolName.trim().length > 0 &&
       typeof params.startDate === "string" &&
       params.startDate.length >= 8
     );
@@ -70,7 +68,7 @@ export default function TreatmentDetailsWizardScreen() {
     if (!patient || !canSave) return;
     Keyboard.dismiss();
     const kind = (params.kind ?? "other") as TreatmentKind;
-    const protocolName = String(params.protocolName).trim();
+    const protocolName = labelTreatmentKind(kind);
     const startDate = String(params.startDate);
     const planned = parseRequiredPositiveInt(String(params.planned ?? ""));
     const completedRaw = parseOptionalInt(String(params.completed ?? ""));
@@ -156,7 +154,7 @@ export default function TreatmentDetailsWizardScreen() {
     setBusy(false);
 
     Alert.alert("Tratamento", "Ciclo criado com check-ins.", [
-      { text: "Concluir", onPress: () => router.replace(`/treatment/${cycleId}` as Href) },
+      { text: "Concluir", onPress: () => router.replace(treatmentCycleHref(cycleId)) },
     ]);
   }
 

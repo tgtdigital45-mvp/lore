@@ -3,7 +3,6 @@ import { useFocusEffect } from "@react-navigation/native";
 import { ActivityIndicator, Pressable, RefreshControl, ScrollView, Text, View } from "react-native";
 import type { CategoryShortcutId } from "@/src/home/pinnedCategoryShortcuts";
 import { categoryShortcutDef, loadPinnedCategoryIds } from "@/src/home/pinnedCategoryShortcuts";
-import { Image } from "expo-image";
 import type { Href } from "expo-router";
 import { Link, useRouter } from "expo-router";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
@@ -17,6 +16,17 @@ import { ActiveTreatmentCycleCard } from "@/src/home/ActiveTreatmentCycleCard";
 import { HomeSummarySkeleton } from "@/src/home/HomeSummarySkeleton";
 import { useHomeSummary } from "@/src/home/useHomeSummary";
 import { WidgetPickerModal } from "@/src/home/WidgetPickerModal";
+import { DoseMarkButton } from "@/src/home/DoseMarkButton";
+import { HomeDoseSlotActions } from "@/src/home/HomeDoseSlotActions";
+import { ResumoHomeActivitySection } from "@/src/home/ResumoHomeActivitySection";
+import { ResumoHomeGreeting } from "@/src/home/ResumoHomeGreeting";
+import {
+  appointmentKindIcon,
+  appointmentKindShortLabel,
+  hrefForPinnedWidget,
+  medicationSlotKey,
+  sosMarkSlotKey,
+} from "@/src/home/homeScreenHelpers";
 import { useAuth } from "@/src/auth/AuthContext";
 import { useAppTheme } from "@/src/hooks/useAppTheme";
 import {
@@ -24,50 +34,17 @@ import {
   useFeverWatchReminders,
   usePatientInfusions,
 } from "@/src/hooks/useAdaptiveReminders";
-import { useMedications } from "@/src/hooks/useMedications";
+import { useMedications, type MedicationRow } from "@/src/hooks/useMedications";
 import { usePatientConsentNotifications } from "@/src/hooks/usePatientConsentNotifications";
 import { usePatient } from "@/src/hooks/usePatient";
 import { useTreatmentCycles } from "@/src/hooks/useTreatmentCycles";
-import { nextMedicationSlot } from "@/src/lib/medicationNotifications";
-import { labelTreatmentKind } from "@/src/i18n/treatment";
-import { documentTypeLabel, labelCancerType, labelSymptomCategory } from "@/src/i18n/ui";
+import { IOS_HEALTH } from "@/src/health/iosHealthTokens";
+import { reconcileMissedDoseSlots } from "@/src/lib/medicationMissedReconciliation";
+import { computeNextDose, nextMedicationSlot } from "@/src/lib/medicationNotifications";
+import { recordDoseSkipped, recordDoseTaken } from "@/src/lib/medicationLogWrite";
+import { relativeSchedulePhrasePtBr } from "@/src/lib/ptBrRelativeDate";
 import { showAppToast } from "@/src/lib/appToast";
-import { supabase } from "@/src/lib/supabase";
 import type { TreatmentInfusionRow } from "@/src/types/treatment";
-
-const MONTHS_SHORT = ["jan.", "fev.", "mar.", "abr.", "mai.", "jun.", "jul.", "ago.", "set.", "out.", "nov.", "dez."];
-
-function greetingLabel(): string {
-  const h = new Date().getHours();
-  if (h < 12) return "Bom dia";
-  if (h < 18) return "Boa tarde";
-  return "Boa noite";
-}
-
-function formatDayMonth(iso: string): string {
-  const d = new Date(iso);
-  return `${d.getDate()} de ${MONTHS_SHORT[d.getMonth()] ?? ""}`;
-}
-
-function formatSessionAt(iso: string): string {
-  const d = new Date(iso);
-  return d.toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" });
-}
-
-function hrefForPinnedWidget(widgetId: string): Href | null {
-  if (widgetId.startsWith("lab:")) return "/(tabs)/exams" as Href;
-  if (widgetId.startsWith("symptom:")) return "/(tabs)/diary" as Href;
-  if (widgetId.startsWith("nutrition:")) return "/(tabs)/health/nutrition" as Href;
-  if (widgetId === "vital:steps") return "/(tabs)/health" as Href;
-  if (widgetId === "vital:temp") return "/(tabs)/health/vitals/temperature" as Href;
-  if (widgetId === "vital:hr") return "/(tabs)/health/vitals/heart_rate" as Href;
-  if (widgetId === "vital:bp") return "/(tabs)/health/vitals/blood_pressure" as Href;
-  if (widgetId === "vital:spo2") return "/(tabs)/health/vitals/spo2" as Href;
-  if (widgetId === "vital:weight") return "/(tabs)/health/vitals/weight" as Href;
-  if (widgetId === "vital:glucose") return "/(tabs)/health/vitals/glucose" as Href;
-  if (widgetId.startsWith("vital:")) return "/(tabs)/health/vitals" as Href;
-  return null;
-}
 
 export default function HomeScreen() {
   const { theme } = useAppTheme();
@@ -78,7 +55,6 @@ export default function HomeScreen() {
     profileName,
     profileAvatarUrl,
     activeCycle,
-    hasBiopsy,
     lastDoc,
     latestSymptom,
     nextAppointment,
@@ -107,10 +83,26 @@ export default function HomeScreen() {
     [medications]
   );
   const nextMed = useMemo(() => nextMedicationSlot(scheduledActiveMeds), [scheduledActiveMeds]);
+  const nextDoseSlotKey = useMemo(
+    () => (nextMed ? `${nextMed.med.id}|${nextMed.when.toISOString()}` : null),
+    [nextMed]
+  );
   const hasSosMedication = useMemo(
     () => medications.some((m) => m.active && m.repeat_mode === "as_needed"),
     [medications]
   );
+
+  const pinnedMedications = useMemo(
+    () => medications.filter((m) => m.active && m.pinned),
+    [medications]
+  );
+
+  const pinnedResumoRows = useMemo(() => {
+    const nextId = nextMed?.med.id;
+    return pinnedMedications
+      .filter((m) => m.id !== nextId)
+      .map((med) => ({ med, when: computeNextDose(med, Date.now()) }));
+  }, [pinnedMedications, nextMed?.med.id]);
 
   const [profileOpen, setProfileOpen] = useState(false);
   const [widgetPickerOpen, setWidgetPickerOpen] = useState(false);
@@ -120,6 +112,9 @@ export default function HomeScreen() {
   const [infusions, setInfusions] = useState<TreatmentInfusionRow[]>([]);
   const [pullRefreshing, setPullRefreshing] = useState(false);
   const [pinnedCategoryIds, setPinnedCategoryIds] = useState<CategoryShortcutId[]>([]);
+  const [markingDoseSlotKey, setMarkingDoseSlotKey] = useState<string | null>(null);
+  const [confirmedDoseSlotKeys, setConfirmedDoseSlotKeys] = useState<string[]>([]);
+  const [skippedDoseSlotKeys, setSkippedDoseSlotKeys] = useState<string[]>([]);
 
   const firstName = useMemo(() => {
     const t = profileName.trim();
@@ -165,7 +160,21 @@ export default function HomeScreen() {
     }, [])
   );
 
+  useFocusEffect(
+    useCallback(() => {
+      void refreshMeds();
+    }, [refreshMeds])
+  );
+
+  useFocusEffect(
+    useCallback(() => {
+      if (!patient?.id || medications.length === 0) return;
+      void reconcileMissedDoseSlots(medications);
+    }, [patient?.id, medications])
+  );
+
   const lastFetchRef = useRef(0);
+  const markingDoseTakenRef = useRef(false);
   useFocusEffect(
     useCallback(() => {
       const now = Date.now();
@@ -176,7 +185,6 @@ export default function HomeScreen() {
         try {
           await Promise.all([refreshSummary(), refreshMeds(), loadInfusions()]);
         } catch (e) {
-          console.warn("[HomeScreen focus] Error refreshing summary:", e);
           showAppToast("error", "Resumo", e instanceof Error ? e.message : "Não foi possível atualizar ao voltar ao ecrã.");
         }
       })();
@@ -196,9 +204,9 @@ export default function HomeScreen() {
 
   const openTreatmentCycle = useCallback(() => {
     if (activeCycle?.id) {
-      router.push(`/(tabs)/treatment/${activeCycle.id}` as Href);
+      router.push(`/(tabs)/health/treatment/${activeCycle.id}` as Href);
     } else {
-      router.push("/(tabs)/treatment" as Href);
+      router.push("/(tabs)/health/treatment" as Href);
     }
   }, [activeCycle?.id, router]);
 
@@ -207,29 +215,100 @@ export default function HomeScreen() {
     await savePinnedWidgetIds(ids);
   }
 
-  async function markMedicationTaken() {
-    if (!patient || !nextMed) return;
-    const { med, when } = nextMed;
-    const { error } = await supabase.from("medication_logs").insert({
-      patient_id: patient.id,
-      medication_id: med.id,
-      scheduled_time: when.toISOString(),
-      taken_time: new Date().toISOString(),
-      status: "taken",
-    });
-    if (error) {
-      showAppToast("error", "Medicamento", error.message);
-      return;
-    }
-    await refreshMeds();
-    await refreshSummary();
-  }
+  const markDoseTaken = useCallback(
+    async (med: MedicationRow, when: Date, takenTimeIso?: string) => {
+      if (!patient || markingDoseTakenRef.current) return;
+      const slotKeyForInsert = medicationSlotKey(med.id, when);
+      markingDoseTakenRef.current = true;
+      setMarkingDoseSlotKey(slotKeyForInsert);
+      try {
+        const { error } = await recordDoseTaken({
+          patientId: patient.id,
+          medicationId: med.id,
+          scheduledTimeIso: when.toISOString(),
+          takenTimeIso: takenTimeIso ?? new Date().toISOString(),
+        });
+        if (error) {
+          showAppToast("error", "Medicamento", error.message);
+          return;
+        }
+        setConfirmedDoseSlotKeys((prev) => (prev.includes(slotKeyForInsert) ? prev : [...prev, slotKeyForInsert]));
+        setSkippedDoseSlotKeys((prev) => prev.filter((k) => k !== slotKeyForInsert));
+        showAppToast("success", "Medicamento", "Dose registada.");
+        await refreshMeds();
+        await refreshSummary();
+      } finally {
+        markingDoseTakenRef.current = false;
+        setMarkingDoseSlotKey(null);
+      }
+    },
+    [patient, refreshMeds, refreshSummary]
+  );
+
+  const markDoseSkipped = useCallback(
+    async (med: MedicationRow, when: Date) => {
+      if (!patient || markingDoseTakenRef.current) return;
+      const slotKeyForInsert = medicationSlotKey(med.id, when);
+      markingDoseTakenRef.current = true;
+      setMarkingDoseSlotKey(slotKeyForInsert);
+      try {
+        const { error } = await recordDoseSkipped({
+          patientId: patient.id,
+          medicationId: med.id,
+          scheduledTimeIso: when.toISOString(),
+        });
+        if (error) {
+          showAppToast("error", "Medicamento", error.message);
+          return;
+        }
+        setSkippedDoseSlotKeys((prev) => (prev.includes(slotKeyForInsert) ? prev : [...prev, slotKeyForInsert]));
+        setConfirmedDoseSlotKeys((prev) => prev.filter((k) => k !== slotKeyForInsert));
+        showAppToast("success", "Medicamento", "Registado como não tomado.");
+        await refreshMeds();
+        await refreshSummary();
+      } finally {
+        markingDoseTakenRef.current = false;
+        setMarkingDoseSlotKey(null);
+      }
+    },
+    [patient, refreshMeds, refreshSummary]
+  );
+
+  const markSosDoseTaken = useCallback(
+    async (med: MedicationRow) => {
+      if (!patient || markingDoseTakenRef.current) return;
+      const pendingKey = sosMarkSlotKey(med.id);
+      markingDoseTakenRef.current = true;
+      setMarkingDoseSlotKey(pendingKey);
+      try {
+        const now = new Date();
+        const iso = now.toISOString();
+        const { error } = await recordDoseTaken({
+          patientId: patient.id,
+          medicationId: med.id,
+          scheduledTimeIso: iso,
+          takenTimeIso: iso,
+        });
+        if (error) {
+          showAppToast("error", "Medicamento", error.message);
+          return;
+        }
+        showAppToast("success", "Medicamento", "Toma SOS registada neste momento.");
+        await refreshMeds();
+        await refreshSummary();
+      } finally {
+        markingDoseTakenRef.current = false;
+        setMarkingDoseSlotKey(null);
+      }
+    },
+    [patient, refreshMeds, refreshSummary]
+  );
 
   return (
     <ResponsiveScreen variant="tabGradient">
       <ScrollView
         style={{ flex: 1, backgroundColor: "transparent" }}
-        contentContainerStyle={{ paddingBottom: theme.spacing.xl }}
+        contentContainerStyle={{ paddingBottom: theme.spacing.xl+80 }}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
@@ -271,47 +350,16 @@ export default function HomeScreen() {
             <Text style={[theme.typography.caption1, { color: theme.colors.text.secondary }]}>A atualizar o resumo…</Text>
           </View>
         ) : null}
-        <View style={{ paddingTop: theme.spacing.lg, flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
-          <View style={{ flex: 1, paddingRight: theme.spacing.md }}>
-            <Text style={[theme.typography.body, { color: theme.colors.text.secondary, textTransform: "uppercase", letterSpacing: 0.6 }]}>
-              {greetingLabel()},
-            </Text>
-            <Text style={[theme.typography.largeTitle, { color: theme.colors.text.primary }]}>{firstName}</Text>
-          </View>
-          <Pressable
-            onPress={() => setProfileOpen(true)}
-            accessibilityRole="button"
-            accessibilityLabel="Abrir perfil e configurações"
-            style={{
-              width: 48,
-              height: 48,
-              borderRadius: 24,
-              overflow: "hidden",
-              backgroundColor: theme.colors.semantic.symptoms,
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-          >
-            {profileAvatarUrl || patient?.profiles?.avatar_url || avatarUri ? (
-              <Image
-                key={`${profileAvatarUrl ?? patient?.profiles?.avatar_url ?? avatarUri}-${avatarEpoch}`}
-                source={{
-                  uri: (() => {
-                    const raw = profileAvatarUrl ?? patient?.profiles?.avatar_url ?? avatarUri ?? "";
-                    if (!raw.startsWith("http")) return raw;
-                    const sep = raw.includes("?") ? "&" : "?";
-                    return `${raw}${sep}v=${avatarEpoch}`;
-                  })(),
-                }}
-                style={{ width: 48, height: 48 }}
-                contentFit="cover"
-                cachePolicy="none"
-              />
-            ) : (
-              <Text style={{ fontSize: 20, fontWeight: "700", color: "#FFFFFF" }}>{initials}</Text>
-            )}
-          </Pressable>
-        </View>
+        <ResumoHomeGreeting
+          theme={theme}
+          firstName={firstName}
+          initials={initials}
+          profileAvatarUrl={profileAvatarUrl}
+          patientAvatarUrl={patient?.profiles?.avatar_url}
+          localAvatarUri={avatarUri}
+          avatarEpoch={avatarEpoch}
+          onOpenProfile={() => setProfileOpen(true)}
+        />
 
         {patient && pinnedCategoryIds.length > 0 ? (
           <View style={{ marginTop: theme.spacing.md, marginBottom: theme.spacing.xs }}>
@@ -396,29 +444,10 @@ export default function HomeScreen() {
               onPress={openTreatmentCycle}
               hideProtocolName={false}
             />
-          ) : patient ? (
-            <OncoCard style={{ backgroundColor: theme.colors.background.primary }}>
-              <Text style={[theme.typography.headline, { color: theme.colors.text.primary }]}>Tratamento</Text>
-              <Text style={[theme.typography.body, { color: theme.colors.text.secondary, marginTop: theme.spacing.sm }]}>
-                Nenhum ciclo ativo. Quando existir, o resumo do ciclo e as infusões aparecem aqui.
-              </Text>
-              <Pressable
-                onPress={() => router.push("/(tabs)/treatment" as Href)}
-                style={{
-                  marginTop: theme.spacing.md,
-                  backgroundColor: theme.colors.semantic.treatment,
-                  paddingVertical: theme.spacing.md,
-                  borderRadius: theme.radius.md,
-                  alignItems: "center",
-                }}
-              >
-                <Text style={[theme.typography.headline, { color: "#FFFFFF" }]}>Abrir tratamento</Text>
-              </Pressable>
-            </OncoCard>
           ) : null}
 
           {patient ? (
-            <View style={{ marginTop: theme.spacing.lg }}>
+            <View style={{ marginTop: activeCycle ? theme.spacing.lg : theme.spacing.md }}>
               <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: theme.spacing.sm }}>
                 <Text style={[theme.typography.title2, { color: theme.colors.text.primary }]}>Métricas em foco</Text>
                 <Pressable onPress={() => setWidgetPickerOpen(true)}>
@@ -478,6 +507,250 @@ export default function HomeScreen() {
           ) : null}
 
           {patient ? (
+            <OncoCard
+              style={{
+                marginTop: theme.spacing.lg,
+                backgroundColor: theme.colors.background.primary,
+                ...IOS_HEALTH.shadow.card,
+              }}
+            >
+              <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" }}>
+                <View style={{ flexDirection: "row", alignItems: "center", gap: theme.spacing.md, flex: 1 }}>
+                  <View
+                    style={{
+                      width: 48,
+                      height: 48,
+                      borderRadius: theme.radius.sm,
+                      backgroundColor: theme.colors.semantic.nutrition,
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
+                  >
+                    <FontAwesome name="medkit" size={22} color="#FFFFFF" />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[theme.typography.title2, { color: theme.colors.text.primary }]}>Próximas doses</Text>
+                    <Text style={[theme.typography.caption1, { color: theme.colors.text.tertiary, marginTop: 2 }]}>
+                      {scheduledActiveMeds.length > 0
+                        ? "Horário mais próximo e medicamentos fixados; Tomado (com hora) ou Não tomado por janela"
+                        : hasSosMedication || pinnedResumoRows.length > 0
+                          ? "SOS e fixados abaixo; com horário, aparece a janela seguinte"
+                          : "Adicione medicamentos em Saúde → Medicamentos"}
+                    </Text>
+                  </View>
+                </View>
+                <Link href="/(tabs)/health/medications" asChild>
+                  <Pressable>
+                    <Text style={{ color: theme.colors.semantic.respiratory, fontWeight: "700", fontSize: 13 }}>GERIR</Text>
+                  </Pressable>
+                </Link>
+              </View>
+
+              {nextMed ? (
+                <View style={{ marginTop: theme.spacing.md }}>
+                  <Text style={[theme.typography.caption1, { color: theme.colors.text.tertiary, marginBottom: theme.spacing.xs, letterSpacing: 0.3 }]}>
+                    Próxima janela (mais cedo)
+                  </Text>
+                  <Text style={[theme.typography.headline, { color: theme.colors.text.primary }]}>{nextMed.med.display_name?.trim() || nextMed.med.name}</Text>
+                  {nextMed.med.dosage ? (
+                    <Text style={[theme.typography.body, { color: theme.colors.text.secondary, marginTop: 4 }]}>{nextMed.med.dosage}</Text>
+                  ) : null}
+                  <Text style={[theme.typography.body, { color: theme.colors.text.secondary, marginTop: 6 }]}>
+                    {relativeSchedulePhrasePtBr(nextMed.when.toISOString())}
+                  </Text>
+                  {nextDoseSlotKey ? (
+                    <HomeDoseSlotActions
+                      theme={theme}
+                      slotKey={nextDoseSlotKey}
+                      scheduledWhen={nextMed.when}
+                      markingSlotKey={markingDoseSlotKey}
+                      doseTaken={confirmedDoseSlotKeys.includes(nextDoseSlotKey)}
+                      doseSkipped={skippedDoseSlotKeys.includes(nextDoseSlotKey)}
+                      onConfirmTaken={(iso) => markDoseTaken(nextMed.med, nextMed.when, iso)}
+                      onConfirmSkipped={() => markDoseSkipped(nextMed.med, nextMed.when)}
+                    />
+                  ) : null}
+                </View>
+              ) : null}
+
+              {pinnedResumoRows.length > 0 ? (
+                <View style={nextMed ? { marginTop: theme.spacing.lg, paddingTop: theme.spacing.lg, borderTopWidth: 1, borderTopColor: theme.colors.border.divider } : { marginTop: theme.spacing.md }}>
+                  <Text style={[theme.typography.caption1, { color: theme.colors.text.tertiary, marginBottom: theme.spacing.sm, letterSpacing: 0.3 }]}>
+                    Medicamentos fixados
+                  </Text>
+                  {pinnedResumoRows.map(({ med, when }, idx) => {
+                    const label = med.display_name?.trim() || med.name;
+                    return (
+                      <View
+                        key={med.id}
+                        style={
+                          idx > 0
+                            ? {
+                                marginTop: theme.spacing.lg,
+                                paddingTop: theme.spacing.lg,
+                                borderTopWidth: 1,
+                                borderTopColor: theme.colors.border.divider,
+                              }
+                            : undefined
+                        }
+                      >
+                        <Pressable
+                          onPress={() => router.push(`/(tabs)/health/medications/detail?id=${med.id}` as Href)}
+                          accessibilityRole="button"
+                          accessibilityLabel={`Abrir ${label}`}
+                        >
+                          <Text style={[theme.typography.headline, { color: theme.colors.text.primary }]} numberOfLines={2}>
+                            {label}
+                          </Text>
+                          {med.dosage ? (
+                            <Text style={[theme.typography.body, { color: theme.colors.text.secondary, marginTop: 4 }]}>{med.dosage}</Text>
+                          ) : null}
+                        </Pressable>
+                        {when ? (
+                          <>
+                            <Text style={[theme.typography.body, { color: theme.colors.text.secondary, marginTop: 6 }]}>
+                              {relativeSchedulePhrasePtBr(when.toISOString())}
+                            </Text>
+                            <HomeDoseSlotActions
+                              theme={theme}
+                              slotKey={medicationSlotKey(med.id, when)}
+                              scheduledWhen={when}
+                              markingSlotKey={markingDoseSlotKey}
+                              doseTaken={confirmedDoseSlotKeys.includes(medicationSlotKey(med.id, when))}
+                              doseSkipped={skippedDoseSlotKeys.includes(medicationSlotKey(med.id, when))}
+                              onConfirmTaken={(iso) => markDoseTaken(med, when, iso)}
+                              onConfirmSkipped={() => markDoseSkipped(med, when)}
+                            />
+                          </>
+                        ) : med.repeat_mode === "as_needed" ? (
+                          <>
+                            <Text style={[theme.typography.body, { color: theme.colors.text.secondary, marginTop: theme.spacing.sm }]}>
+                              Uso SOS — sem horário agendado. Ao tocar, regista a hora em que tomou.
+                            </Text>
+                            <DoseMarkButton
+                              theme={theme}
+                              slotKey={sosMarkSlotKey(med.id)}
+                              markingSlotKey={markingDoseSlotKey}
+                              confirmedSlotKeys={confirmedDoseSlotKeys}
+                              repeatDose
+                              onPress={() => {
+                                void markSosDoseTaken(med);
+                              }}
+                            />
+                          </>
+                        ) : (
+                          <Text style={[theme.typography.body, { color: theme.colors.text.secondary, marginTop: theme.spacing.sm }]}>
+                            Sem próxima dose calculada neste momento. Verifique o agendamento em Medicamentos.
+                          </Text>
+                        )}
+                      </View>
+                    );
+                  })}
+                </View>
+              ) : null}
+
+              {!nextMed && pinnedResumoRows.length === 0 ? (
+                hasSosMedication ? (
+                  <Text style={[theme.typography.body, { color: theme.colors.text.secondary, marginTop: theme.spacing.sm }]}>
+                    Ainda sem horário agendado neste resumo. Para medicamentos SOS, fixe-os em Medicamentos e registe a toma abaixo quando aparecerem.
+                  </Text>
+                ) : (
+                  <Text style={[theme.typography.body, { color: theme.colors.text.secondary, marginTop: theme.spacing.sm }]}>
+                    Adicione medicamentos com horário em Saúde → Medicamentos.
+                  </Text>
+                )
+              ) : null}
+
+              <Link href="/(tabs)/health/medications" asChild>
+                <Pressable
+                  style={{
+                    marginTop: theme.spacing.md,
+                    flexDirection: "row",
+                    alignItems: "center",
+                    gap: theme.spacing.md,
+                    padding: theme.spacing.md,
+                    borderRadius: theme.radius.md,
+                    backgroundColor: theme.colors.background.secondary,
+                  }}
+                >
+                  <FontAwesome name="plus-circle" size={22} color={theme.colors.semantic.respiratory} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={[theme.typography.headline, { color: theme.colors.text.primary }]}>Medicamentos</Text>
+                    <Text style={[theme.typography.body, { color: theme.colors.text.secondary, marginTop: 2 }]}>Adicionar ou editar</Text>
+                  </View>
+                  <FontAwesome name="chevron-right" size={16} color={theme.colors.text.tertiary} />
+                </Pressable>
+              </Link>
+            </OncoCard>
+          ) : null}
+
+          {patient && nextAppointment ? (
+            <OncoCard
+              style={{
+                marginTop: theme.spacing.lg,
+                backgroundColor: theme.colors.background.primary,
+                ...IOS_HEALTH.shadow.card,
+              }}
+            >
+              <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" }}>
+                <View style={{ flexDirection: "row", alignItems: "center", gap: theme.spacing.md, flex: 1 }}>
+                  <View
+                    style={{
+                      width: 48,
+                      height: 48,
+                      borderRadius: theme.radius.sm,
+                      backgroundColor: theme.colors.semantic.respiratory,
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
+                  >
+                    <FontAwesome name={appointmentKindIcon(nextAppointment.kind)} size={22} color="#FFFFFF" />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[theme.typography.title2, { color: theme.colors.text.primary }]}>Próximo agendamento</Text>
+                    <Text style={[theme.typography.caption1, { color: theme.colors.text.tertiary, marginTop: 2 }]}>
+                      {appointmentKindShortLabel(nextAppointment.kind)} · fixado na agenda
+                    </Text>
+                  </View>
+                </View>
+                <Link href="/calendar" asChild>
+                  <Pressable>
+                    <Text style={{ color: theme.colors.semantic.respiratory, fontWeight: "700", fontSize: 13 }}>CALENDÁRIO</Text>
+                  </Pressable>
+                </Link>
+              </View>
+              <View style={{ marginTop: theme.spacing.md }}>
+                <Text style={[theme.typography.headline, { color: theme.colors.text.primary }]} numberOfLines={2}>
+                  {nextAppointment.title}
+                </Text>
+                <Text style={[theme.typography.body, { color: theme.colors.text.secondary, marginTop: 6 }]}>
+                  {relativeSchedulePhrasePtBr(nextAppointment.starts_at)}
+                </Text>
+              </View>
+              <Link href="/calendar" asChild>
+                <Pressable
+                  style={{
+                    marginTop: theme.spacing.md,
+                    flexDirection: "row",
+                    alignItems: "center",
+                    gap: theme.spacing.md,
+                    padding: theme.spacing.md,
+                    borderRadius: theme.radius.md,
+                    backgroundColor: theme.colors.background.secondary,
+                  }}
+                >
+                  <FontAwesome name="calendar" size={22} color={theme.colors.semantic.respiratory} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={[theme.typography.headline, { color: theme.colors.text.primary }]}>Ver agenda</Text>
+                    <Text style={[theme.typography.body, { color: theme.colors.text.secondary, marginTop: 2 }]}>Todos os agendamentos e lembretes</Text>
+                  </View>
+                  <FontAwesome name="chevron-right" size={16} color={theme.colors.text.tertiary} />
+                </Pressable>
+              </Link>
+            </OncoCard>
+          ) : null}
+
+          {patient ? (
             <Pressable onPress={() => router.push("/(tabs)/health/nutrition" as Href)} style={{ marginTop: theme.spacing.lg }}>
               <OncoCard style={{ backgroundColor: theme.colors.background.primary }}>
                 <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
@@ -493,7 +766,7 @@ export default function HomeScreen() {
           ) : null}
 
           {patient ? (
-            <Pressable onPress={() => router.push("/(tabs)/education" as Href)} style={{ marginTop: theme.spacing.md }}>
+            <Pressable onPress={() => router.push("/(tabs)/health/education" as Href)} style={{ marginTop: theme.spacing.md }}>
               <OncoCard style={{ backgroundColor: theme.colors.background.primary }}>
                 <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
                   <Text style={[theme.typography.headline, { color: theme.colors.text.primary }]}>Biblioteca de apoio</Text>
@@ -507,229 +780,38 @@ export default function HomeScreen() {
             </Pressable>
           ) : null}
 
-          {patient && hasBiopsy ? (
-            <OncoCard style={{ marginTop: theme.spacing.md, backgroundColor: theme.colors.background.primary }}>
-              <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
-                <Text style={[theme.typography.title2, { color: theme.colors.text.primary }]}>Perfil do tumor</Text>
-                <Link href="/(tabs)/exams" asChild>
-                  <Pressable>
-                    <Text style={{ color: theme.colors.semantic.respiratory, fontWeight: "700", fontSize: 13 }}>VER DETALHES</Text>
-                  </Pressable>
-                </Link>
-              </View>
-              <View style={{ flexDirection: "row", marginTop: theme.spacing.md, gap: theme.spacing.md }}>
-                <View
-                  style={{
-                    width: 48,
-                    height: 48,
-                    borderRadius: theme.radius.sm,
-                    backgroundColor: theme.colors.semantic.treatment,
-                    alignItems: "center",
-                    justifyContent: "center",
-                  }}
-                >
-                  <FontAwesome name="medkit" size={22} color="#FFFFFF" />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={[theme.typography.headline, { color: theme.colors.text.primary }]}>{labelCancerType(patient.primary_cancer_type)}</Text>
-                  {patient.current_stage ? (
-                    <Text style={[theme.typography.body, { color: theme.colors.text.secondary, marginTop: 4 }]}>Estágio {patient.current_stage}</Text>
-                  ) : (
-                    <Text style={[theme.typography.body, { color: theme.colors.text.secondary, marginTop: 4 }]}>Detalhes no anatomopatológico</Text>
-                  )}
-                </View>
-              </View>
-            </OncoCard>
-          ) : null}
-
           {patient ? (
-            <OncoCard style={{ marginTop: theme.spacing.lg, backgroundColor: theme.colors.background.primary }}>
-              <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
-                <Text style={[theme.typography.title2, { color: theme.colors.text.primary }]}>Próximas doses</Text>
-                <Link href="/(tabs)/health/medications" asChild>
-                  <Pressable>
-                    <Text style={{ color: theme.colors.semantic.respiratory, fontWeight: "700", fontSize: 13 }}>GERIR</Text>
-                  </Pressable>
-                </Link>
-              </View>
-              {nextMed ? (
-                <View style={{ marginTop: theme.spacing.md }}>
-                  <Text style={[theme.typography.headline, { color: theme.colors.text.primary }]}>{nextMed.med.name}</Text>
-                  <Text style={[theme.typography.body, { color: theme.colors.text.secondary, marginTop: 4 }]}>
-                    {nextMed.med.dosage ? `${nextMed.med.dosage} · ` : ""}
-                    Próxima dose: {nextMed.when.toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}
-                  </Text>
-                  <Pressable
-                    onPress={markMedicationTaken}
-                    style={{
-                      marginTop: theme.spacing.md,
-                      backgroundColor: theme.colors.semantic.nutrition,
-                      paddingVertical: theme.spacing.md,
-                      borderRadius: theme.radius.md,
-                      alignItems: "center",
-                    }}
-                  >
-                    <Text style={[theme.typography.headline, { color: "#FFFFFF" }]}>Marcar como tomado</Text>
-                  </Pressable>
-                </View>
-              ) : hasSosMedication ? (
-                <Text style={[theme.typography.body, { color: theme.colors.text.secondary, marginTop: theme.spacing.sm }]}>
-                  Medicamentos SOS não têm horário fixo. Abra Medicamentos e use &quot;Registrar dose&quot; no item para marcar como tomado.
-                </Text>
-              ) : (
-                <Text style={[theme.typography.body, { color: theme.colors.text.secondary, marginTop: theme.spacing.sm }]}>
-                  Adicione medicamentos com horário em Saúde → Medicamentos.
-                </Text>
-              )}
-              <Link href="/(tabs)/health/medications" asChild>
-                <Pressable
-                  style={{
-                    marginTop: theme.spacing.md,
-                    flexDirection: "row",
-                    alignItems: "center",
-                    gap: theme.spacing.md,
-                    padding: theme.spacing.md,
-                    borderRadius: theme.radius.md,
-                    backgroundColor: theme.colors.background.secondary,
-                  }}
-                >
-                  <FontAwesome name="medkit" size={24} color={theme.colors.semantic.respiratory} />
-                  <View style={{ flex: 1 }}>
-                    <Text style={[theme.typography.headline, { color: theme.colors.text.primary }]}>Medicamentos</Text>
-                    <Text style={[theme.typography.body, { color: theme.colors.text.secondary, marginTop: 2 }]}>Adicionar ou editar</Text>
-                  </View>
-                  <FontAwesome name="chevron-right" size={16} color={theme.colors.text.tertiary} />
-                </Pressable>
-              </Link>
-            </OncoCard>
-          ) : null}
-
-          {patient ? (
-            <Link href="/calendar" asChild>
-              <Pressable style={{ marginTop: theme.spacing.lg }}>
-                <OncoCard style={{ backgroundColor: theme.colors.background.primary }}>
-                  <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
-                    <Text style={[theme.typography.title2, { color: theme.colors.text.primary }]}>
-                      {nextAppointment?.kind === "exam"
-                        ? "Próximo exame"
-                        : nextAppointment?.kind === "infusion"
-                          ? "Próxima infusão"
-                          : "Agendamento"}
-                    </Text>
-                    <Text style={{ color: theme.colors.semantic.respiratory, fontWeight: "700", fontSize: 13 }}>CALENDÁRIO</Text>
-                  </View>
-                  {nextAppointment ? (
-                    <View style={{ marginTop: theme.spacing.md }}>
-                      <Text style={[theme.typography.headline, { color: theme.colors.text.primary }]} numberOfLines={2}>
-                        {nextAppointment.title}
-                      </Text>
-                      <Text style={[theme.typography.body, { color: theme.colors.text.secondary, marginTop: 6 }]}>
-                        {nextAppointment.kind === "exam"
-                          ? "Exame"
-                          : nextAppointment.kind === "consult"
-                            ? "Consulta"
-                            : nextAppointment.kind === "infusion"
-                              ? "Infusão (unidade)"
-                              : "Outro"}{" "}
-                        · {formatSessionAt(nextAppointment.starts_at)}
+            <Pressable onPress={() => router.push("/reports" as Href)} style={{ marginTop: theme.spacing.lg }}>
+              <OncoCard style={{ backgroundColor: theme.colors.background.primary, ...IOS_HEALTH.shadow.card }}>
+                <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: theme.spacing.md, flex: 1 }}>
+                    <View
+                      style={{
+                        width: 48,
+                        height: 48,
+                        borderRadius: theme.radius.sm,
+                        backgroundColor: theme.colors.semantic.nutrition,
+                        alignItems: "center",
+                        justifyContent: "center",
+                      }}
+                    >
+                      <FontAwesome name="file-pdf-o" size={22} color="#FFFFFF" />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={[theme.typography.title2, { color: theme.colors.text.primary }]}>Relatórios</Text>
+                      <Text style={[theme.typography.body, { color: theme.colors.text.secondary, marginTop: 4 }]}>
+                        PDFs e documentos partilháveis com a equipa
                       </Text>
                     </View>
-                  ) : (
-                    <Text style={[theme.typography.body, { color: theme.colors.text.secondary, marginTop: theme.spacing.sm }]}>
-                      Nenhum agendamento futuro no calendário. Toque para ver a agenda e lembretes.
-                    </Text>
-                  )}
-                  <Text style={{ fontSize: 13, fontWeight: "600", color: theme.colors.semantic.treatment, marginTop: theme.spacing.md }}>
-                    {nextAppointment ? "Ver calendário e lembretes" : "Abrir calendário"}
-                  </Text>
-                </OncoCard>
-              </Pressable>
-            </Link>
+                  </View>
+                  <FontAwesome name="chevron-right" size={16} color={theme.colors.text.tertiary} />
+                </View>
+              </OncoCard>
+            </Pressable>
           ) : null}
 
           {patient ? (
-            <View style={{ marginTop: theme.spacing.md, flexDirection: "row", gap: theme.spacing.sm }}>
-              <Link href="/calendar" asChild>
-                <Pressable
-                  style={{
-                    flex: 1,
-                    backgroundColor: theme.colors.background.primary,
-                    borderRadius: theme.radius.md,
-                    padding: theme.spacing.md,
-                    alignItems: "center",
-                  }}
-                >
-                  <FontAwesome name="calendar" size={22} color={theme.colors.semantic.treatment} />
-                  <Text style={[theme.typography.headline, { color: theme.colors.text.primary, marginTop: 6 }]}>Calendário</Text>
-                </Pressable>
-              </Link>
-              <Link href="/reports" asChild>
-                <Pressable
-                  style={{
-                    flex: 1,
-                    backgroundColor: theme.colors.background.primary,
-                    borderRadius: theme.radius.md,
-                    padding: theme.spacing.md,
-                    alignItems: "center",
-                  }}
-                >
-                  <FontAwesome name="file-pdf-o" size={22} color={theme.colors.semantic.nutrition} />
-                  <Text style={[theme.typography.headline, { color: theme.colors.text.primary, marginTop: 6 }]}>Relatórios</Text>
-                </Pressable>
-              </Link>
-            </View>
-          ) : null}
-
-          {patient ? (
-            <View style={{ marginTop: theme.spacing.lg }}>
-              <Text style={[theme.typography.title2, { color: theme.colors.text.primary, marginBottom: theme.spacing.sm }]}>Atividade recente</Text>
-              <View style={{ flexDirection: "row", gap: theme.spacing.sm }}>
-                <Link href="/(tabs)/diary" asChild>
-                  <Pressable
-                    style={{
-                      flex: 1,
-                      backgroundColor: theme.colors.background.primary,
-                      borderRadius: theme.radius.md,
-                      padding: theme.spacing.md,
-                      minHeight: 110,
-                    }}
-                  >
-                    <FontAwesome name="heart" size={20} color={theme.colors.semantic.symptoms} />
-                    <Text style={[theme.typography.headline, { color: theme.colors.text.primary, marginTop: theme.spacing.sm }]}>Sintomas</Text>
-                    <Text style={{ color: theme.colors.semantic.symptoms, marginTop: 4 }} numberOfLines={2}>
-                      {latestSymptom
-                        ? latestSymptom.entry_kind === "prd"
-                          ? `D/N/F ${latestSymptom.pain_level}/${latestSymptom.nausea_level}/${latestSymptom.fatigue_level}`
-                          : labelSymptomCategory(latestSymptom.symptom_category ?? "")
-                        : "Nenhum registro"}
-                    </Text>
-                    <Text style={{ fontSize: 12, color: theme.colors.text.secondary, marginTop: 6 }}>
-                      {latestSymptom ? formatDayMonth(latestSymptom.logged_at) : "—"}
-                    </Text>
-                  </Pressable>
-                </Link>
-                <Link href="/(tabs)/exams" asChild>
-                  <Pressable
-                    style={{
-                      flex: 1,
-                      backgroundColor: theme.colors.background.primary,
-                      borderRadius: theme.radius.md,
-                      padding: theme.spacing.md,
-                      minHeight: 110,
-                    }}
-                  >
-                    <FontAwesome name="file-text-o" size={20} color={theme.colors.semantic.respiratory} />
-                    <Text style={[theme.typography.headline, { color: theme.colors.text.primary, marginTop: theme.spacing.sm }]}>Exames</Text>
-                    <Text style={{ color: theme.colors.text.primary, marginTop: 4 }} numberOfLines={2}>
-                      {lastDoc ? documentTypeLabel[lastDoc.document_type] ?? lastDoc.document_type : "Nenhum arquivo"}
-                    </Text>
-                    <Text style={{ fontSize: 12, color: theme.colors.text.secondary, marginTop: 6 }}>
-                      {lastDoc ? formatDayMonth(lastDoc.uploaded_at) : "—"}
-                    </Text>
-                  </Pressable>
-                </Link>
-              </View>
-            </View>
+            <ResumoHomeActivitySection theme={theme} latestSymptom={latestSymptom} lastDoc={lastDoc} />
           ) : null}
         </View>
       </ScrollView>

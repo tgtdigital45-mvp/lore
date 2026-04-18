@@ -3,7 +3,7 @@ import { Alert, Platform, Pressable, ScrollView, Text, View } from "react-native
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import type { Href } from "expo-router";
 import { useRouter } from "expo-router";
-import { CommonActions, useFocusEffect, useNavigation } from "@react-navigation/native";
+import { useFocusEffect } from "@react-navigation/native";
 import { ResponsiveScreen } from "@/src/components/ResponsiveScreen";
 import { CategoryMoreSection } from "@/src/health/components/CategoryMoreSection";
 import { CircleChromeButton } from "@/src/health/components/MedicationChromeButtons";
@@ -13,6 +13,7 @@ import type { SymptomDetailKey } from "@/src/diary/symptomCatalog";
 import type { SymptomLogRow } from "@/src/diary/symptomLogTypes";
 import { useAppTheme } from "@/src/hooks/useAppTheme";
 import { usePatient } from "@/src/hooks/usePatient";
+import { useStackBack } from "@/src/hooks/useStackBack";
 import { usePinnedCategoryShortcut } from "@/src/hooks/usePinnedCategoryShortcut";
 import { useTreatmentCycles } from "@/src/hooks/useTreatmentCycles";
 import { supabase } from "@/src/lib/supabase";
@@ -20,15 +21,7 @@ import { supabase } from "@/src/lib/supabase";
 export default function DiaryScreen() {
   const { theme } = useAppTheme();
   const router = useRouter();
-  const navigation = useNavigation();
-  const goBackToHealth = useCallback(() => {
-    navigation.dispatch(
-      CommonActions.navigate({
-        name: "health",
-        params: { screen: "index" },
-      })
-    );
-  }, [navigation]);
+  const goBackToHealth = useStackBack("/(tabs)/health" as Href);
   const { patient, refresh } = usePatient();
   const { cycles } = useTreatmentCycles(patient);
   const { pinned, toggle, ready: pinReady } = usePinnedCategoryShortcut("symptoms");

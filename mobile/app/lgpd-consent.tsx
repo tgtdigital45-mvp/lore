@@ -4,6 +4,7 @@ import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { useRouter } from "expo-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/src/auth/AuthContext";
+import { formatAuthError } from "@/src/auth/authErrors";
 import { ResponsiveScreen } from "@/src/components/ResponsiveScreen";
 import { useAppTheme } from "@/src/hooks/useAppTheme";
 import { supabase } from "@/src/lib/supabase";
@@ -22,6 +23,15 @@ export default function LgpdConsentScreen() {
   async function save() {
     if (!session?.user) return;
     setBusy(true);
+
+    const { error: sessErr } = await supabase.auth.refreshSession();
+    if (sessErr) {
+      setBusy(false);
+      await supabase.auth.signOut();
+      router.replace("/login");
+      return;
+    }
+
     const { error } = await supabase.from("patient_consents").upsert(
       {
         profile_id: session.user.id,
@@ -36,10 +46,18 @@ export default function LgpdConsentScreen() {
       { onConflict: "profile_id" }
     );
     setBusy(false);
+
     if (error) {
-      Alert.alert("Consentimento", error.message);
+      const msg = (error.message ?? "").toLowerCase();
+      if (msg.includes("jwt expired") || msg.includes("jwt invalid")) {
+        await supabase.auth.signOut();
+        router.replace("/login");
+        return;
+      }
+      Alert.alert("Consentimento", formatAuthError({ message: error.message }));
       return;
     }
+
     await qc.invalidateQueries({ queryKey: ["patient_consents", session.user.id] });
     router.replace("/");
   }

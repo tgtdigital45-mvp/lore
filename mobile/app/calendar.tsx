@@ -6,6 +6,7 @@ import {
   Platform,
   Pressable,
   ScrollView,
+  Switch,
   Text,
   TextInput,
   View,
@@ -16,6 +17,7 @@ import { useFocusEffect } from "@react-navigation/native";
 import { Calendar, type DateData } from "react-native-calendars";
 import type { Href } from "expo-router";
 import { useRouter } from "expo-router";
+import { useQueryClient } from "@tanstack/react-query";
 import { ResponsiveScreen } from "@/src/components/ResponsiveScreen";
 import { CategoryMoreSection } from "@/src/health/components/CategoryMoreSection";
 import { CircleChromeButton } from "@/src/health/components/MedicationChromeButtons";
@@ -24,6 +26,7 @@ import { useAppTheme } from "@/src/hooks/useAppTheme";
 import { usePatient } from "@/src/hooks/usePatient";
 import { usePinnedCategoryShortcut } from "@/src/hooks/usePinnedCategoryShortcut";
 import { useStackBack } from "@/src/hooks/useStackBack";
+import { homeSummaryQueryKey } from "@/src/home/useHomeSummary";
 import { supabase } from "@/src/lib/supabase";
 import { ensureNotificationPermissions, loadExpoNotificationsModule } from "@/src/utils/notifications";
 
@@ -34,6 +37,7 @@ type ApptRow = {
   starts_at: string;
   reminder_minutes_before: number;
   notes: string | null;
+  pinned: boolean;
 };
 
 function localYmd(iso: string): string {
@@ -70,6 +74,7 @@ function kindLabel(kind: string): string {
 export default function CalendarScreen() {
   const { theme } = useAppTheme();
   const router = useRouter();
+  const queryClient = useQueryClient();
   const goBack = useStackBack("/(tabs)/health" as Href);
   const { patient } = usePatient();
   const { pinned, toggle, ready: pinReady } = usePinnedCategoryShortcut("calendar");
@@ -106,15 +111,30 @@ export default function CalendarScreen() {
     const [{ data: a }, { data: c }] = await Promise.all([
       supabase
         .from("patient_appointments")
-        .select("id, title, kind, starts_at, reminder_minutes_before, notes")
+        .select("id, title, kind, starts_at, reminder_minutes_before, notes, pinned")
         .eq("patient_id", patient.id)
         .order("starts_at", { ascending: true }),
       supabase.from("treatment_cycles").select("start_date, end_date, protocol_name").eq("patient_id", patient.id),
     ]);
-    setRows((a ?? []) as ApptRow[]);
+    const normalized = ((a ?? []) as ApptRow[]).map((r) => ({ ...r, pinned: Boolean(r.pinned) }));
+    setRows(normalized);
     setCycles((c ?? []) as typeof cycles);
     setLoading(false);
   }, [patient]);
+
+  const toggleApptPinned = useCallback(
+    async (id: string, value: boolean) => {
+      if (!patient) return;
+      const { error } = await supabase.from("patient_appointments").update({ pinned: value }).eq("id", id);
+      if (error) {
+        Alert.alert("Agenda", error.message);
+        return;
+      }
+      await load();
+      void queryClient.invalidateQueries({ queryKey: homeSummaryQueryKey(patient.id) });
+    },
+    [patient, load, queryClient]
+  );
 
   useFocusEffect(
     useCallback(() => {
@@ -166,6 +186,12 @@ export default function CalendarScreen() {
     upcoming.sort((a, b) => new Date(a.starts_at).getTime() - new Date(b.starts_at).getTime());
     return upcoming[0] ?? null;
   }, [rows]);
+
+  /** Dia selecionado sem nada na lista, mas existe um compromisso futuro noutro dia — mostrar atalho. */
+  const showNextOnOtherDay =
+    dayRows.length === 0 &&
+    nextFuture != null &&
+    localYmd(nextFuture.starts_at) !== selectedYmd;
 
   const closeModal = () => {
     setAndroidPicker(null);
@@ -430,7 +456,7 @@ export default function CalendarScreen() {
             </Pressable>
 
             <Text style={[theme.typography.title2, { color: theme.colors.text.primary, marginBottom: theme.spacing.sm }]}>
-              Compromissos neste dia
+              Este dia
             </Text>
             <Text style={[theme.typography.body, { color: theme.colors.text.tertiary, marginBottom: theme.spacing.md, fontSize: 13 }]}>
               Toque num dia no calendário para ver o que está planeado. Os lembretes locais dependem da permissão de notificações.
@@ -445,7 +471,68 @@ export default function CalendarScreen() {
                 ...IOS_HEALTH.shadow.card,
               }}
             >
-              {dayRows.length === 0 ? (
+              {dayRows.length === 0 && showNextOnOtherDay ? (
+                <View style={{ padding: theme.spacing.md }}>
+                  <Text style={[theme.typography.body, { color: theme.colors.text.secondary, marginBottom: theme.spacing.md }]}>
+                    Sem compromissos neste dia.
+                  </Text>
+                  <Text style={[theme.typography.headline, { color: theme.colors.text.primary, marginBottom: theme.spacing.sm }]}>
+                    Próximo agendamento
+                  </Text>
+                  <Pressable
+                    onPress={() => {
+                      const d = new Date(nextFuture.starts_at);
+                      setSelectedDate(new Date(d.getFullYear(), d.getMonth(), d.getDate()));
+                    }}
+                    style={({ pressed }) => ({ opacity: pressed ? 0.88 : 1 })}
+                  >
+                    <Text style={[theme.typography.headline, { color: theme.colors.text.primary }]}>{nextFuture.title}</Text>
+                    <Text style={{ fontSize: 13, color: theme.colors.text.secondary, marginTop: 4, fontWeight: "600" }}>
+                      {kindLabel(nextFuture.kind)}
+                    </Text>
+                    <Text style={{ fontSize: 15, color: theme.colors.text.secondary, marginTop: 6 }}>
+                      {new Date(nextFuture.starts_at).toLocaleString("pt-BR", {
+                        weekday: "long",
+                        day: "numeric",
+                        month: "long",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                    </Text>
+                    {nextFuture.notes ? (
+                      <Text style={{ fontSize: 14, color: theme.colors.text.tertiary, marginTop: 8 }} numberOfLines={2}>
+                        {nextFuture.notes}
+                      </Text>
+                    ) : null}
+                    <View
+                      style={{
+                        flexDirection: "row",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        marginTop: theme.spacing.md,
+                        paddingTop: theme.spacing.md,
+                        borderTopWidth: 1,
+                        borderTopColor: IOS_HEALTH.separator,
+                      }}
+                    >
+                      <Text style={[theme.typography.body, { color: theme.colors.text.primary, flex: 1, paddingRight: theme.spacing.sm }]}>
+                        Fixar no resumo
+                      </Text>
+                      <Switch
+                        value={Boolean(nextFuture.pinned)}
+                        onValueChange={(v) => {
+                          void toggleApptPinned(nextFuture.id, v);
+                        }}
+                        trackColor={{ false: theme.colors.background.tertiary, true: theme.colors.semantic.treatment }}
+                        thumbColor={Platform.OS === "android" ? (nextFuture.pinned ? "#fff" : "#f4f3f4") : undefined}
+                      />
+                    </View>
+                    <Text style={{ fontSize: 13, color: IOS_HEALTH.blue, marginTop: 10, fontWeight: "600" }}>
+                      Ver este dia no calendário
+                    </Text>
+                  </Pressable>
+                </View>
+              ) : dayRows.length === 0 ? (
                 <View style={{ padding: theme.spacing.lg, alignItems: "center" }}>
                   <FontAwesome name="calendar-o" size={28} color={theme.colors.text.tertiary} />
                   <Text style={[theme.typography.body, { color: theme.colors.text.secondary, marginTop: theme.spacing.sm, textAlign: "center" }]}>
@@ -472,6 +559,29 @@ export default function CalendarScreen() {
                     {r.notes ? (
                       <Text style={{ color: theme.colors.text.tertiary, marginTop: 6, fontSize: 14 }}>{r.notes}</Text>
                     ) : null}
+                    <View
+                      style={{
+                        flexDirection: "row",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        marginTop: theme.spacing.md,
+                        paddingTop: theme.spacing.md,
+                        borderTopWidth: 1,
+                        borderTopColor: IOS_HEALTH.separator,
+                      }}
+                    >
+                      <Text style={[theme.typography.body, { color: theme.colors.text.primary, flex: 1, paddingRight: theme.spacing.sm }]}>
+                        Fixar no resumo
+                      </Text>
+                      <Switch
+                        value={Boolean(r.pinned)}
+                        onValueChange={(v) => {
+                          void toggleApptPinned(r.id, v);
+                        }}
+                        trackColor={{ false: theme.colors.background.tertiary, true: theme.colors.semantic.treatment }}
+                        thumbColor={Platform.OS === "android" ? (r.pinned ? "#fff" : "#f4f3f4") : undefined}
+                      />
+                    </View>
                   </View>
                 ))
               )}

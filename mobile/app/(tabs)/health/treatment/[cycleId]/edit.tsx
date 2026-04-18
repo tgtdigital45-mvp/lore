@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ActivityIndicator, Alert, Keyboard, Platform, Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
-import type { Href } from "expo-router";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { KeyboardAccessoryDone, KEYBOARD_ACCESSORY_ID } from "@/src/components/KeyboardAccessoryDone";
 import { ResponsiveScreen } from "@/src/components/ResponsiveScreen";
@@ -9,6 +8,7 @@ import { CircleChromeButton } from "@/src/health/components/MedicationChromeButt
 import { IOS_HEALTH } from "@/src/health/iosHealthTokens";
 import { useAppTheme } from "@/src/hooks/useAppTheme";
 import { useStackBack } from "@/src/hooks/useStackBack";
+import { TREATMENT_HREF, treatmentCycleHref } from "@/src/navigation/treatmentRoutes";
 import { usePatient } from "@/src/hooks/usePatient";
 import { useTreatmentCycles } from "@/src/hooks/useTreatmentCycles";
 import { supabase } from "@/src/lib/supabase";
@@ -21,7 +21,7 @@ export default function TreatmentCycleEditScreen() {
   const router = useRouter();
   const { cycleId } = useLocalSearchParams<{ cycleId: string }>();
   const backFallback = useMemo(
-    () => (cycleId ? (`/treatment/${cycleId}` as Href) : ("/treatment" as Href)),
+    () => (cycleId ? treatmentCycleHref(cycleId) : TREATMENT_HREF.index),
     [cycleId]
   );
   const goBack = useStackBack(backFallback);
@@ -76,10 +76,6 @@ export default function TreatmentCycleEditScreen() {
     if (!cycleId || !patient) return;
     Keyboard.dismiss();
     const pn = protocolName.trim();
-    if (!pn) {
-      Alert.alert("Validação", "Indique o nome do ciclo.");
-      return;
-    }
     const plannedN = planned.trim() === "" ? null : parseInt(planned, 10);
     const completedN = completed.trim() === "" ? null : parseInt(completed, 10);
     if (planned !== "" && (plannedN == null || plannedN < 0)) {
@@ -152,25 +148,7 @@ export default function TreatmentCycleEditScreen() {
           keyboardDismissMode="on-drag"
         >
           <KeyboardAccessoryDone />
-          <Text style={[theme.typography.body, { color: theme.colors.text.secondary }]}>Nome do ciclo</Text>
-          <TextInput
-            value={protocolName}
-            onChangeText={setProtocolName}
-            returnKeyType="next"
-            blurOnSubmit={false}
-            onSubmitEditing={() => Keyboard.dismiss()}
-            style={{
-              marginTop: theme.spacing.xs,
-              backgroundColor: theme.colors.background.secondary,
-              borderRadius: IOS_HEALTH.pillButtonRadius,
-              paddingVertical: 12,
-              paddingHorizontal: theme.spacing.md,
-              fontSize: 17,
-              color: theme.colors.text.primary,
-            }}
-          />
-
-          <Text style={[theme.typography.body, { color: theme.colors.text.secondary, marginTop: theme.spacing.md }]}>
+          <Text style={[theme.typography.body, { color: theme.colors.text.secondary }]}>
             Observações
           </Text>
           <TextInput
@@ -191,7 +169,7 @@ export default function TreatmentCycleEditScreen() {
           />
 
           <Text style={[theme.typography.body, { color: theme.colors.text.secondary, marginTop: theme.spacing.md }]}>
-            Dias entre infusões (protocolo, opcional)
+            Dias entre infusões (opcional)
           </Text>
           <Text style={[theme.typography.body, { fontSize: 13, color: theme.colors.text.tertiary, marginTop: 4 }]}>
             Usado para sugerir a próxima data após cada infusão concluída (1–180).

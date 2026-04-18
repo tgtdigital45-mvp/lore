@@ -25,19 +25,7 @@ import { ScheduleRow } from "@/src/medications/components/ScheduleRow";
 import { INTERVAL_HOUR_OPTIONS } from "@/src/medications/constants";
 import type { DraftFrequency, ScheduleItem } from "@/src/medications/types";
 import { PillPreview } from "@/src/medications/components/PillPreview";
-
-function formatDosageLine(draft: {
-  form: string | null;
-  dosageAmount: string | null;
-  unit: string | null;
-}): string {
-  const parts: string[] = [];
-  if (draft.form) parts.push(draft.form);
-  if (draft.dosageAmount?.trim()) {
-    parts.push(`${draft.dosageAmount.trim()}${draft.unit ? ` ${draft.unit}` : ""}`);
-  }
-  return parts.join(", ");
-}
+import { formatDosageLine } from "@/src/medications/medicationFormatters";
 
 function freqDisplayText(d: { frequency: DraftFrequency; intervalHours: number | null }): string {
   if (d.frequency === "as_needed") return "Quando precisar (SOS)";

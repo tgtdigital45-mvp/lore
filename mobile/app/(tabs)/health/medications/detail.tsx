@@ -1,3 +1,4 @@
+import { useQueryClient } from "@tanstack/react-query";
 import { useCallback, useMemo, useState } from "react";
 import {
   ActivityIndicator,
@@ -20,10 +21,11 @@ import { OncoCard } from "@/components/OncoCard";
 import { ResponsiveScreen } from "@/src/components/ResponsiveScreen";
 import { CircleChromeButton } from "@/src/health/components/MedicationChromeButtons";
 import { IOS_HEALTH } from "@/src/health/iosHealthTokens";
-import { useMedications } from "@/src/hooks/useMedications";
+import { useMedications, type MedicationRow } from "@/src/hooks/useMedications";
 import { useAppTheme } from "@/src/hooks/useAppTheme";
 import { usePatient } from "@/src/hooks/usePatient";
 import { useStackBack } from "@/src/hooks/useStackBack";
+import { recordDoseTaken } from "@/src/lib/medicationLogWrite";
 import { cancelMedicationNotifications, scheduleMedicationNotifications } from "@/src/lib/medicationNotifications";
 import { supabase } from "@/src/lib/supabase";
 import { PillPreview } from "@/src/medications/components/PillPreview";
@@ -42,18 +44,30 @@ function dayKey(iso: string): string {
   return iso.slice(0, 10);
 }
 
+function logStatusLabel(status: string | null): string {
+  if (status === "taken") return "Tomado";
+  if (status === "skipped") return "Não tomado";
+  if (status === "no_interaction") return "Sem interação";
+  if (status === "pending") return "Pendente";
+  return status ?? "—";
+}
+
 export default function MedicationDetailScreen() {
   const { theme } = useAppTheme();
   const router = useRouter();
   const goBack = useStackBack("/(tabs)/health/medications" as Href);
   const { id } = useLocalSearchParams<{ id?: string }>();
   const { patient } = usePatient();
+  const qc = useQueryClient();
   const { medications, refresh } = useMedications();
   const [busy, setBusy] = useState(false);
   const [logs, setLogs] = useState<MedLogRow[]>([]);
   const [logsLoading, setLogsLoading] = useState(true);
+  const [logsError, setLogsError] = useState<string | null>(null);
 
   const [doseOpen, setDoseOpen] = useState(false);
+  /** Gráfico + dose vs. histórico de registos */
+  const [detailTab, setDetailTab] = useState<"grafico" | "dados">("grafico");
   const [logDate, setLogDate] = useState(() => new Date());
   const [logTime, setLogTime] = useState(() => new Date());
   const [logSaving, setLogSaving] = useState(false);
@@ -69,6 +83,7 @@ export default function MedicationDetailScreen() {
       return;
     }
     setLogsLoading(true);
+    setLogsError(null);
     const { data, error } = await supabase
       .from("medication_logs")
       .select("id, medication_id, status, taken_time, scheduled_time, quantity, notes")
@@ -76,7 +91,7 @@ export default function MedicationDetailScreen() {
       .order("scheduled_time", { ascending: false })
       .limit(400);
     if (error) {
-      console.warn("[med detail logs]", error.message);
+      setLogsError("Não foi possível carregar o histórico de tomas. Tente novamente.");
       setLogs([]);
     } else {
       setLogs((data ?? []) as MedLogRow[]);
@@ -90,21 +105,6 @@ export default function MedicationDetailScreen() {
     }, [loadLogs])
   );
 
-  const todayStart = useMemo(() => {
-    const d = new Date();
-    d.setHours(0, 0, 0, 0);
-    return d;
-  }, []);
-
-  const logsToday = useMemo(() => {
-    const key = todayStart.toISOString().slice(0, 10);
-    return logs.filter((row) => {
-      const iso = row.taken_time ?? row.scheduled_time;
-      if (!iso) return false;
-      return dayKey(iso) === key;
-    });
-  }, [logs, todayStart]);
-
   const chartPoints = useMemo(() => {
     const cutoff = Date.now() - 30 * 24 * 60 * 60 * 1000;
     const byDay = new Map<string, number>();
@@ -113,7 +113,7 @@ export default function MedicationDetailScreen() {
       if (!iso) continue;
       const t = new Date(iso).getTime();
       if (t < cutoff) continue;
-      if (row.status === "skipped") continue;
+      if (row.status === "skipped" || row.status === "no_interaction") continue;
       const k = dayKey(iso);
       byDay.set(k, (byDay.get(k) ?? 0) + (row.quantity ?? 1));
     }
@@ -175,14 +175,23 @@ export default function MedicationDetailScreen() {
 
   const togglePin = useCallback(
     async (value: boolean) => {
-      if (!med) return;
+      if (!med || !patient) return;
       setBusy(true);
-      const { error } = await supabase.from("medications").update({ pinned: value }).eq("id", med.id);
-      if (!error) await refresh();
-      setBusy(false);
-      if (error) Alert.alert("Erro", error.message);
+      try {
+        const { error } = await supabase.from("medications").update({ pinned: value }).eq("id", med.id);
+        if (error) {
+          Alert.alert("Erro", error.message);
+          return;
+        }
+        qc.setQueryData<MedicationRow[]>(["medications", patient.id], (prev) =>
+          prev?.map((m) => (m.id === med.id ? { ...m, pinned: value } : m)) ?? prev
+        );
+        await refresh();
+      } finally {
+        setBusy(false);
+      }
     },
-    [med, refresh]
+    [med, patient, qc, refresh]
   );
 
   async function saveDose() {
@@ -192,13 +201,11 @@ export default function MedicationDetailScreen() {
       const at = new Date(logDate);
       at.setHours(logTime.getHours(), logTime.getMinutes(), 0, 0);
       const iso = at.toISOString();
-      const { error } = await supabase.from("medication_logs").insert({
-        patient_id: patient.id,
-        medication_id: med.id,
-        scheduled_time: iso,
-        taken_time: iso,
-        status: "taken",
-        quantity: 1,
+      const { error } = await recordDoseTaken({
+        patientId: patient.id,
+        medicationId: med.id,
+        scheduledTimeIso: iso,
+        takenTimeIso: iso,
       });
       if (error) throw error;
       setAndroidPicker(null);
@@ -283,7 +290,19 @@ export default function MedicationDetailScreen() {
         </Pressable>
       </View>
 
-      <ScrollView contentContainerStyle={{ paddingHorizontal: theme.spacing.md, paddingBottom: theme.spacing.xl * 2 }}>
+      <ScrollView
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode={Platform.OS === "ios" ? "interactive" : "on-drag"}
+        contentContainerStyle={{
+          paddingHorizontal: theme.spacing.md,
+          paddingBottom: theme.spacing.xl * (Platform.OS === "ios" ? 4 : 2),
+        }}
+      >
+        {logsError ? (
+          <Pressable onPress={() => void loadLogs()} style={{ marginBottom: theme.spacing.md }}>
+            <Text style={[theme.typography.body, { color: "#DC2626" }]}>{logsError} Toque para tentar novamente.</Text>
+          </Pressable>
+        ) : null}
         <View style={{ alignItems: "center", marginTop: theme.spacing.sm }}>
           <PillPreview colorLeft={left} colorRight={right} colorBg={bg} size={88} />
         </View>
@@ -291,79 +310,163 @@ export default function MedicationDetailScreen() {
           {[med.form, med.dosage].filter(Boolean).join(" · ") || "—"}
         </Text>
 
-        <Text style={[theme.typography.title2, { color: theme.colors.text.primary, marginTop: theme.spacing.lg, marginBottom: theme.spacing.sm }]}>
-          Tendência (doses por dia, últimos 30 dias)
-        </Text>
-        <OncoCard style={{ marginBottom: theme.spacing.md }}>
-          {logsLoading ? (
-            <ActivityIndicator color={accent} />
-          ) : chartPoints.length === 0 ? (
-            <Text style={[theme.typography.body, { color: theme.colors.text.secondary, textAlign: "center", paddingVertical: theme.spacing.md }]}>
-              Sem tomas registadas ainda. Use + para registar uma dose.
-            </Text>
-          ) : (
-            <LineChart
-              data={chartPoints}
-              width={Math.min(Dimensions.get("window").width - theme.spacing.md * 4, 360)}
-              height={180}
-              color={accent}
-              thickness={3}
-              spacing={Math.max(18, 260 / Math.max(chartPoints.length, 1))}
-              hideDataPoints={chartPoints.length > 14}
-              yAxisColor={theme.colors.border.divider}
-              xAxisColor={theme.colors.border.divider}
-              yAxisTextStyle={{ color: theme.colors.text.secondary, fontSize: 10 }}
-              xAxisLabelTextStyle={{ color: theme.colors.text.secondary, fontSize: 9 }}
-              curved
-              maxValue={maxVal}
-              noOfSections={Math.min(4, maxVal)}
-              areaChart
-              startFillColor={accent}
-              endFillColor={accent}
-              startOpacity={0.2}
-              endOpacity={0.04}
-            />
-          )}
-        </OncoCard>
-
-        <Text style={[theme.typography.title2, { color: theme.colors.text.primary, marginBottom: theme.spacing.sm }]}>Registos de hoje</Text>
         <View
           style={{
-            backgroundColor: theme.colors.background.primary,
-            borderRadius: IOS_HEALTH.groupedListRadius,
-            padding: theme.spacing.md,
+            flexDirection: "row",
+            backgroundColor: theme.colors.background.secondary,
+            borderRadius: theme.radius.md,
+            padding: 4,
+            marginTop: theme.spacing.lg,
             marginBottom: theme.spacing.md,
-            ...IOS_HEALTH.shadow.card,
           }}
         >
-          {logsToday.length === 0 ? (
-            <Text style={{ color: theme.colors.text.secondary }}>Nenhuma toma registada hoje.</Text>
-          ) : (
-            logsToday.map((row) => {
-              const iso = row.taken_time ?? row.scheduled_time;
-              const when = iso ? new Date(iso).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" }) : "—";
-              return (
-                <Text key={row.id} style={{ color: theme.colors.text.primary, marginBottom: 8 }}>
-                  {when}
-                  {row.status === "skipped" ? " · não tomada" : " · tomada"}
-                  {row.quantity != null && row.quantity > 1 ? ` · qtd ${row.quantity}` : ""}
-                </Text>
-              );
-            })
-          )}
           <Pressable
-            onPress={() => setDoseOpen(true)}
+            onPress={() => setDetailTab("grafico")}
+            accessibilityRole="tab"
+            accessibilityState={{ selected: detailTab === "grafico" }}
             style={{
-              marginTop: theme.spacing.sm,
-              backgroundColor: accent,
-              paddingVertical: 12,
-              borderRadius: IOS_HEALTH.pillButtonRadius,
-              alignItems: "center",
+              flex: 1,
+              paddingVertical: 10,
+              borderRadius: theme.radius.sm,
+              backgroundColor: detailTab === "grafico" ? theme.colors.background.primary : "transparent",
             }}
           >
-            <Text style={{ color: "#FFFFFF", fontWeight: "700" }}>Registar nova dose</Text>
+            <Text
+              style={{
+                textAlign: "center",
+                fontWeight: "600",
+                fontSize: 14,
+                color: detailTab === "grafico" ? theme.colors.text.primary : theme.colors.text.secondary,
+              }}
+              numberOfLines={1}
+            >
+              Gráfico
+            </Text>
+          </Pressable>
+          <Pressable
+            onPress={() => setDetailTab("dados")}
+            accessibilityRole="tab"
+            accessibilityState={{ selected: detailTab === "dados" }}
+            style={{
+              flex: 1,
+              paddingVertical: 10,
+              borderRadius: theme.radius.sm,
+              backgroundColor: detailTab === "dados" ? theme.colors.background.primary : "transparent",
+            }}
+          >
+            <Text
+              style={{
+                textAlign: "center",
+                fontWeight: "600",
+                fontSize: 13,
+                color: detailTab === "dados" ? theme.colors.text.primary : theme.colors.text.secondary,
+              }}
+              numberOfLines={2}
+            >
+              Dados de registro
+            </Text>
           </Pressable>
         </View>
+
+        {detailTab === "grafico" ? (
+          <>
+            <Text style={[theme.typography.title2, { color: theme.colors.text.primary, marginBottom: theme.spacing.sm }]}>
+              Tendência (doses por dia, últimos 30 dias)
+            </Text>
+            <OncoCard style={{ marginBottom: theme.spacing.md }}>
+              {logsLoading ? (
+                <ActivityIndicator color={accent} />
+              ) : chartPoints.length === 0 ? (
+                <Text style={[theme.typography.body, { color: theme.colors.text.secondary, textAlign: "center", paddingVertical: theme.spacing.md }]}>
+                  Sem tomas registadas ainda. Use o botão abaixo ou + no topo para registar uma dose.
+                </Text>
+              ) : (
+                <LineChart
+                  data={chartPoints}
+                  width={Math.min(Dimensions.get("window").width - theme.spacing.md * 4, 360)}
+                  height={180}
+                  color={accent}
+                  thickness={3}
+                  spacing={Math.max(18, 260 / Math.max(chartPoints.length, 1))}
+                  hideDataPoints={chartPoints.length > 14}
+                  yAxisColor={theme.colors.border.divider}
+                  xAxisColor={theme.colors.border.divider}
+                  yAxisTextStyle={{ color: theme.colors.text.secondary, fontSize: 10 }}
+                  xAxisLabelTextStyle={{ color: theme.colors.text.secondary, fontSize: 9 }}
+                  curved
+                  maxValue={maxVal}
+                  noOfSections={Math.min(4, maxVal)}
+                  areaChart
+                  startFillColor={accent}
+                  endFillColor={accent}
+                  startOpacity={0.2}
+                  endOpacity={0.04}
+                />
+              )}
+            </OncoCard>
+            <Pressable
+              onPress={() => setDoseOpen(true)}
+              style={{
+                marginBottom: theme.spacing.lg,
+                backgroundColor: accent,
+                paddingVertical: 14,
+                borderRadius: IOS_HEALTH.pillButtonRadius,
+                alignItems: "center",
+              }}
+            >
+              <Text style={{ color: "#FFFFFF", fontWeight: "700", fontSize: 16 }}>Registar nova dose</Text>
+            </Pressable>
+          </>
+        ) : (
+          <>
+            <Text style={[theme.typography.title2, { color: theme.colors.text.primary, marginBottom: theme.spacing.sm }]}>
+              Histórico
+            </Text>
+            <View
+              style={{
+                backgroundColor: theme.colors.background.primary,
+                borderRadius: IOS_HEALTH.groupedListRadius,
+                padding: theme.spacing.md,
+                marginBottom: theme.spacing.lg,
+                ...IOS_HEALTH.shadow.card,
+              }}
+            >
+              {logsLoading ? (
+                <ActivityIndicator color={accent} />
+              ) : logs.length === 0 ? (
+                <Text style={{ color: theme.colors.text.secondary }}>Ainda não há registos para este medicamento.</Text>
+              ) : (
+                logs.map((row, idx) => {
+                  const sched = row.scheduled_time
+                    ? new Date(row.scheduled_time).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })
+                    : "—";
+                  const taken =
+                    row.taken_time && row.status === "taken"
+                      ? new Date(row.taken_time).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })
+                      : null;
+                  return (
+                    <View
+                      key={row.id}
+                      style={{
+                        marginBottom: idx < logs.length - 1 ? theme.spacing.md : 0,
+                        paddingBottom: theme.spacing.sm,
+                        borderBottomWidth: idx < logs.length - 1 ? 1 : 0,
+                        borderBottomColor: IOS_HEALTH.separator,
+                      }}
+                    >
+                      <Text style={{ color: theme.colors.text.primary, fontWeight: "600" }}>{logStatusLabel(row.status)}</Text>
+                      <Text style={{ fontSize: 13, color: theme.colors.text.secondary, marginTop: 4 }}>
+                        Agendado: {sched}
+                        {taken ? ` · Registado: ${taken}` : ""}
+                        {row.quantity != null && row.quantity > 1 ? ` · Qtd ${row.quantity}` : ""}
+                      </Text>
+                    </View>
+                  );
+                })
+              )}
+            </View>
+          </>
+        )}
 
         <Text style={[theme.typography.title2, { color: theme.colors.text.primary, marginBottom: theme.spacing.sm }]}>
           Horários para notificação
@@ -405,9 +508,31 @@ export default function MedicationDetailScreen() {
               <Text style={{ color: theme.colors.text.primary }}>{med.notes}</Text>
             </>
           ) : null}
-          <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: theme.spacing.md }}>
-            <Text style={theme.typography.headline}>Fixar no resumo</Text>
-            <Switch value={Boolean(med.pinned)} onValueChange={togglePin} disabled={busy} />
+          <View style={{ marginTop: theme.spacing.md }}>
+            <View
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                justifyContent: "space-between",
+                minHeight: Platform.OS === "ios" ? 44 : undefined,
+              }}
+            >
+              <Text style={[theme.typography.headline, { flex: 1, paddingRight: theme.spacing.sm }]}>Fixar no resumo</Text>
+              <Switch
+                value={Boolean(med.pinned)}
+                onValueChange={togglePin}
+                disabled={busy}
+                trackColor={{
+                  false: theme.colors.background.tertiary,
+                  true: theme.colors.semantic.nutrition,
+                }}
+                thumbColor={Platform.OS === "android" ? (med.pinned ? "#fff" : "#f4f3f4") : undefined}
+                ios_backgroundColor={theme.colors.background.tertiary}
+              />
+            </View>
+            <Text style={{ fontSize: 12, color: theme.colors.text.tertiary, marginTop: 6 }}>
+              No Resumo, aparece no cartão «Medicamentos fixados» com o mesmo formato de «Próximas doses» (horário e «Marcar como tomado»). Se for também a dose mais próxima de todos os medicamentos, só aparece em «Próximas doses» para não duplicar. O fixar no rodapé da aba Medicamentos é o atalho geral da área.
+            </Text>
           </View>
         </View>
 

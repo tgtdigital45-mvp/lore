@@ -95,11 +95,17 @@ function RootLayoutNav() {
         <Stack
           screenOptions={{
             contentStyle: { backgroundColor: t.colors.background.primary, flex: 1 },
-            animation: "default",
+            gestureEnabled: true,
+            fullScreenGestureEnabled: true,
+            animationMatchesGesture: true,
+            animation: "ios_from_right",
           }}
         >
         <Stack.Screen name="index" options={{ headerShown: false }} />
+        <Stack.Screen name="intro" options={{ headerShown: false, animation: "fade" }} />
+        <Stack.Screen name="brand-splash" options={{ headerShown: false, animation: "fade" }} />
         <Stack.Screen name="login" options={{ title: "Entrar", headerShown: true }} />
+        <Stack.Screen name="signup" options={{ title: "Cadastro", headerShown: true }} />
         <Stack.Screen name="auth/callback" options={{ title: "Conectar", headerShown: false }} />
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen
@@ -124,22 +130,10 @@ function RootLayoutNav() {
             gestureEnabled: true,
           }}
         />
-        <Stack.Screen
-          name="calendar"
-          options={{ title: "Agendamentos", headerShown: false, animation: "slide_from_right", animationDuration: 380 }}
-        />
-        <Stack.Screen
-          name="authorizations"
-          options={{ title: "Acessos hospitalares", headerShown: true, animation: "slide_from_right", animationDuration: 380 }}
-        />
-        <Stack.Screen
-          name="reports"
-          options={{ title: "Relatórios", headerShown: true, animation: "slide_from_right", animationDuration: 380 }}
-        />
-        <Stack.Screen
-          name="caregiver-claim"
-          options={{ title: "Cuidador", headerShown: true, animation: "slide_from_right", animationDuration: 380 }}
-        />
+        <Stack.Screen name="calendar" options={{ title: "Agendamentos", headerShown: false }} />
+        <Stack.Screen name="authorizations" options={{ title: "Acessos hospitalares", headerShown: true }} />
+        <Stack.Screen name="reports" options={{ title: "Relatórios", headerShown: true }} />
+        <Stack.Screen name="caregiver-claim" options={{ title: "Cuidador", headerShown: true }} />
         <Stack.Screen name="+not-found" />
         </Stack>
         <Toast />

@@ -20,12 +20,12 @@ export type CategoryShortcutDef = {
 };
 
 export const CATEGORY_SHORTCUT_CATALOG: CategoryShortcutDef[] = [
-  { id: "treatment", label: "Tratamento", href: "/(tabs)/treatment" as Href, icon: "circle-o" },
+  { id: "treatment", label: "Tratamento", href: "/(tabs)/health/treatment" as Href, icon: "circle-o" },
   { id: "medications", label: "Medicamentos", href: "/(tabs)/health/medications" as Href, icon: "medkit" },
   { id: "vitals", label: "Sinais vitais", href: "/(tabs)/health/vitals" as Href, icon: "heartbeat" },
   { id: "nutrition", label: "Nutrição", href: "/(tabs)/health/nutrition" as Href, icon: "cutlery" },
   { id: "exams", label: "Exames", href: "/(tabs)/exams" as Href, icon: "file-text-o" },
-  { id: "symptoms", label: "Sintomas", href: "/(tabs)/diary" as Href, icon: "book" },
+  { id: "symptoms", label: "Sintomas", href: "/(tabs)/health/diary" as Href, icon: "book" },
   { id: "calendar", label: "Agendamentos", href: "/calendar" as Href, icon: "calendar" },
 ];
 

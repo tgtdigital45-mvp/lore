@@ -100,6 +100,7 @@ export function ProfileSheet({
   const { theme } = useAppTheme();
   const insets = useSafeAreaInsets();
   const profileSheetModalRef = useRef<ElementRef<typeof BottomSheetModal>>(null);
+  /** Um único snap — altura fixa em % do ecrã (sem `enableDynamicSizing`). */
   const snapPoints = useMemo(() => ["92%"], []);
   const { session, deleteAccount } = useAuth();
   const [deleteAccountBusy, setDeleteAccountBusy] = useState(false);
@@ -353,6 +354,7 @@ export function ProfileSheet({
       ref={profileSheetModalRef}
       snapPoints={snapPoints}
       enablePanDownToClose
+      enableOverDrag={false}
       onDismiss={onClose}
       backdropComponent={renderBackdrop}
       keyboardBehavior="interactive"
@@ -374,7 +376,9 @@ export function ProfileSheet({
       <BottomSheetScrollView
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
+        style={{ flex: 1 }}
         contentContainerStyle={{
+          flexGrow: 1,
           paddingBottom: Math.max(insets.bottom, theme.spacing.md) + theme.spacing.lg,
         }}
       >

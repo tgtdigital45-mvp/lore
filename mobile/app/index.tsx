@@ -1,10 +1,30 @@
 import { Redirect } from "expo-router";
+import { useEffect, useState } from "react";
 import { Pressable, Text, View } from "react-native";
 import { useAuth } from "@/src/auth/AuthContext";
 import { ScreenLoading } from "@/src/components/ScreenLoading";
 import { useAppTheme } from "@/src/hooks/useAppTheme";
 import { useConsent } from "@/src/hooks/useConsent";
 import { usePatient } from "@/src/hooks/usePatient";
+import { appStorage } from "@/src/lib/appStorage";
+import { DEVICE_INTRO_SEEN_KEY } from "@/src/lib/deviceOnboardingFlags";
+
+function UnauthenticatedGate() {
+  const [target, setTarget] = useState<"/intro" | "/brand-splash" | null>(null);
+
+  useEffect(() => {
+    void (async () => {
+      const seen = await appStorage.getItem(DEVICE_INTRO_SEEN_KEY);
+      setTarget(seen === "1" ? "/brand-splash" : "/intro");
+    })();
+  }, []);
+
+  if (!target) {
+    return <ScreenLoading message="A preparar…" />;
+  }
+
+  return <Redirect href={target} />;
+}
 
 export default function Index() {
   const { session, loading: authLoading } = useAuth();
@@ -17,7 +37,7 @@ export default function Index() {
   }
 
   if (!session) {
-    return <Redirect href="/login" />;
+    return <UnauthenticatedGate />;
   }
 
   if (consentLoading) {

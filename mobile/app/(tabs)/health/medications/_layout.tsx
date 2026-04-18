@@ -1,10 +1,18 @@
 import { Stack } from "expo-router";
 import { MedicationWizardProvider } from "@/src/medications/MedicationWizardContext";
 
+const nativeStackScreenOptions = {
+  headerShown: false,
+  gestureEnabled: true,
+  fullScreenGestureEnabled: true,
+  animationMatchesGesture: true,
+  animation: "ios_from_right" as const,
+};
+
 export default function MedicationsStackLayout() {
   return (
     <MedicationWizardProvider>
-      <Stack screenOptions={{ headerShown: false, animation: "slide_from_right", animationDuration: 360 }}>
+      <Stack screenOptions={nativeStackScreenOptions}>
         <Stack.Screen name="index" />
         <Stack.Screen name="name" />
         <Stack.Screen name="type" />

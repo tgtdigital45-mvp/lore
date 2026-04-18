@@ -365,7 +365,7 @@ export default function ExamDetailScreen() {
 
   if (loading) {
     return (
-      <ResponsiveScreen variant="tabGradient">
+      <ResponsiveScreen variant="tabGradient" headerShown>
         <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
           <ActivityIndicator size="large" color="#007AFF" />
         </View>
@@ -375,7 +375,7 @@ export default function ExamDetailScreen() {
 
   if (!row) {
     return (
-      <ResponsiveScreen variant="tabGradient">
+      <ResponsiveScreen variant="tabGradient" headerShown>
         <View style={{ padding: theme.spacing.lg }}>
           <Text style={[theme.typography.body, { color: theme.colors.text.secondary }]}>
             Exame não encontrado ou sem permissão.
@@ -386,7 +386,7 @@ export default function ExamDetailScreen() {
   }
 
   return (
-    <ResponsiveScreen variant="tabGradient">
+    <ResponsiveScreen variant="tabGradient" headerShown>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined} keyboardVerticalOffset={100}>
       <ScrollView
         style={{ flex: 1, backgroundColor: "transparent" }}

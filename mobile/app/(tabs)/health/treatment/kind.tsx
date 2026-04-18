@@ -1,6 +1,5 @@
 import { Pressable, ScrollView, Text, View } from "react-native";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
-import type { Href } from "expo-router";
 import { useRouter } from "expo-router";
 import { ResponsiveScreen } from "@/src/components/ResponsiveScreen";
 import { CircleChromeButton } from "@/src/health/components/MedicationChromeButtons";
@@ -8,6 +7,7 @@ import { IOS_HEALTH } from "@/src/health/iosHealthTokens";
 import { labelTreatmentKind } from "@/src/i18n/treatment";
 import { useAppTheme } from "@/src/hooks/useAppTheme";
 import { useStackBack } from "@/src/hooks/useStackBack";
+import { TREATMENT_HREF } from "@/src/navigation/treatmentRoutes";
 import type { TreatmentKind } from "@/src/types/treatment";
 
 const KINDS: TreatmentKind[] = ["chemotherapy", "radiotherapy", "hormone", "immunotherapy", "other"];
@@ -15,7 +15,7 @@ const KINDS: TreatmentKind[] = ["chemotherapy", "radiotherapy", "hormone", "immu
 export default function TreatmentKindScreen() {
   const { theme } = useAppTheme();
   const router = useRouter();
-  const goBack = useStackBack("/treatment" as Href);
+  const goBack = useStackBack(TREATMENT_HREF.index);
 
   return (
     <ResponsiveScreen variant="tabGradient">
@@ -48,9 +48,9 @@ export default function TreatmentKindScreen() {
             key={k}
             onPress={() =>
               router.push({
-                pathname: "/treatment/schedule",
+                pathname: TREATMENT_HREF.schedule,
                 params: { kind: k },
-              } as Href)
+              })
             }
             style={({ pressed }) => ({
               marginBottom: theme.spacing.sm,

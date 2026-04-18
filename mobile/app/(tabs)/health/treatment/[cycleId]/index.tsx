@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -8,20 +8,26 @@ import {
   View,
 } from "react-native";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
-import type { Href } from "expo-router";
 import { Link, useLocalSearchParams, useRouter } from "expo-router";
 import { useFocusEffect } from "@react-navigation/native";
+import { OncoCard } from "@/components/OncoCard";
 import { ResponsiveScreen } from "@/src/components/ResponsiveScreen";
 import { CircleChromeButton } from "@/src/health/components/MedicationChromeButtons";
 import { IOS_HEALTH } from "@/src/health/iosHealthTokens";
 import {
-  isPlaceholderProtocolName,
   labelCycleStatus,
   labelInfusionStatus,
   labelTreatmentKind,
 } from "@/src/i18n/treatment";
 import { useAppTheme } from "@/src/hooks/useAppTheme";
 import { useStackBack } from "@/src/hooks/useStackBack";
+import {
+  TREATMENT_HREF,
+  treatmentCheckinHref,
+  treatmentCycleEditHref,
+  treatmentInfusionDetailHref,
+  treatmentInfusionNewHref,
+} from "@/src/navigation/treatmentRoutes";
 import { usePatient } from "@/src/hooks/usePatient";
 import { useTreatmentCycles } from "@/src/hooks/useTreatmentCycles";
 import {
@@ -51,7 +57,7 @@ function formatCycleDatePt(value: string): string {
 export default function TreatmentCycleDetailScreen() {
   const { theme } = useAppTheme();
   const router = useRouter();
-  const goBack = useStackBack("/treatment" as Href);
+  const goBack = useStackBack(TREATMENT_HREF.index);
   const { cycleId } = useLocalSearchParams<{ cycleId: string }>();
   const { patient } = usePatient();
   const { refresh: refreshCycles, fetchInfusions } = useTreatmentCycles(patient);
@@ -72,7 +78,11 @@ export default function TreatmentCycleDetailScreen() {
       supabase.from("treatment_cycles").select("*").eq("id", cycleId).eq("patient_id", patient.id).maybeSingle(),
       fetchInfusions(cycleId),
     ]);
-    if (cErr || !cRow) {
+    if (cErr) {
+      Alert.alert("Erro", cErr.message ?? "Não foi possível carregar o ciclo.");
+      setCycle(null);
+    } else if (!cRow) {
+      Alert.alert("Ciclo", "Ciclo não encontrado ou sem permissão.");
       setCycle(null);
     } else {
       setCycle(cRow as TreatmentCycleRow);
@@ -102,8 +112,6 @@ export default function TreatmentCycleDetailScreen() {
   }, [infusions]);
 
   const headerTitle = cycle ? labelTreatmentKind(cycle.treatment_kind ?? "chemotherapy") : "Ciclo";
-  const headerSubtitle =
-    cycle && !isPlaceholderProtocolName(cycle.protocol_name) ? cycle.protocol_name.trim() : null;
 
   const planned = cycle?.planned_sessions ?? 0;
   const completed = Math.min(cycle?.completed_sessions ?? 0, planned > 0 ? planned : Infinity);
@@ -122,7 +130,7 @@ export default function TreatmentCycleDetailScreen() {
             return;
           }
           await refreshCycles();
-          router.replace("/treatment" as Href);
+          router.replace(TREATMENT_HREF.index);
         },
       },
     ]);
@@ -156,16 +164,8 @@ export default function TreatmentCycleDetailScreen() {
           >
             {loading ? "…" : headerTitle}
           </Text>
-          {headerSubtitle ? (
-            <Text
-              style={[theme.typography.body, { textAlign: "center", color: theme.colors.text.secondary, marginTop: 2 }]}
-              numberOfLines={1}
-            >
-              {headerSubtitle}
-            </Text>
-          ) : null}
         </View>
-        <Link href={`/treatment/${cycleId}/edit` as Href} asChild>
+        <Link href={treatmentCycleEditHref(cycleId)} asChild>
           <Pressable accessibilityRole="button" style={{ padding: 8, width: 34, alignItems: "center" }}>
             <FontAwesome name="pencil" size={18} color={IOS_HEALTH.blue} />
           </Pressable>
@@ -272,7 +272,7 @@ export default function TreatmentCycleDetailScreen() {
 
             {cycle.infusion_interval_days != null && cycle.infusion_interval_days >= 1 ? (
               <Text style={[theme.typography.body, { color: theme.colors.text.secondary, marginBottom: theme.spacing.sm }]}>
-                Intervalo no protocolo: {cycle.infusion_interval_days} dia(s) entre sessões
+                Intervalo entre sessões: {cycle.infusion_interval_days} dia(s)
               </Text>
             ) : null}
 
@@ -319,7 +319,7 @@ export default function TreatmentCycleDetailScreen() {
           <View style={{ marginBottom: theme.spacing.md }}>
             <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
               <Text style={[theme.typography.title2, { color: theme.colors.text.primary }]}>Sessões e check-ins</Text>
-              <Link href={`/treatment/${cycleId}/infusion/new` as Href} asChild>
+              <Link href={treatmentInfusionNewHref(cycleId)} asChild>
                 <Pressable hitSlop={8}>
                   <Text style={{ color: IOS_HEALTH.blue, fontWeight: "700", fontSize: 14 }}>+ Manual</Text>
                 </Pressable>
@@ -347,156 +347,178 @@ export default function TreatmentCycleDetailScreen() {
               </Text>
             </View>
           ) : (
-            sortedForDisplay.map((inf, idx) => {
-              const n = idx + 1;
-              const isDone = inf.status === "completed";
-              const isScheduled = inf.status === "scheduled";
-              const isCancelled = inf.status === "cancelled";
-              const overdue = isScheduled && isPastPredictedCalendarDay(inf.session_at);
+            <View style={{ gap: theme.spacing.lg }}>
+              {sortedForDisplay.map((inf, idx) => {
+                const n = idx + 1;
+                const isDone = inf.status === "completed";
+                const isScheduled = inf.status === "scheduled";
+                const isCancelled = inf.status === "cancelled";
+                const overdue = isScheduled && isPastPredictedCalendarDay(inf.session_at);
 
-              const baseCard = {
-                marginBottom: theme.spacing.md,
-                backgroundColor: theme.colors.background.primary,
-                borderRadius: IOS_HEALTH.groupedListRadius,
-                padding: theme.spacing.md,
-                borderWidth: 1,
-                borderColor: theme.colors.border.divider,
-                ...IOS_HEALTH.shadow.card,
-              } as const;
+                const chipLabel = isDone ? "Realizada" : isScheduled ? "Pendente" : labelInfusionStatus(inf.status);
+                const chipColor = isDone ? IOS_HEALTH.blue : isScheduled ? IOS_HEALTH.blue : theme.colors.text.tertiary;
 
-              const accentBorder =
-                overdue
-                  ? { borderLeftWidth: 4, borderLeftColor: theme.colors.semantic.vitals }
-                  : isScheduled
-                    ? { borderLeftWidth: 4, borderLeftColor: IOS_HEALTH.blue }
-                    : isCancelled
-                      ? { opacity: 0.92, backgroundColor: theme.colors.background.secondary }
-                      : {};
+                const iconName = isDone
+                  ? ("check-circle" as const)
+                  : isCancelled
+                    ? ("ban" as const)
+                    : overdue
+                      ? ("exclamation-circle" as const)
+                      : ("clock-o" as const);
+                const iconColor = isCancelled
+                  ? theme.colors.text.tertiary
+                  : overdue
+                    ? theme.colors.semantic.vitals
+                    : IOS_HEALTH.blue;
 
-              const chipLabel = isDone ? "Realizada" : isScheduled ? "Pendente" : labelInfusionStatus(inf.status);
-              const chipColor = isDone ? IOS_HEALTH.blue : isScheduled ? IOS_HEALTH.blue : theme.colors.text.tertiary;
+                const cardSurface = {
+                  ...IOS_HEALTH.shadow.card,
+                  backgroundColor: isCancelled ? theme.colors.background.secondary : theme.colors.background.primary,
+                  ...(isCancelled ? { opacity: 0.92 } : {}),
+                };
 
-              const sessionHeader = (
-                <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", marginBottom: theme.spacing.sm }}>
-                  <View style={{ flexDirection: "row", alignItems: "center", gap: theme.spacing.sm, flex: 1 }}>
-                    <FontAwesome
-                      name={isDone ? "check-circle" : isCancelled ? "ban" : "clock-o"}
-                      size={22}
-                      color={isDone ? IOS_HEALTH.blue : isCancelled ? theme.colors.text.tertiary : IOS_HEALTH.blue}
-                    />
-                    <Text style={[theme.typography.headline, { color: theme.colors.text.primary }]}>Sessão {n}</Text>
-                  </View>
-                  <View
-                    style={{
-                      paddingHorizontal: 10,
-                      paddingVertical: 4,
-                      borderRadius: 8,
-                      backgroundColor: isCancelled ? theme.colors.border.divider : `${chipColor}22`,
-                    }}
-                  >
-                    <Text style={{ fontSize: 12, fontWeight: "700", color: chipColor }}>{chipLabel}</Text>
-                  </View>
-                </View>
-              );
+                const iconBoxStyle = {
+                  width: 48,
+                  height: 48,
+                  borderRadius: 14,
+                  backgroundColor: theme.colors.background.secondary,
+                  alignItems: "center" as const,
+                  justifyContent: "center" as const,
+                };
 
-              const sessionDetails = (
-                <>
-                  {sessionHeader}
-                  {isDone ? (
-                    <>
-                      <Text style={[theme.typography.body, { color: theme.colors.text.secondary }]}>
-                        Registrada: {formatSessionAt(inf.session_at)}
-                      </Text>
-                      {inf.weight_kg != null ? (
-                        <Text style={[theme.typography.body, { color: theme.colors.text.secondary, marginTop: 6 }]}>
-                          Peso: {inf.weight_kg} kg
-                        </Text>
-                      ) : null}
-                      {inf.notes ? (
-                        <Text
-                          style={[theme.typography.body, { color: theme.colors.text.primary, marginTop: 8 }]}
-                          numberOfLines={4}
-                        >
-                          {inf.notes}
-                        </Text>
-                      ) : null}
-                    </>
-                  ) : isScheduled ? (
-                    <>
-                      <Text style={[theme.typography.body, { color: theme.colors.text.secondary }]}>
-                        Data prevista (protocolo): {formatPredictedDay(inf.session_at)}
-                      </Text>
-                      {overdue ? (
-                        <Text
-                          style={[
-                            theme.typography.body,
-                            { color: theme.colors.semantic.vitals, marginTop: 8, fontWeight: "700" },
-                          ]}
-                        >
-                          Sem confirmação — toque para registrar o check-in se a sessão já foi feita.
-                        </Text>
-                      ) : (
-                        <Text style={[theme.typography.body, { color: theme.colors.text.tertiary, marginTop: 8, fontSize: 13 }]}>
-                          Pode confirmar na unidade; a hora gravada será a do check-in.
-                        </Text>
-                      )}
-                      <View
-                        style={{
-                          marginTop: theme.spacing.md,
-                          alignSelf: "stretch",
-                          backgroundColor: IOS_HEALTH.blue,
-                          paddingVertical: 12,
-                          paddingHorizontal: theme.spacing.md,
-                          borderRadius: IOS_HEALTH.pillButtonRadius,
-                          alignItems: "center",
-                        }}
-                      >
-                        <Text style={{ color: "#FFFFFF", fontWeight: "800", fontSize: 15 }}>Fazer check-in</Text>
-                      </View>
-                    </>
-                  ) : (
-                    <Text style={[theme.typography.body, { color: theme.colors.text.secondary }]}>
-                      {labelInfusionStatus(inf.status)} · {formatSessionAt(inf.session_at)}
+                const pillCtaStyle = {
+                  marginTop: theme.spacing.md,
+                  alignSelf: "stretch" as const,
+                  backgroundColor: IOS_HEALTH.blue,
+                  paddingVertical: 12,
+                  paddingHorizontal: theme.spacing.md,
+                  borderRadius: IOS_HEALTH.pillButtonRadius,
+                  alignItems: "center" as const,
+                };
+
+                const body: ReactNode = isScheduled ? (
+                  <>
+                    <Text style={[theme.typography.body, { color: theme.colors.text.secondary, marginTop: 6 }]}>
+                      Data prevista: {formatPredictedDay(inf.session_at)}
                     </Text>
-                  )}
-                  {!isScheduled ? (
-                    <Link href={`/treatment/${cycleId}/infusion/${inf.id}` as Href} asChild>
-                      <Pressable style={{ marginTop: theme.spacing.md }}>
-                        <Text style={{ color: IOS_HEALTH.blue, fontWeight: "700", fontSize: 14 }}>Ver ou editar registro</Text>
+                    {overdue ? (
+                      <Text
+                        style={[
+                          theme.typography.body,
+                          { color: theme.colors.semantic.vitals, marginTop: 8, fontWeight: "700" },
+                        ]}
+                      >
+                        Sem confirmação — toque para registrar o check-in se a sessão já foi feita.
+                      </Text>
+                    ) : (
+                      <Text
+                        style={[theme.typography.body, { color: theme.colors.text.tertiary, marginTop: 8, fontSize: 13 }]}
+                      >
+                        Pode confirmar na unidade; a hora gravada será a do check-in.
+                      </Text>
+                    )}
+                    <View style={pillCtaStyle}>
+                      <Text style={{ color: "#FFFFFF", fontWeight: "800", fontSize: 15 }}>Fazer check-in</Text>
+                    </View>
+                  </>
+                ) : isDone ? (
+                  <>
+                    <Text style={[theme.typography.body, { color: theme.colors.text.secondary, marginTop: 6 }]}>
+                      Registrada: {formatSessionAt(inf.session_at)}
+                    </Text>
+                    {inf.weight_kg != null ? (
+                      <Text style={[theme.typography.body, { color: theme.colors.text.secondary, marginTop: 6 }]}>
+                        Peso: {inf.weight_kg} kg
+                      </Text>
+                    ) : null}
+                    {inf.notes ? (
+                      <Text
+                        style={[theme.typography.body, { color: theme.colors.text.primary, marginTop: 8 }]}
+                        numberOfLines={4}
+                      >
+                        {inf.notes}
+                      </Text>
+                    ) : null}
+                    <Link href={treatmentInfusionDetailHref(cycleId, inf.id)} asChild>
+                      <Pressable style={({ pressed }) => ({ opacity: pressed ? 0.9 : 1 })}>
+                        <View style={pillCtaStyle}>
+                          <Text style={{ color: "#FFFFFF", fontWeight: "800", fontSize: 15 }}>Ver ou editar registro</Text>
+                        </View>
                       </Pressable>
                     </Link>
-                  ) : null}
-                </>
-              );
-
-              if (isScheduled) {
-                return (
-                  <Link
-                    key={inf.id}
-                    href={`/treatment/${cycleId}/checkin?infusionId=${inf.id}` as Href}
-                    asChild
-                  >
-                    <Pressable
-                      accessibilityRole="button"
-                      accessibilityLabel={`Confirmar check-in da sessão ${n}`}
-                      style={({ pressed }) => ({
-                        ...baseCard,
-                        ...accentBorder,
-                        opacity: pressed ? 0.94 : 1,
-                      })}
-                    >
-                      {sessionDetails}
-                    </Pressable>
-                  </Link>
+                  </>
+                ) : (
+                  <>
+                    <Text style={[theme.typography.body, { color: theme.colors.text.secondary, marginTop: 6 }]}>
+                      {labelInfusionStatus(inf.status)} · {formatSessionAt(inf.session_at)}
+                    </Text>
+                    <Link href={treatmentInfusionDetailHref(cycleId, inf.id)} asChild>
+                      <Pressable style={({ pressed }) => ({ opacity: pressed ? 0.9 : 1 })}>
+                        <View style={pillCtaStyle}>
+                          <Text style={{ color: "#FFFFFF", fontWeight: "800", fontSize: 15 }}>Ver ou editar registro</Text>
+                        </View>
+                      </Pressable>
+                    </Link>
+                  </>
                 );
-              }
 
-              return (
-                <View key={inf.id} style={{ ...baseCard, ...accentBorder }}>
-                  {sessionDetails}
-                </View>
-              );
-            })
+                const card = (
+                  <OncoCard style={cardSurface}>
+                    <View style={{ flexDirection: "row", alignItems: "flex-start", gap: theme.spacing.md }}>
+                      <View style={iconBoxStyle}>
+                        <FontAwesome name={iconName} size={22} color={iconColor} />
+                      </View>
+                      <View style={{ flex: 1, minWidth: 0 }}>
+                        <View
+                          style={{
+                            flexDirection: "row",
+                            justifyContent: "space-between",
+                            alignItems: "flex-start",
+                            gap: theme.spacing.sm,
+                          }}
+                        >
+                          <Text
+                            style={[theme.typography.headline, { color: theme.colors.text.primary, flex: 1 }]}
+                            numberOfLines={2}
+                          >
+                            Sessão {n}
+                          </Text>
+                          <View
+                            style={{
+                              paddingHorizontal: 10,
+                              paddingVertical: 4,
+                              borderRadius: 8,
+                              backgroundColor: isCancelled ? theme.colors.border.divider : `${chipColor}22`,
+                            }}
+                          >
+                            <Text style={{ fontSize: 12, fontWeight: "700", color: chipColor }}>{chipLabel}</Text>
+                          </View>
+                        </View>
+                        {body}
+                      </View>
+                    </View>
+                  </OncoCard>
+                );
+
+                if (isScheduled) {
+                  return (
+                    <Link key={inf.id} href={treatmentCheckinHref(cycleId, inf.id)} asChild>
+                      <Pressable
+                        accessibilityRole="button"
+                        accessibilityLabel={`Confirmar check-in da sessão ${n}`}
+                        style={({ pressed }) => ({
+                          opacity: pressed ? 0.94 : 1,
+                        })}
+                      >
+                        {card}
+                      </Pressable>
+                    </Link>
+                  );
+                }
+
+                return <View key={inf.id}>{card}</View>;
+              })}
+            </View>
           )}
 
           <Pressable
