@@ -31,6 +31,16 @@ export function formatPtDateTime(iso: string | null): string {
   }
 }
 
+/** Hora local curta (painéis operacionais). */
+export function formatPtTimeShort(iso: string | null): string {
+  if (!iso) return "—";
+  try {
+    return new Date(iso).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+  } catch {
+    return "—";
+  }
+}
+
 export function formatPtDateLong(iso: string | null): string {
   if (!iso) return "—";
   try {
@@ -55,15 +65,6 @@ export function formatRelativeSince(iso: string | null): string {
     return `há ${d} d`;
   } catch {
     return "—";
-  }
-}
-
-export function formatPtTimeShort(iso: string | null): string {
-  if (!iso) return "";
-  try {
-    return new Date(iso).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
-  } catch {
-    return "";
   }
 }
 

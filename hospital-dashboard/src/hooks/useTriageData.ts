@@ -537,8 +537,8 @@ export function useTriageData(session: Session | null) {
         { event: "UPDATE", schema: "public", table: "profiles" },
         (payload) => {
           const newRow = payload.new as Record<string, unknown> | null | undefined;
-          const profileId = newRow && typeof newRow.id === "string" ? newRow.id : null;
-          if (!profileId) return;
+          if (!newRow || typeof newRow.id !== "string") return;
+          const profileId = newRow.id;
           if (profileId === staffId) {
             void reloadStaffProfile();
             return;

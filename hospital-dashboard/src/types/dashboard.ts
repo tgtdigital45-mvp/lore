@@ -327,8 +327,6 @@ export type MessageFeedRow = {
   patients: { profiles: { full_name?: string } | { full_name?: string }[] | null } | null;
 };
 
-export type ModalTabId = "resumo" | "exames" | "mensagens" | "diario";
-
 export type AuditLogRow = {
   id: string;
   ts: string;

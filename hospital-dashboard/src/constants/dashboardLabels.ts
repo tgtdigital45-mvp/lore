@@ -1,5 +1,3 @@
-import type { ModalTabId } from "../types/dashboard";
-
 export const CANCER_PT: Record<string, string> = {
   breast: "Mama",
   lung: "Pulmão",
@@ -144,13 +142,6 @@ export const OUTBOUND_STATUS_PT: Record<string, string> = {
   delivered: "Entregue",
   read: "Lida",
   failed: "Falhou",
-};
-
-export const MODAL_TAB_LABEL: Record<ModalTabId, string> = {
-  resumo: "Resumo",
-  exames: "Exames",
-  mensagens: "Mensagens",
-  diario: "Diário",
 };
 
 export const CARE_TIPS = [

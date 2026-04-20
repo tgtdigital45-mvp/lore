@@ -6,7 +6,7 @@ See: `.planning/PROJECT.md` (updated 2026-04-20)
 
 **Core value:** Dossiê clínico do dia a dia completo e consentido, com dados protegidos por RLS e integrações auditáveis.
 
-**Current focus:** Phase 1 — Dashboard UX (DASH-01, DASH-02)
+**Current focus:** Phase 1 — Dashboard UX (**DASH-01** feito: removido modal/hook mortos; **DASH-02** parcial: fluxo triagem→dossiê documentado no README do dashboard)
 
 **Milestone:** Initial GSD bootstrap (codebase map + project shell)
 
@@ -22,4 +22,4 @@ See: `.planning/PROJECT.md` (updated 2026-04-20)
 
 ---
 *State initialized: 2026-04-20*  
-*Last updated: 2026-04-21 — roadmap reordenado (API em Phase 5)*
+*Last updated: 2026-04-21 — DASH-01 (código morto) + secção de fluxo staff no `hospital-dashboard/README.md`*

@@ -41,6 +41,13 @@
 | `/operacao-infusao` | Dashboard operacional de infusão. |
 | `/conta` | Definições da conta staff. |
 
+### Fluxo canónico staff: triagem → dossiê
+
+1. **`TriageWorkspaceLayout`** (`/paciente`): coluna central com a fila (`TriagePatientCard`); à direita, `<Outlet />` para o detalhe.
+2. **Abrir dossiê:** clique no cartão ou no link do paciente navega para **`/paciente/:patientId`** (ver `TriagePatientCard.tsx`).
+3. **`PatientDossierRoute`:** só monta `PatientDossierPage` se o `patientId` existir na fila atual (`useOncoCare().rows`); caso contrário redireciona para `/paciente`.
+4. **Conteúdo clínico:** o dossiê completo (abas, gráficos, exames, diário, etc.) vive em **`PatientDossierPage`** — não há modal legado de prontuário; **`AddPatientModal`** em `/pacientes` é só para inclusão de paciente.
+
 ---
 
 ## 4. Variáveis de ambiente
