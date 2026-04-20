@@ -25,6 +25,8 @@ Crie `hospital-dashboard/.env`:
 | `VITE_SUPABASE_ANON_KEY` | Sim | Chave **anon** do Supabase |
 | `VITE_BACKEND_URL` | Recomendado | URL do oncocare-backend **sem** barra final (ex.: `http://localhost:3001`). Usado para OCR, WhatsApp e exames; também pode ser indicado na UI (Integração) |
 
+Em **desenvolvimento**, com `npm run dev` no dashboard e o backend a escutar na porta **3001** (valor por defeito do `onco-backend`), o Vite reencaminha os pedidos `/api/*` para `http://127.0.0.1:3001`. Assim pode deixar `VITE_BACKEND_URL` vazio localmente e usar o mesmo origin do dashboard para OCR e rotas `/api`. Em **produção**, defina sempre `VITE_BACKEND_URL` para o URL público do backend.
+
 Em produção, o backend deve listar a origem do dashboard em **`CORS_ORIGINS`**.
 
 ## Comandos

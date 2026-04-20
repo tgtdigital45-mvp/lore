@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { AnimatePresence, motion } from "framer-motion";
 import { BarChart3, Settings2, X } from "lucide-react";
 import type { BiomarkerModalRow, VitalLogRow, WearableSampleRow } from "@/types/dashboard";
 import { VITAL_TYPE_PT } from "@/constants/dashboardLabels";
@@ -6,6 +7,7 @@ import { formatPtDateTime } from "@/lib/dashboardFormat";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { modalOverlayTransition, modalPanelTransition } from "@/lib/motionPresets";
 
 type MetricKind = "vital" | "wearable" | "biomarker";
 
@@ -255,7 +257,7 @@ export function EditableMetricsPanel({ staffId, vitals, wearables, biomarkers }:
 
   if (defs.length === 0) {
     return (
-      <Card className="rounded-3xl border border-[#E8EAED] p-6 shadow-sm">
+      <Card className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
         <h2 className="mb-1 flex items-center gap-2 text-lg font-bold">
           <BarChart3 className="size-5 text-[#6366F1]" aria-hidden />
           Métricas
@@ -267,7 +269,7 @@ export function EditableMetricsPanel({ staffId, vitals, wearables, biomarkers }:
 
   return (
     <>
-      <Card className="rounded-3xl border border-[#E8EAED] bg-gradient-to-b from-slate-50/50 to-white p-6 shadow-sm">
+      <Card className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
           <div>
             <h2 className="flex items-center gap-2 text-lg font-bold">
@@ -276,7 +278,13 @@ export function EditableMetricsPanel({ staffId, vitals, wearables, biomarkers }:
             </h2>
             <p className="mt-1 text-sm text-muted-foreground">Últimos valores e tendência; personalize o que vê com o botão à direita.</p>
           </div>
-          <Button type="button" variant="outline" size="sm" className="rounded-2xl border-[#C7D2FE] bg-white shadow-sm" onClick={() => setConfigOpen(true)}>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="rounded-full border-slate-200 bg-white shadow-sm hover:bg-slate-50"
+            onClick={() => setConfigOpen(true)}
+          >
             <Settings2 className="mr-2 size-4" />
             Configurar métricas
           </Button>
@@ -361,15 +369,28 @@ export function EditableMetricsPanel({ staffId, vitals, wearables, biomarkers }:
         )}
       </Card>
 
-      {configOpen ? (
-        <div
-          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/45 p-4"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="metrics-config-title"
-          onClick={() => setConfigOpen(false)}
-        >
-          <Card className="relative max-h-[85vh] w-full max-w-lg overflow-y-auto rounded-2xl p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
+      <AnimatePresence>
+        {configOpen ? (
+          <motion.div
+            key="metrics-config-overlay"
+            className="fixed inset-0 z-[100] flex items-center justify-center bg-black/30 p-4 backdrop-blur-sm"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="metrics-config-title"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={modalOverlayTransition}
+            onClick={() => setConfigOpen(false)}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.96 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.96 }}
+              transition={modalPanelTransition}
+              onClick={(e) => e.stopPropagation()}
+            >
+          <Card className="relative max-h-[85vh] w-full max-w-lg overflow-y-auto rounded-4xl border border-slate-100 p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
             <button
               type="button"
               className="absolute right-4 top-4 rounded-lg p-1 text-muted-foreground hover:bg-[#F1F5F9]"
@@ -404,8 +425,10 @@ export function EditableMetricsPanel({ staffId, vitals, wearables, biomarkers }:
               Fechar
             </Button>
           </Card>
-        </div>
-      ) : null}
+            </motion.div>
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
     </>
   );
 }

@@ -4,6 +4,7 @@ import { BrowserRouter } from "react-router-dom";
 import "./index.css";
 /** Estilos legados (modal paciente, heatmaps, auth-shell) — UI principal usa Tailwind. */
 import "./App.css";
+import { Toaster } from "sonner";
 import App from "./App.tsx";
 import { ErrorBoundary } from "./components/ErrorBoundary.tsx";
 
@@ -12,6 +13,7 @@ createRoot(document.getElementById("root")!).render(
     <ErrorBoundary title="OncoCare — erro">
       <BrowserRouter>
         <App />
+        <Toaster position="top-right" richColors closeButton />
       </BrowserRouter>
     </ErrorBoundary>
   </StrictMode>

@@ -8,7 +8,7 @@ export function SuspensionRiskIndicator({ score, reasons }: Props) {
     score >= 70 ? "var(--risk-critical)" : score >= 40 ? "var(--risk-attention)" : "var(--goal-complete)";
 
   return (
-    <div className="suspension-risk">
+    <div className="suspension-risk rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
       <div style={{ flex: 1, minWidth: 0 }}>
         <p style={{ margin: 0, fontSize: "0.88rem", fontWeight: 700 }}>Risco de suspensão da próxima sessão (heurística)</p>
         <p className="muted" style={{ margin: "0.25rem 0 0", fontSize: "0.8rem" }}>

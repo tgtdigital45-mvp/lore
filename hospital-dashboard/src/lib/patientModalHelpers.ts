@@ -74,6 +74,11 @@ function mapSymptomCategoryDisplay(raw: string): string {
   return t;
 }
 
+/** Label pt-BR a partir da chave bruta (DB/RPC), p.ex. `FATIGUE` → «Fadiga». */
+export function symptomCategoryLabelFromKey(raw: string | null | undefined): string {
+  return mapSymptomCategoryDisplay(raw ?? "");
+}
+
 export function symptomCategoryLabel(s: SymptomLogDetail): string {
   if (s.entry_kind === "prd") {
     return "Escala (dor · náusea · fadiga)";

@@ -1,9 +1,12 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { Pencil } from "lucide-react";
+import { toast } from "sonner";
 import type { MedicationRow, TreatmentCycleRow, TreatmentInfusionRow } from "@/types/dashboard";
 import { CYCLE_STATUS_PT, TREATMENT_KIND_PT } from "@/constants/dashboardLabels";
 import { formatPtDateLong, formatPtDateTime } from "@/lib/dashboardFormat";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/lib/supabase";
+import { sanitizeSupabaseError } from "@/lib/errorMessages";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 
@@ -14,6 +17,19 @@ const INFUSION_STATUS_PT: Record<string, string> = {
   missed: "Não realizada",
 };
 
+function sessionAtToDatetimeLocal(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+function parseWeightKg(v: unknown): string {
+  if (v == null) return "";
+  const n = typeof v === "number" ? v : Number(String(v).replace(",", "."));
+  return Number.isFinite(n) ? String(n) : "";
+}
+
 function medLabel(m: MedicationRow): string {
   return m.display_name?.trim() || m.name;
 }
@@ -23,22 +39,10 @@ type Props = {
   cycles: TreatmentCycleRow[];
   infusions: TreatmentInfusionRow[];
   medications: MedicationRow[];
-  patientId: string;
-  cancerTypeId: string | null;
-  primaryCancerType: string;
   onUpdated?: () => Promise<void> | void;
 };
 
-export default function PatientTratamentoPanel({
-  loading,
-  cycles,
-  infusions,
-  medications,
-  patientId: _patientId,
-  cancerTypeId,
-  primaryCancerType,
-  onUpdated,
-}: Props) {
+export default function PatientTratamentoPanel({ loading, cycles, infusions, medications, onUpdated }: Props) {
   const sortedCycles = [...cycles].sort((a, b) => b.start_date.localeCompare(a.start_date));
   const sortedInfusions = [...infusions].sort(
     (a, b) => new Date(b.session_at).getTime() - new Date(a.session_at).getTime()
@@ -49,55 +53,55 @@ export default function PatientTratamentoPanel({
   const [editCompleted, setEditCompleted] = useState("");
   const [editNotes, setEditNotes] = useState("");
   const [saveBusy, setSaveBusy] = useState(false);
-  const [resolvedCancerTypeId, setResolvedCancerTypeId] = useState<string | null>(cancerTypeId);
-  const [protocolOptions, setProtocolOptions] = useState<{ id: string; name: string }[]>([]);
-  const [draftProtocol, setDraftProtocol] = useState<Record<string, string>>({});
-  const [protocolSavingId, setProtocolSavingId] = useState<string | null>(null);
 
-  useEffect(() => {
-    setResolvedCancerTypeId(cancerTypeId);
-  }, [cancerTypeId]);
+  const [editingInfusionId, setEditingInfusionId] = useState<string | null>(null);
+  const [infSessionLocal, setInfSessionLocal] = useState("");
+  const [infWeight, setInfWeight] = useState("");
+  const [infObs, setInfObs] = useState("");
+  const [saveInfBusy, setSaveInfBusy] = useState(false);
 
-  useEffect(() => {
-    if (cancerTypeId) return;
-    void (async () => {
-      const { data } = await supabase.from("cancer_types").select("id").eq("legacy_cancer_type", primaryCancerType).maybeSingle();
-      setResolvedCancerTypeId(data?.id ?? null);
-    })();
-  }, [cancerTypeId, primaryCancerType]);
+  function startInfusionEdit(row: TreatmentInfusionRow): void {
+    setEditingInfusionId(row.id);
+    setInfSessionLocal(sessionAtToDatetimeLocal(row.session_at));
+    setInfWeight(parseWeightKg(row.weight_kg));
+    setInfObs(row.notes ?? "");
+  }
 
-  useEffect(() => {
-    if (!resolvedCancerTypeId) {
-      setProtocolOptions([]);
-      return;
-    }
-    void (async () => {
-      const { data, error } = await supabase
-        .from("cancer_protocols")
-        .select("protocol_id, protocols ( id, name )")
-        .eq("cancer_type_id", resolvedCancerTypeId);
-      if (error) {
-        console.warn("[PatientTratamentoPanel] protocols", error.message);
+  async function saveInfusionEdit(infusionId: string): Promise<void> {
+    if (!infSessionLocal.trim()) return;
+    const t = new Date(infSessionLocal);
+    if (Number.isNaN(t.getTime())) return;
+    const wTrim = infWeight.trim();
+    let weight_kg: number | null = null;
+    if (wTrim !== "") {
+      const w = Number(wTrim.replace(",", "."));
+      if (!Number.isFinite(w) || w <= 0 || w >= 500) {
+        window.alert("Peso deve estar entre 0 e 500 kg (ou vazio).");
         return;
       }
-      const opts: { id: string; name: string }[] = [];
-      for (const row of data ?? []) {
-        const r = row as { protocols?: { id: string; name: string } | { id: string; name: string }[] | null };
-        const p = r.protocols;
-        const pr = Array.isArray(p) ? p[0] : p;
-        if (pr?.id && pr?.name) opts.push({ id: pr.id, name: pr.name });
-      }
-      setProtocolOptions(opts);
-    })();
-  }, [resolvedCancerTypeId]);
-
-  useEffect(() => {
-    const next: Record<string, string> = {};
-    for (const c of cycles) {
-      next[c.id] = c.protocol_id ?? "";
+      weight_kg = w;
     }
-    setDraftProtocol(next);
-  }, [cycles]);
+    setSaveInfBusy(true);
+    try {
+      const { error } = await supabase
+        .from("treatment_infusions")
+        .update({
+          session_at: t.toISOString(),
+          weight_kg,
+          notes: infObs.trim() || null,
+        })
+        .eq("id", infusionId);
+      if (error) throw error;
+      setEditingInfusionId(null);
+      await onUpdated?.();
+      toast.success("Infusão atualizada.");
+    } catch (err) {
+      console.error(err);
+      toast.error(sanitizeSupabaseError(err as { code?: string; message?: string }));
+    } finally {
+      setSaveInfBusy(false);
+    }
+  }
 
   function startEdit(cycle: TreatmentCycleRow): void {
     setEditingCycleId(cycle.id);
@@ -105,37 +109,6 @@ export default function PatientTratamentoPanel({
     setEditPlanned(cycle.planned_sessions != null ? String(cycle.planned_sessions) : "");
     setEditCompleted(cycle.completed_sessions != null ? String(cycle.completed_sessions) : "");
     setEditNotes(cycle.notes ?? "");
-  }
-
-  async function saveCycleProtocol(cycleId: string): Promise<void> {
-    const protocolIdRaw = draftProtocol[cycleId] ?? "";
-    const protocolId = protocolIdRaw === "" ? null : protocolIdRaw;
-    const cycle = cycles.find((x) => x.id === cycleId);
-    let protocol_name = cycle?.protocol_name ?? "";
-    if (protocolId) {
-      const fromOpt = protocolOptions.find((p) => p.id === protocolId);
-      if (fromOpt) protocol_name = fromOpt.name;
-      else {
-        const { data } = await supabase.from("protocols").select("name").eq("id", protocolId).maybeSingle();
-        if (data && typeof (data as { name?: string }).name === "string") {
-          protocol_name = (data as { name: string }).name;
-        }
-      }
-    }
-    setProtocolSavingId(cycleId);
-    try {
-      const updatePayload: { protocol_id: string | null; protocol_name?: string } = { protocol_id: protocolId };
-      if (protocolId) {
-        updatePayload.protocol_name = protocol_name;
-      }
-      const { error } = await supabase.from("treatment_cycles").update(updatePayload).eq("id", cycleId);
-      if (error) throw error;
-      await onUpdated?.();
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setProtocolSavingId(null);
-    }
   }
 
   async function saveEdit(cycleId: string): Promise<void> {
@@ -156,8 +129,10 @@ export default function PatientTratamentoPanel({
       if (error) throw error;
       setEditingCycleId(null);
       await onUpdated?.();
+      toast.success("Ciclo de tratamento atualizado.");
     } catch (err) {
       console.error(err);
+      toast.error(sanitizeSupabaseError(err as { code?: string; message?: string }));
     } finally {
       setSaveBusy(false);
     }
@@ -177,8 +152,7 @@ export default function PatientTratamentoPanel({
       <section>
         <h2 className="mb-2 text-lg font-bold text-foreground">Ciclos de tratamento</h2>
         <p className="mb-4 max-w-3xl text-sm text-muted-foreground">
-          Protocolos e sessões registrados. Os medicamentos da app são listados abaixo (não estão ligados a um ciclo específico
-          neste registro).
+          Sessões e registos de ciclo. Os medicamentos na app são listados abaixo (não estão ligados a um ciclo específico neste registo).
         </p>
         {sortedCycles.length === 0 ? (
           <p className="rounded-2xl border border-dashed border-[#E2E8F0] bg-[#FAFBFC] px-6 py-10 text-center text-sm text-muted-foreground">
@@ -191,7 +165,7 @@ export default function PatientTratamentoPanel({
                 key={c.id}
                 className={cn(
                   "rounded-2xl border bg-white px-4 py-4 shadow-sm",
-                  c.status === "active" ? "border-[#6366F1]/40" : "border-[#E8EAED]"
+                  c.status === "active" ? "border-lime-300/80 ring-1 ring-lime-200" : "border-slate-200"
                 )}
               >
                 <div className="flex flex-wrap items-start justify-between gap-3">
@@ -213,38 +187,6 @@ export default function PatientTratamentoPanel({
                       <p className="mt-1 text-xs text-muted-foreground">
                         Última sessão (ciclo): {formatPtDateTime(c.last_session_at)}
                       </p>
-                    ) : null}
-                    {protocolOptions.length > 0 ? (
-                      <div className="mt-3 rounded-xl border border-[#E8EAED] bg-[#FAFBFC] p-3">
-                        <p className="text-xs font-semibold text-muted-foreground">Protocolo do catálogo (diretrizes na app)</p>
-                        <select
-                          className="mt-2 h-10 w-full rounded-xl border border-[#E2E8F0] bg-white px-3 text-sm"
-                          value={draftProtocol[c.id] ?? ""}
-                          onChange={(e) => setDraftProtocol((prev) => ({ ...prev, [c.id]: e.target.value }))}
-                        >
-                          <option value="">— Texto livre (sem catálogo) —</option>
-                          {protocolOptions.map((p) => (
-                            <option key={p.id} value={p.id}>
-                              {p.name}
-                            </option>
-                          ))}
-                        </select>
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="secondary"
-                          className="mt-2 rounded-xl"
-                          disabled={
-                            protocolSavingId === c.id ||
-                            (draftProtocol[c.id] ?? "") === (c.protocol_id ?? "")
-                          }
-                          onClick={() => void saveCycleProtocol(c.id)}
-                        >
-                          Guardar associação
-                        </Button>
-                      </div>
-                    ) : resolvedCancerTypeId ? (
-                      <p className="mt-2 text-xs text-muted-foreground">Nenhum protocolo no catálogo para este tipo de cancro.</p>
                     ) : null}
                     {editingCycleId === c.id ? (
                       <div className="mt-3 grid gap-2 sm:grid-cols-2">
@@ -308,24 +250,106 @@ export default function PatientTratamentoPanel({
           </p>
         ) : (
           <div className="overflow-x-auto rounded-xl border border-[#E8EAED] bg-white">
-            <table className="w-full min-w-[520px] text-sm">
+            <table className="w-full min-w-[960px] text-sm">
               <thead>
                 <tr className="border-b border-[#F1F5F9] bg-[#F8FAFC] text-left text-xs font-bold uppercase tracking-wide text-muted-foreground">
-                  <th className="px-4 py-3">Data / hora</th>
-                  <th className="px-4 py-3">Estado</th>
-                  <th className="px-4 py-3">Ciclo (id)</th>
+                  <th className="px-3 py-3">Tipo</th>
+                  <th className="px-3 py-3">Data / hora</th>
+                  <th className="px-3 py-3">Estado</th>
+                  <th className="px-3 py-3">Peso (kg)</th>
+                  <th className="min-w-[140px] px-3 py-3">Observação</th>
+                  <th className="px-3 py-3">Ciclo</th>
+                  <th className="w-24 px-3 py-3 text-right">Ações</th>
                 </tr>
               </thead>
               <tbody>
-                {sortedInfusions.map((row) => (
-                  <tr key={row.id} className="border-b border-[#F1F5F9] last:border-0">
-                    <td className="whitespace-nowrap px-4 py-2.5 text-muted-foreground">
-                      {formatPtDateTime(row.session_at)}
-                    </td>
-                    <td className="px-4 py-2.5">{INFUSION_STATUS_PT[row.status] ?? row.status}</td>
-                    <td className="px-4 py-2.5 font-mono text-xs text-muted-foreground">{row.cycle_id.slice(0, 8)}…</td>
-                  </tr>
-                ))}
+                {sortedInfusions.map((row) => {
+                  const cycle = sortedCycles.find((c) => c.id === row.cycle_id);
+                  const kindKey = cycle?.treatment_kind ?? "other";
+                  const tipoLabel = TREATMENT_KIND_PT[kindKey] ?? kindKey;
+                  const isEditing = editingInfusionId === row.id;
+                  return (
+                    <tr key={row.id} className="border-b border-[#F1F5F9] align-top last:border-0">
+                      <td className="px-3 py-2.5 text-muted-foreground">{tipoLabel}</td>
+                      <td className="px-3 py-2.5">
+                        {isEditing ? (
+                          <Input
+                            type="datetime-local"
+                            value={infSessionLocal}
+                            onChange={(e) => setInfSessionLocal(e.target.value)}
+                            className="h-9 min-w-[11rem] rounded-lg text-xs"
+                          />
+                        ) : (
+                          <span className="whitespace-nowrap text-muted-foreground">{formatPtDateTime(row.session_at)}</span>
+                        )}
+                      </td>
+                      <td className="px-3 py-2.5">{INFUSION_STATUS_PT[row.status] ?? row.status}</td>
+                      <td className="px-3 py-2.5">
+                        {isEditing ? (
+                          <Input
+                            type="text"
+                            inputMode="decimal"
+                            value={infWeight}
+                            onChange={(e) => setInfWeight(e.target.value)}
+                            placeholder="—"
+                            className="h-9 w-24 rounded-lg text-xs"
+                          />
+                        ) : (
+                          <span className="text-muted-foreground">{parseWeightKg(row.weight_kg) || "—"}</span>
+                        )}
+                      </td>
+                      <td className="max-w-[220px] px-3 py-2.5">
+                        {isEditing ? (
+                          <textarea
+                            value={infObs}
+                            onChange={(e) => setInfObs(e.target.value)}
+                            rows={2}
+                            placeholder="Ex.: fármaco usado na infusão"
+                            className="w-full rounded-lg border border-[#E2E8F0] bg-white px-2 py-1.5 text-xs"
+                          />
+                        ) : (
+                          <span className="line-clamp-3 text-xs text-muted-foreground">{row.notes?.trim() || "—"}</span>
+                        )}
+                      </td>
+                      <td className="px-3 py-2.5 font-mono text-xs text-muted-foreground">{row.cycle_id.slice(0, 8)}…</td>
+                      <td className="px-3 py-2.5 text-right">
+                        {isEditing ? (
+                          <div className="flex flex-col items-end gap-1">
+                            <Button
+                              type="button"
+                              size="sm"
+                              className="h-8 rounded-lg px-2 text-xs"
+                              disabled={saveInfBusy}
+                              onClick={() => void saveInfusionEdit(row.id)}
+                            >
+                              Guardar
+                            </Button>
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="ghost"
+                              className="h-8 rounded-lg px-2 text-xs"
+                              onClick={() => setEditingInfusionId(null)}
+                            >
+                              Cancelar
+                            </Button>
+                          </div>
+                        ) : (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="icon"
+                            className="size-8 rounded-lg"
+                            onClick={() => startInfusionEdit(row)}
+                            aria-label="Editar infusão"
+                          >
+                            <Pencil className="size-4" />
+                          </Button>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

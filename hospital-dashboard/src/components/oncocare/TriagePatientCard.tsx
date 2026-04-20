@@ -1,22 +1,18 @@
-import { useEffect, useState } from "react";
-import { AnimatePresence, motion } from "framer-motion";
-import { ChevronDown, FileText } from "lucide-react";
-import { useNavigate } from "react-router-dom";
-import { supabase } from "@/lib/supabase";
+import { motion } from "framer-motion";
+import { Link, useNavigate } from "react-router-dom";
+import { MessageSquare } from "lucide-react";
 import { CANCER_PT } from "@/constants/dashboardLabels";
-import { computeClinicalNadirSummary } from "@/lib/clinicalNadir";
 import { clinicalTier, TIER_ACCENT } from "@/lib/clinicalTier";
 import { latestVital, vitalPointsLast24h } from "@/lib/vitalsSpark";
-import type { RiskRow, SymptomLogDetail, TreatmentCycleRow, TreatmentInfusionRow, VitalLogRow } from "@/types/dashboard";
+import type { RiskRow, VitalLogRow } from "@/types/dashboard";
 import { profileName, profileDob, profileAvatarUrl, ageFromDob, initialsFromName } from "@/lib/dashboardProfile";
 import { formatPatientCodeDisplay } from "@/lib/patientCode";
-import { formatPtDateTime, formatPtShort, formatRelativeSince } from "@/lib/dashboardFormat";
-import { symptomCategoryLabel, symptomSeverityShort } from "@/lib/patientModalHelpers";
+import { formatPtShort, formatRelativeSince } from "@/lib/dashboardFormat";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { VitalMicroSpark } from "./VitalMicroSpark";
 import { PatientFaceThumb } from "./PatientFaceThumb";
+import { patientWhatsappContact } from "@/lib/patientWhatsApp";
 
 function spo2Color(v: number | null): string {
   if (v == null) return "#14B8A6";
@@ -24,21 +20,29 @@ function spo2Color(v: number | null): string {
   return "#14B8A6";
 }
 
+function suspensionRingColors(score: number): { borderColor: string; color: string } {
+  if (score >= 50) return { borderColor: "#EF4444", color: "#EF4444" };
+  if (score >= 25) return { borderColor: "#F59E0B", color: "#B45309" };
+  return { borderColor: "#22C55E", color: "#15803D" };
+}
+
 type Props = {
   row: RiskRow;
   vitals: VitalLogRow[];
+  /** Destaque estilo “item selecionado” na fila (painel de detalhe aberto). */
+  isSelected?: boolean;
 };
 
-export function TriagePatientCard({ row, vitals }: Props) {
+/**
+ * Cartão da fila de triagem: clique abre o dossiê à direita (rota `/paciente/:id`).
+ * No painel com layout dividido, `isSelected` ativa o conector visual até o painel.
+ */
+export function TriagePatientCard({ row, vitals, isSelected }: Props) {
   const navigate = useNavigate();
-  const [open, setOpen] = useState(false);
-  const [cycles, setCycles] = useState<TreatmentCycleRow[]>([]);
-  const [infusions, setInfusions] = useState<TreatmentInfusionRow[]>([]);
-  const [symptoms, setSymptoms] = useState<SymptomLogDetail[]>([]);
-  const [detailLoading, setDetailLoading] = useState(false);
-
   const tier = clinicalTier(row);
   const accent = TIER_ACCENT[tier];
+  const suspensionScore = row.suspensionRiskScore;
+  const suspensionColors = suspensionRingColors(suspensionScore);
   const tempPts = vitalPointsLast24h(vitals, "temperature");
   const spoPts = vitalPointsLast24h(vitals, "spo2");
   const hrPts = vitalPointsLast24h(vitals, "heart_rate");
@@ -51,181 +55,141 @@ export function TriagePatientCard({ row, vitals }: Props) {
   const faceUrl = profileAvatarUrl(row.profiles);
   const faceInitials = initialsFromName(name);
 
-  useEffect(() => {
-    if (!open) return;
-    let cancelled = false;
-    setDetailLoading(true);
-    const pid = row.id;
-    void (async () => {
-      const [cyc, inf, sym] = await Promise.all([
-        supabase
-          .from("treatment_cycles")
-          .select("id, protocol_name, start_date, end_date, status, planned_sessions, completed_sessions, last_session_at, infusion_interval_days")
-          .eq("patient_id", pid)
-          .order("start_date", { ascending: false })
-          .limit(12),
-        supabase.from("treatment_infusions").select("id, cycle_id, patient_id, session_at, status").eq("patient_id", pid).order("session_at", { ascending: false }).limit(40),
-        supabase
-          .from("symptom_logs")
-          .select(
-            "id, symptom_category, severity, body_temperature, logged_at, notes, entry_kind, pain_level, nausea_level, fatigue_level, requires_action, mood, symptom_started_at, symptom_ended_at"
-          )
-          .eq("patient_id", pid)
-          .order("logged_at", { ascending: false })
-          .limit(40),
-      ]);
-      if (cancelled) return;
-      setCycles(!cyc.error && cyc.data ? (cyc.data as TreatmentCycleRow[]) : []);
-      setInfusions(!inf.error && inf.data ? (inf.data as TreatmentInfusionRow[]) : []);
-      setSymptoms(!sym.error && sym.data ? (sym.data as SymptomLogDetail[]) : []);
-      setDetailLoading(false);
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [open, row.id]);
+  const statusTag =
+    tier === "critical" ? "Crítico" : tier === "attention" ? "Atenção" : tier === "stable" ? "Estável" : "—";
 
-  const nadir = computeClinicalNadirSummary(cycles, infusions);
-  const inter = symptoms.find((s) => s.requires_action) ?? symptoms[0];
-  let interText = "Sem intercorrência registrada recentemente.";
-  if (inter) {
-    interText = `${symptomCategoryLabel(inter)} · ${symptomSeverityShort(inter)}`;
-  }
+  const dossierPath = `/paciente/${row.id}`;
+  const messagesPath = `${dossierPath}?tab=mensagens`;
+  const wa = patientWhatsappContact(row);
 
   return (
-    <div
-      className={cn(
-        "overflow-hidden rounded-3xl border border-[#E8EAED] bg-white shadow-[0_4px_24px_-4px_rgba(15,23,42,0.06)] transition-shadow hover:shadow-md"
-      )}
-    >
-      <div className="flex min-w-0">
-        <div className="w-1.5 shrink-0 self-stretch" style={{ background: accent }} aria-hidden />
+    <div className="relative">
+      <motion.div
+        whileTap={{ scale: 0.98 }}
+        className={cn(
+          "overflow-hidden rounded-2xl border bg-white shadow-card transition-all duration-300 ease-in-out",
+          isSelected
+            ? "border-l-4 border-lime-400 bg-lime-100 shadow-soft ring-2 ring-lime-300/60"
+            : "border-slate-100 hover:-translate-y-0.5 hover:border-slate-200 hover:shadow-soft"
+        )}
+      >
+        {!isSelected ? <div className="h-1 w-full shrink-0" style={{ background: accent }} aria-hidden /> : null}
 
-        <div className="min-w-0 flex-1 p-4 sm:p-5">
-          <div className="flex flex-col gap-3 sm:gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div
+          role="link"
+          tabIndex={0}
+          onClick={(e) => {
+            if ((e.target as HTMLElement).closest("a, button")) return;
+            void navigate(dossierPath);
+          }}
+          onKeyDown={(e) => {
+            if ((e.target as HTMLElement).closest("a, button")) return;
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              void navigate(dossierPath);
+            }
+          }}
+          className={cn(
+            "block cursor-pointer p-4 outline-none transition-colors",
+            "focus-visible:ring-2 focus-visible:ring-teal-500 focus-visible:ring-offset-2",
+            isSelected && "rounded-2xl"
+          )}
+          aria-current={isSelected ? "page" : undefined}
+          aria-label={`Abrir dossiê de ${name}`}
+        >
+          <div className="flex gap-3">
+            <PatientFaceThumb url={faceUrl} initials={faceInitials} className="h-12 w-12 shrink-0 text-sm shadow-sm ring-2 ring-white" />
+
             <div className="min-w-0 flex-1">
-              <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-                <PatientFaceThumb url={faceUrl} initials={faceInitials} className="h-11 w-11 text-xs" />
-                <h3 className="text-base font-black tracking-tight sm:text-lg">{name}</h3>
+              <div className="flex flex-wrap items-start gap-2">
+                <h3 className="text-[0.95rem] font-black leading-tight tracking-tight text-slate-900 sm:text-base">{name}</h3>
                 {row.current_stage ? (
-                  <Badge className="rounded-lg border-0 bg-[#EEF2FF] px-2 py-0.5 text-[0.65rem] font-bold uppercase tracking-wide text-[#4F46E5]">
+                  <Badge className="rounded-full border-0 bg-teal-100 px-2 py-0.5 text-[0.6rem] font-bold uppercase tracking-wide text-teal-800">
                     {row.current_stage}
                   </Badge>
                 ) : null}
-                {row.urgencySemaphore === "red" ? (
-                  <Badge className="rounded-lg border-0 bg-red-100 px-2 py-0.5 text-[0.65rem] font-bold uppercase text-red-800">
-                    Semáforo vermelho
-                  </Badge>
-                ) : row.urgencySemaphore === "yellow" ? (
-                  <Badge className="rounded-lg border-0 bg-amber-100 px-2 py-0.5 text-[0.65rem] font-bold uppercase text-amber-900">
-                    Semáforo amarelo
-                  </Badge>
-                ) : row.urgencySemaphore === "green" ? (
-                  <Badge className="rounded-lg border-0 bg-emerald-50 px-2 py-0.5 text-[0.65rem] font-bold uppercase text-emerald-800">
-                    Semáforo verde
-                  </Badge>
-                ) : null}
+                <Badge
+                  variant="secondary"
+                  className={cn(
+                    "rounded-full px-2 py-0.5 text-[0.6rem] font-bold uppercase",
+                    tier === "critical" && "bg-red-100 text-red-800",
+                    tier === "attention" && "bg-amber-100 text-amber-900",
+                    tier === "stable" && "bg-lime-200 text-lime-900"
+                  )}
+                >
+                  {statusTag}
+                </Badge>
               </div>
-              <p className="mt-1 text-[0.7rem] text-muted-foreground sm:text-xs">
-                <span className="font-mono text-foreground/80">{code}</span> · {age ?? "—"} · —
+              <p className="mt-1 text-[0.72rem] text-slate-500">
+                <span className="font-mono text-slate-700">{code}</span> · {age ?? "—"}
               </p>
-              <p className="mt-0.5 text-[0.7rem] text-muted-foreground sm:text-xs">{CANCER_PT[row.primary_cancer_type] ?? row.primary_cancer_type}</p>
-              {row.lastSymptomAt ? (
-                <p className="mt-1 text-[0.62rem] font-semibold uppercase text-muted-foreground sm:text-[0.65rem]">
-                  Último sintoma: {formatRelativeSince(row.lastSymptomAt)} · {formatPtShort(row.lastSymptomAt)}
-                </p>
-              ) : null}
+              <p className="mt-0.5 line-clamp-1 text-[0.72rem] text-slate-500">
+                {CANCER_PT[row.primary_cancer_type] ?? row.primary_cancer_type}
+              </p>
             </div>
 
-            <div className="grid min-w-0 flex-[1.4] grid-cols-1 gap-2 rounded-2xl border border-[#F1F5F9] bg-[#FAFBFC] p-3 sm:grid-cols-2 sm:gap-3 md:grid-cols-3 md:gap-4">
-              <VitalMicroSpark
-                data={tempPts}
-                color={lastTemp != null && lastTemp >= 38 ? "#EF4444" : "#0F172A"}
-                unit="°C"
-                label="Temp."
-              />
-              <VitalMicroSpark data={spoPts} color={spo2Color(lastSpo2)} unit="%" label="SpO₂" />
-              <VitalMicroSpark data={hrPts} color="#6366F1" unit="bpm" label="FC" />
-            </div>
-
-            <div className="grid w-full shrink-0 grid-cols-1 gap-2 sm:w-auto sm:min-w-[200px] sm:grid-cols-2 lg:grid-cols-1">
-              <Button
-                type="button"
-                className="rounded-2xl bg-[#0A0A0A] font-bold text-white hover:bg-[#1A1A1A]"
-                onClick={() => navigate(`/paciente/${row.id}`)}
-              >
-                Ver dossiê completo
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                className="rounded-2xl border-[#E2E8F0] font-semibold"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  navigate(`/paciente/${row.id}?tab=diario`);
-                }}
-              >
-                <FileText className="mr-2 size-4" />
-                Sintomas CTCAE
-              </Button>
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                className="rounded-2xl text-muted-foreground sm:col-span-2 lg:col-span-1"
-                onClick={() => setOpen((o) => !o)}
-              >
-                Detalhe
-                <ChevronDown className={cn("ml-1 size-4 transition-transform", open && "rotate-180")} />
-              </Button>
+            <div
+              className="flex h-11 w-11 shrink-0 flex-col items-center justify-center rounded-full border-2 bg-white text-center shadow-sm"
+              style={{ borderColor: suspensionColors.borderColor, color: suspensionColors.color }}
+              title={`Risco de suspensão: ${suspensionScore}% (heurística)`}
+            >
+              <span className="text-sm font-black leading-none tabular-nums">{suspensionScore}</span>
             </div>
           </div>
 
-          <AnimatePresence initial={false}>
-            {open ? (
-              <motion.div
-                initial={{ height: 0, opacity: 0 }}
-                animate={{ height: "auto", opacity: 1 }}
-                exit={{ height: 0, opacity: 0 }}
-                className="overflow-hidden"
+          {row.lastSymptomAt ? (
+            <p className="mt-2 text-right text-[0.65rem] text-slate-400">
+              {formatRelativeSince(row.lastSymptomAt)} · {formatPtShort(row.lastSymptomAt)}
+            </p>
+          ) : (
+            <p className="mt-2 text-right text-[0.65rem] text-slate-400">Sem sintomas recentes</p>
+          )}
+
+          <div className="mt-3 grid grid-cols-3 gap-2 rounded-2xl border border-slate-100 bg-surface-muted/50 p-2">
+            <VitalMicroSpark
+              data={tempPts}
+              color={lastTemp != null && lastTemp >= 38 ? "#EF4444" : "#0F172A"}
+              unit="°C"
+              label="Temp."
+            />
+            <VitalMicroSpark data={spoPts} color={spo2Color(lastSpo2)} unit="%" label="SpO₂" />
+            <VitalMicroSpark data={hrPts} color="#6366F1" unit="bpm" label="FC" />
+          </div>
+
+          <div className="mt-3 flex justify-end border-t border-slate-100/80 pt-3">
+            {wa.canMessage ? (
+              <Link
+                to={messagesPath}
+                onClick={(e) => e.stopPropagation()}
+                className="inline-flex items-center gap-1.5 rounded-full border border-teal-200 bg-white px-3 py-1.5 text-[0.72rem] font-bold text-teal-800 shadow-sm transition-colors hover:bg-teal-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500"
               >
-                <div className="mt-4 grid gap-3 border-t border-[#F1F5F9] pt-4 md:grid-cols-2">
-                  <div className="rounded-2xl border border-[#F1F5F9] bg-[#FFFBEB] p-4">
-                    <p className="text-[0.65rem] font-bold uppercase tracking-wide text-[#B45309]">Última intercorrência</p>
-                    {detailLoading ? (
-                      <p className="mt-2 text-sm text-muted-foreground">Carregando…</p>
-                    ) : (
-                      <>
-                        <p className="mt-2 text-sm font-semibold leading-snug text-foreground break-words">{interText}</p>
-                        <p className="mt-2 text-[0.65rem] font-semibold uppercase text-muted-foreground">
-                          {inter ? formatPtDateTime(inter.logged_at) : "—"}
-                        </p>
-                      </>
-                    )}
-                  </div>
-                  <div className="rounded-2xl border border-[#F1F5F9] p-4">
-                    <p className="text-[0.65rem] font-bold uppercase tracking-wide text-muted-foreground">Cronograma clínico</p>
-                    {detailLoading ? (
-                      <p className="mt-2 text-sm text-muted-foreground">Carregando…</p>
-                    ) : (
-                      <>
-                        <p className="mt-2 text-sm">
-                          <span className="text-muted-foreground">Janela nadir (estim.): </span>
-                          <span className="font-semibold text-[#EF4444]">{nadir.estimatedNadirWindowLabel}</span>
-                        </p>
-                        <p className="mt-1 text-sm text-muted-foreground">
-                          Próxima infusão (estim.): <span className="font-medium text-foreground">{nadir.predictedNextInfusionLabel}</span>
-                        </p>
-                        <p className="mt-1 text-xs text-muted-foreground">Última sessão: {nadir.lastCompletedInfusionAt ? formatPtShort(nadir.lastCompletedInfusionAt) : "—"}</p>
-                      </>
-                    )}
-                  </div>
-                </div>
-              </motion.div>
-            ) : null}
-          </AnimatePresence>
+                <MessageSquare className="size-3.5 shrink-0" strokeWidth={2} />
+                Mensagens
+              </Link>
+            ) : (
+              <span className="text-[0.65rem] font-medium text-slate-400" title="Telefone E.164 e opt-in WhatsApp necessários">
+                WhatsApp indisponível
+              </span>
+            )}
+          </div>
         </div>
-      </div>
+      </motion.div>
+
+      {/* Conector visual: card selecionado → painel do dossiê à direita */}
+      {isSelected ? (
+        <div
+          className="pointer-events-none absolute -right-3 top-1/2 z-20 hidden -translate-y-1/2 xl:flex xl:items-center"
+          aria-hidden
+        >
+          <div className="flex items-center">
+            <div className="h-1 w-4 rounded-full bg-gradient-to-r from-lime-400 to-lime-500 shadow-sm" />
+            <div
+              className="h-0 w-0 border-y-[9px] border-l-[11px] border-r-0 border-y-transparent border-l-white drop-shadow-sm"
+              style={{ filter: "drop-shadow(1px 0 2px rgba(0,0,0,0.06))" }}
+            />
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

@@ -1,5 +1,6 @@
 import { FileJson } from "lucide-react";
 import { useState } from "react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { readEnvBackendUrl, readSessionBackendUrl, resolveBackendUrl } from "@/lib/backendUrl";
 import { refreshSupabaseSessionIfStale } from "@/lib/authSession";
@@ -19,7 +20,9 @@ export function FhirExportButton({ patientId }: Props) {
     const session = await refreshSupabaseSessionIfStale(auth.session);
     const token = session?.access_token;
     if (!token || !base) {
-      setMsg("Defina VITE_BACKEND_URL e inicie sessão.");
+      const t = "Defina VITE_BACKEND_URL e inicie sessão.";
+      setMsg(t);
+      toast.error(t);
       return;
     }
     const url =
@@ -28,7 +31,9 @@ export function FhirExportButton({ patientId }: Props) {
         : `${base}/api/fhir/Observation?patient=${encodeURIComponent(`Patient/${patientId}`)}`;
     const r = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
     if (!r.ok) {
-      setMsg(`Erro ${r.status}`);
+      const t = `Erro ${r.status}`;
+      setMsg(t);
+      toast.error(t);
       return;
     }
     const j = await r.json();
@@ -36,22 +41,37 @@ export function FhirExportButton({ patientId }: Props) {
     if (w) {
       w.document.write(`<pre>${JSON.stringify(j, null, 2)}</pre>`);
       w.document.close();
+      toast.success(kind === "patient" ? "FHIR Paciente aberto num novo separador." : "FHIR Observações abertas num novo separador.");
     }
   }
 
   return (
     <div className="flex flex-col gap-2">
       <div className="flex flex-wrap gap-2">
-        <Button type="button" variant="outline" className="rounded-2xl" onClick={() => void open("patient")}>
+        <Button
+          type="button"
+          variant="outline"
+          className="rounded-full border-slate-200 bg-white text-slate-700 shadow-sm hover:bg-slate-50"
+          onClick={() => void open("patient")}
+        >
           <FileJson className="mr-2 size-4" />
           FHIR Paciente
         </Button>
-        <Button type="button" variant="outline" className="rounded-2xl" onClick={() => void open("obs")}>
+        <Button
+          type="button"
+          variant="outline"
+          className="rounded-full border-slate-200 bg-white text-slate-700 shadow-sm hover:bg-slate-50"
+          onClick={() => void open("obs")}
+        >
           <FileJson className="mr-2 size-4" />
           FHIR Observações (sintomas)
         </Button>
       </div>
-      {msg ? <p className="text-xs text-[#B91C1C]">{msg}</p> : null}
+      {msg ? (
+        <p className="text-xs text-destructive" role="alert" aria-live="assertive">
+          {msg}
+        </p>
+      ) : null}
     </div>
   );
 }

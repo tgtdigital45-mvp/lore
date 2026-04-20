@@ -1,9 +1,11 @@
 import { SEVERITY_RANK } from "../constants/dashboardLabels";
+import { calculateSuspensionRisk } from "./suspensionRisk";
 import type {
   HospitalEmbed,
   MergedAlertRules,
   PatientRow,
   RiskRow,
+  SymptomLogDetail,
   SymptomLogTriage,
 } from "../types/dashboard";
 
@@ -173,6 +175,14 @@ export function buildRiskRow(
     ctcae_red_min_grade: rules.ctcae_red_min_grade,
   };
   const { hasAlert: hasAlert24h } = patientClinicalAlert(logRows, p.id, rules24h, nowMs);
+  const pLogs = logRows.filter((l) => l.patient_id === p.id);
+  const { score: suspensionRiskScore } = calculateSuspensionRisk(
+    p,
+    pLogs as unknown as SymptomLogDetail[],
+    [],
+    [],
+    rules.fever_celsius_min
+  );
   return {
     ...p,
     risk: maxRank,
@@ -183,5 +193,6 @@ export function buildRiskRow(
     alertReasons: reasons,
     hasAlert24h,
     urgencySemaphore: worstUrgencySemaphore(logRows, p.id, sinceRiskMs),
+    suspensionRiskScore,
   };
 }

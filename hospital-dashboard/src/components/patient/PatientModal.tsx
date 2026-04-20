@@ -8,6 +8,7 @@ import { createPortal } from "react-dom";
 import type { ModalTabId } from "../../types/dashboard";
 import { MODAL_TAB_LABEL } from "./modalTabLabels";
 import type { PatientModalProps } from "./patientModalProps";
+import { LoadingInline } from "@/components/ui/LoadingInline";
 
 const PatientResumoPanel = lazy(() => import("./tabs/PatientResumoPanel"));
 const PatientExamesPanel = lazy(() => import("./tabs/PatientExamesPanel"));
@@ -15,7 +16,11 @@ const PatientMensagensPanel = lazy(() => import("./tabs/PatientMensagensPanel"))
 const PatientDiarioPanel = lazy(() => import("./tabs/PatientDiarioPanel"));
 
 function TabFallback() {
-  return <p className="muted patient-modal__loading">Carregando painel…</p>;
+  return (
+    <p className="muted patient-modal__loading m-0">
+      <LoadingInline>A carregar painel…</LoadingInline>
+    </p>
+  );
 }
 
 export function PatientModal(props: PatientModalProps) {

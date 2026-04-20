@@ -154,14 +154,14 @@ export function ToxicityHeatmap({ symptoms, days = 14 }: Props) {
 
   if (!hasAnyData) {
     return (
-      <div className="toxicity-heatmap">
+      <div className="toxicity-heatmap rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
         <p className="muted text-sm">Sem registros de sintomas neste período.</p>
       </div>
     );
   }
 
   return (
-    <div className="toxicity-heatmap">
+    <div className="toxicity-heatmap rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
       <p className="muted" style={{ fontSize: "0.85rem", marginBottom: "0.35rem" }}>
         Dias em UTC · PRD 0–10 ou escala legado por categoria. Só aparecem linhas com pelo menos um registro. Célula vazia = sem
         registro nesse dia.

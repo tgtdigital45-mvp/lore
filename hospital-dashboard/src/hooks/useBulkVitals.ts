@@ -39,7 +39,8 @@ export function useBulkVitals(patientIds: string[]) {
       for (const r of rows) {
         const pid = r.patient_id;
         if (!by[pid]) by[pid] = [];
-        const { patient_id: _pid, ...rest } = r;
+        const { patient_id: pidDrop, ...rest } = r;
+        void pidDrop;
         by[pid].push(rest);
       }
       setMap(by);

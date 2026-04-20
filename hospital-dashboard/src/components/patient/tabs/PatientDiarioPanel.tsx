@@ -1,6 +1,8 @@
+import { BookHeart } from "lucide-react";
 import type { SymptomLogDetail } from "../../../types/dashboard";
 import { formatPtDateTime } from "../../../lib/dashboardFormat";
 import { symptomCategoryLabel, symptomSeverityLabel, symptomSeverityPillClass } from "../../../lib/patientModalHelpers";
+import { ClinicalEmptyState } from "@/components/patient/ClinicalEmptyState";
 
 type Props = {
   modalLoading: boolean;
@@ -15,7 +17,12 @@ export default function PatientDiarioPanel({ modalLoading, modalSymptoms }: Prop
         {modalLoading ? (
           <p className="muted patient-modal__loading">Carregando…</p>
         ) : modalSymptoms.length === 0 ? (
-          <p className="muted">Sem registros.</p>
+          <ClinicalEmptyState
+            icon={BookHeart}
+            title="Sem registros de sintomas"
+            description="Quando o paciente registar sintomas na app Aura, o histórico aparece aqui."
+            className="border-none bg-transparent p-6"
+          />
         ) : (
           <div className="patient-modal__table-wrap">
             <table className="patient-modal__table">

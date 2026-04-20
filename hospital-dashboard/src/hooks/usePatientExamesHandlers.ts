@@ -1,6 +1,13 @@
 import { useCallback, useMemo, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
-import { readEnvBackendUrl, readSessionBackendUrl, resolveBackendUrl } from "@/lib/backendUrl";
+import {
+  hasStaffBackendForFetch,
+  readEnvBackendUrl,
+  readSessionBackendUrl,
+  resolveBackendUrl,
+  staffApiRequestUrl,
+} from "@/lib/backendUrl";
+import { sanitizeHttpApiMessage, userFacingApiError } from "@/lib/errorMessages";
 
 export function usePatientExamesHandlers(
   session: Session | null,
@@ -21,7 +28,7 @@ export function usePatientExamesHandlers(
 
   const staffUploadExam = useCallback(
     async (file: File) => {
-      if (!session || !patientId || !backendUrl) {
+      if (!session || !patientId || !hasStaffBackendForFetch(backendUrl)) {
         setStaffUploadMsg("Indique o URL do onco-backend (variável VITE_BACKEND_URL) e selecione um paciente.");
         return;
       }
@@ -45,7 +52,7 @@ export function usePatientExamesHandlers(
           reader.onerror = () => reject(reader.error);
           reader.readAsDataURL(file);
         });
-        const r = await fetch(`${backendUrl}/api/staff/ocr/analyze`, {
+        const r = await fetch(staffApiRequestUrl(backendUrl, "/api/staff/ocr/analyze"), {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -59,13 +66,13 @@ export function usePatientExamesHandlers(
         });
         const j = (await r.json()) as { error?: string; message?: string };
         if (!r.ok) {
-          setStaffUploadMsg((j.message as string | undefined) ?? j.error ?? `Erro ${r.status}`);
+          setStaffUploadMsg(sanitizeHttpApiMessage((j.message as string | undefined) ?? j.error, `Erro ${r.status}`));
           return;
         }
         setStaffUploadMsg("Exame processado e registrado no prontuário.");
         await refreshExames();
       } catch (e) {
-        setStaffUploadMsg(e instanceof Error ? e.message : "Falha no envio");
+        setStaffUploadMsg(userFacingApiError(e, "Falha no envio. Verifique a ligação."));
       } finally {
         setStaffUploadBusy(false);
       }
@@ -75,21 +82,21 @@ export function usePatientExamesHandlers(
 
   const openStaffExamView = useCallback(
     async (documentId: string, mode: "open" | "download" = "open") => {
-      if (!session || !backendUrl) {
+      if (!session || !hasStaffBackendForFetch(backendUrl)) {
         setDocOpenError("Indique o URL do onco-backend (VITE_BACKEND_URL no .env).");
         return;
       }
       setDocOpenError(null);
       try {
         if (mode === "download") {
-          const r = await fetch(`${backendUrl}/api/staff/exams/${documentId}/download`, {
+          const r = await fetch(staffApiRequestUrl(backendUrl, `/api/staff/exams/${documentId}/download`), {
             headers: { Authorization: `Bearer ${session.access_token}` },
           });
           if (!r.ok) {
             let msg = `Erro ${r.status}`;
             try {
               const j = (await r.json()) as { message?: string; error?: string };
-              msg = (j.message as string | undefined) ?? j.error ?? msg;
+              msg = sanitizeHttpApiMessage((j.message as string | undefined) ?? j.error, msg);
             } catch {
               /* ignore */
             }
@@ -122,18 +129,18 @@ export function usePatientExamesHandlers(
           return;
         }
 
-        const r = await fetch(`${backendUrl}/api/staff/exams/${documentId}/view`, {
+        const r = await fetch(staffApiRequestUrl(backendUrl, `/api/staff/exams/${documentId}/view`), {
           headers: { Authorization: `Bearer ${session.access_token}` },
         });
         const j = (await r.json()) as { url?: string; error?: string; message?: string };
         if (!r.ok) {
-          setDocOpenError((j.message as string | undefined) ?? j.error ?? `Erro ${r.status}`);
+          setDocOpenError(sanitizeHttpApiMessage((j.message as string | undefined) ?? j.error, `Erro ${r.status}`));
           return;
         }
         if (!j.url) return;
         window.open(j.url, "_blank", "noopener,noreferrer");
       } catch (e) {
-        setDocOpenError(e instanceof Error ? e.message : "Falha de rede");
+        setDocOpenError(userFacingApiError(e, "Falha de rede. Verifique a ligação."));
       }
     },
     [session, backendUrl]

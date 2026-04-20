@@ -28,7 +28,7 @@ export function ClinicalHeader({ patient, cycles, infusions, loading }: Props) {
   const active = summary.activeCycle;
 
   return (
-    <div className="clinical-header">
+    <div className="clinical-header rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
       {loading ? <p className="clinical-header__hint muted">Carregando dados clínicos…</p> : null}
       <div className="clinical-header__row">
         {stage ? (

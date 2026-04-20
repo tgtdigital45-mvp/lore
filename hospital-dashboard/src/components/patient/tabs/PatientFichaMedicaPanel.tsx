@@ -1,11 +1,23 @@
 import { useEffect, useState, type ReactNode } from "react";
-import { ClipboardList } from "lucide-react";
+import { ClipboardList, Users } from "lucide-react";
+import { toast } from "sonner";
 import { CANCER_PT } from "@/constants/dashboardLabels";
 import { cn } from "@/lib/utils";
 import type { EmergencyContactEmbed, RiskRow } from "@/types/dashboard";
 import { supabase } from "@/lib/supabase";
+import { sanitizeSupabaseError } from "@/lib/errorMessages";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { ClinicalEmptyState } from "@/components/patient/ClinicalEmptyState";
+import {
+  ageFromDob,
+  profileDob,
+  profileEmailDisplay,
+  profileName,
+  profilePhoneE164,
+} from "@/lib/dashboardProfile";
+import { formatPatientCodeDisplay } from "@/lib/patientCode";
+import { formatPtShort } from "@/lib/dashboardFormat";
 
 function SectionTitle({ children }: { children: ReactNode }) {
   return (
@@ -16,9 +28,9 @@ function SectionTitle({ children }: { children: ReactNode }) {
   );
 }
 
-function FieldBlock({ label, children }: { label: string; children: ReactNode }) {
+function FieldBlock({ label, children, className }: { label: string; children: ReactNode; className?: string }) {
   return (
-    <div className="rounded-2xl border border-[#E8EAED] bg-white px-4 py-3 shadow-sm">
+    <div className={cn("rounded-2xl border border-slate-100 bg-white px-4 py-3 shadow-sm", className)}>
       <p className="text-xs font-semibold text-muted-foreground">{label}</p>
       <div className="mt-1.5 text-sm leading-relaxed text-foreground">{children}</div>
     </div>
@@ -27,13 +39,25 @@ function FieldBlock({ label, children }: { label: string; children: ReactNode })
 
 type ContactDraft = { id?: string; full_name: string; phone: string; relationship: string };
 
+const SEX_OPTIONS: { value: "" | "M" | "F" | "I" | "O"; label: string }[] = [
+  { value: "", label: "Não informar" },
+  { value: "M", label: "Masculino" },
+  { value: "F", label: "Feminino" },
+  { value: "I", label: "Intersexo" },
+  { value: "O", label: "Outro" },
+];
+
+const BLOOD_OPTIONS = ["", "A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-", "ND"] as const;
+
 type Props = {
   loading: boolean;
   riskRow: RiskRow;
   emergencyContacts: EmergencyContactEmbed[];
+  /** Chamado após guardar com sucesso (atualizar dossiê). */
+  onSaved?: () => void;
 };
 
-export default function PatientFichaMedicaPanel({ loading, riskRow, emergencyContacts }: Props) {
+export default function PatientFichaMedicaPanel({ loading, riskRow, emergencyContacts, onSaved }: Props) {
   const [busy, setBusy] = useState(false);
   const [stage, setStage] = useState("");
   const [isPregnant, setIsPregnant] = useState<"unset" | "yes" | "no">("unset");
@@ -44,7 +68,22 @@ export default function PatientFichaMedicaPanel({ loading, riskRow, emergencyCon
   const [heightCm, setHeightCm] = useState("");
   const [weightKg, setWeightKg] = useState("");
   const [clinicalNotes, setClinicalNotes] = useState("");
+  const [sex, setSex] = useState<"" | "M" | "F" | "I" | "O">("");
+  const [bloodType, setBloodType] = useState("");
+  const [cpf, setCpf] = useState("");
+  const [occupation, setOccupation] = useState("");
+  const [insurancePlan, setInsurancePlan] = useState("");
+  const [addressCity, setAddressCity] = useState("");
+  const [addressState, setAddressState] = useState("");
   const [contacts, setContacts] = useState<ContactDraft[]>([]);
+
+  const displayName = profileName(riskRow.profiles);
+  const dobRaw = profileDob(riskRow.profiles);
+  const ageLabel = ageFromDob(dobRaw);
+  const codeDisplay = formatPatientCodeDisplay(riskRow.patient_code) ?? `PR-${riskRow.id.slice(0, 8).toUpperCase()}`;
+  const phoneDisplay = profilePhoneE164(riskRow.profiles);
+  const emailDisplay = profileEmailDisplay(riskRow.profiles);
+  const dobFormatted = dobRaw ? formatPtShort(dobRaw) : null;
 
   useEffect(() => {
     setStage(riskRow.current_stage ?? "");
@@ -56,6 +95,16 @@ export default function PatientFichaMedicaPanel({ loading, riskRow, emergencyCon
     setHeightCm(riskRow.height_cm != null ? String(riskRow.height_cm) : "");
     setWeightKg(riskRow.weight_kg != null ? String(riskRow.weight_kg) : "");
     setClinicalNotes(riskRow.clinical_notes ?? "");
+    const s = riskRow.sex;
+    setSex(s === "M" || s === "F" || s === "I" || s === "O" ? s : "");
+    setBloodType(
+      riskRow.blood_type && (BLOOD_OPTIONS as readonly string[]).includes(riskRow.blood_type) ? riskRow.blood_type : ""
+    );
+    setCpf(riskRow.cpf ?? "");
+    setOccupation(riskRow.occupation ?? "");
+    setInsurancePlan(riskRow.insurance_plan ?? "");
+    setAddressCity(riskRow.address_city ?? "");
+    setAddressState(riskRow.address_state ?? "");
   }, [
     riskRow.current_stage,
     riskRow.is_pregnant,
@@ -66,6 +115,13 @@ export default function PatientFichaMedicaPanel({ loading, riskRow, emergencyCon
     riskRow.height_cm,
     riskRow.weight_kg,
     riskRow.clinical_notes,
+    riskRow.sex,
+    riskRow.blood_type,
+    riskRow.cpf,
+    riskRow.occupation,
+    riskRow.insurance_plan,
+    riskRow.address_city,
+    riskRow.address_state,
   ]);
 
   useEffect(() => {
@@ -96,6 +152,13 @@ export default function PatientFichaMedicaPanel({ loading, riskRow, emergencyCon
           height_cm: Number.isFinite(parsedHeight) ? parsedHeight : null,
           weight_kg: Number.isFinite(parsedWeight) ? parsedWeight : null,
           clinical_notes: clinicalNotes.trim() || null,
+          sex: sex === "" ? null : sex,
+          blood_type: bloodType.trim() === "" ? null : bloodType,
+          cpf: cpf.trim() || null,
+          occupation: occupation.trim() || null,
+          insurance_plan: insurancePlan.trim() || null,
+          address_city: addressCity.trim() || null,
+          address_state: addressState.trim() || null,
         })
         .eq("id", riskRow.id);
       if (error) throw error;
@@ -125,8 +188,11 @@ export default function PatientFichaMedicaPanel({ loading, riskRow, emergencyCon
           if (insertErr) throw insertErr;
         }
       }
+      toast.success("Ficha médica guardada.");
+      onSaved?.();
     } catch (err) {
       console.error(err);
+      toast.error(sanitizeSupabaseError(err as { code?: string; message?: string }));
     } finally {
       setBusy(false);
     }
@@ -137,7 +203,8 @@ export default function PatientFichaMedicaPanel({ loading, riskRow, emergencyCon
       <div>
         <SectionTitle>Ficha médica (app Aura)</SectionTitle>
         <p className="mt-2 max-w-3xl text-sm leading-relaxed text-muted-foreground">
-          Dados preenchidos pelo paciente na app, na área «Ficha médica» do perfil. Leitura conforme vínculo LGPD com o hospital.
+          Dados preenchidos pelo paciente na app, na área «Ficha médica» do perfil. Leitura conforme vínculo LGPD com o
+          hospital. Nome, telefone e e-mail de perfil são atualizados na app pelo paciente.
         </p>
       </div>
 
@@ -148,6 +215,97 @@ export default function PatientFichaMedicaPanel({ loading, riskRow, emergencyCon
         </div>
       ) : (
         <>
+          <section className="space-y-3">
+            <h4 className="text-sm font-bold text-foreground">Identificação pessoal</h4>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <FieldBlock label="Nome completo">
+                <span className="font-medium">{displayName}</span>
+              </FieldBlock>
+              <FieldBlock label="Data de nascimento / idade">
+                <span className="font-medium">
+                  {dobFormatted ?? "—"}
+                  {ageLabel ? ` · ${ageLabel}` : ""}
+                </span>
+              </FieldBlock>
+              <FieldBlock label="Código Aura">
+                <span className="font-mono text-xs font-semibold">{codeDisplay}</span>
+              </FieldBlock>
+              <FieldBlock label="Telefone (perfil)">
+                <span>{phoneDisplay ?? "—"}</span>
+                <p className="mt-1 text-[0.65rem] text-muted-foreground">Editável pelo paciente na app Aura.</p>
+              </FieldBlock>
+              <FieldBlock label="E-mail (perfil)" className="sm:col-span-2">
+                <span>{emailDisplay ?? "—"}</span>
+                <p className="mt-1 text-[0.65rem] text-muted-foreground">Campo opcional em perfil; pode ser preenchido na app.</p>
+              </FieldBlock>
+            </div>
+          </section>
+
+          <section className="space-y-3">
+            <h4 className="text-sm font-bold text-foreground">Dados clínicos (editáveis)</h4>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <FieldBlock label="Sexo biológico">
+                <select
+                  value={sex}
+                  onChange={(e) => setSex(e.target.value as "" | "M" | "F" | "I" | "O")}
+                  className="h-10 w-full rounded-xl border border-[#E2E8F0] bg-white px-3 text-sm"
+                >
+                  {SEX_OPTIONS.map((o) => (
+                    <option key={o.value || "unset"} value={o.value}>
+                      {o.label}
+                    </option>
+                  ))}
+                </select>
+              </FieldBlock>
+              <FieldBlock label="Tipo sanguíneo">
+                <select
+                  value={bloodType}
+                  onChange={(e) => setBloodType(e.target.value)}
+                  className="h-10 w-full rounded-xl border border-[#E2E8F0] bg-white px-3 text-sm"
+                >
+                  <option value="">Não informar</option>
+                  {BLOOD_OPTIONS.filter((b) => b !== "").map((b) => (
+                    <option key={b} value={b}>
+                      {b === "ND" ? "Não determinado" : b}
+                    </option>
+                  ))}
+                </select>
+              </FieldBlock>
+              <FieldBlock label="Altura (cm)">
+                <Input value={heightCm} onChange={(e) => setHeightCm(e.target.value)} type="number" className="rounded-xl" />
+              </FieldBlock>
+              <FieldBlock label="Peso (kg)">
+                <Input value={weightKg} onChange={(e) => setWeightKg(e.target.value)} type="number" className="rounded-xl" />
+              </FieldBlock>
+            </div>
+          </section>
+
+          <section className="space-y-3">
+            <h4 className="text-sm font-bold text-foreground">Dados administrativos</h4>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <FieldBlock label="CPF">
+                <Input value={cpf} onChange={(e) => setCpf(e.target.value)} placeholder="000.000.000-00" className="rounded-xl" />
+              </FieldBlock>
+              <FieldBlock label="Profissão">
+                <Input value={occupation} onChange={(e) => setOccupation(e.target.value)} placeholder="Ocupação" className="rounded-xl" />
+              </FieldBlock>
+              <FieldBlock label="Convênio / plano de saúde" className="sm:col-span-2">
+                <Input
+                  value={insurancePlan}
+                  onChange={(e) => setInsurancePlan(e.target.value)}
+                  placeholder="Nome do plano"
+                  className="rounded-xl"
+                />
+              </FieldBlock>
+              <FieldBlock label="Cidade">
+                <Input value={addressCity} onChange={(e) => setAddressCity(e.target.value)} className="rounded-xl" />
+              </FieldBlock>
+              <FieldBlock label="Estado (UF)">
+                <Input value={addressState} onChange={(e) => setAddressState(e.target.value)} placeholder="Ex.: SP" maxLength={2} className="rounded-xl uppercase" />
+              </FieldBlock>
+            </div>
+          </section>
+
           <section className="space-y-3">
             <h4 className="text-sm font-bold text-foreground">Resumo oncológico</h4>
             <div className="grid gap-3 sm:grid-cols-2">
@@ -170,7 +328,7 @@ export default function PatientFichaMedicaPanel({ loading, riskRow, emergencyCon
               </FieldBlock>
               <FieldBlock label="Nadir (automático)">
                 {riskRow.is_in_nadir ? (
-                  <span className="font-medium text-[#B91C1C]">Na janela de nadir — vigilância febril</span>
+                  <span className="font-medium text-destructive">Na janela de nadir — vigilância febril</span>
                 ) : (
                   <span>Fora da janela habitual</span>
                 )}
@@ -221,15 +379,7 @@ export default function PatientFichaMedicaPanel({ loading, riskRow, emergencyCon
           </section>
 
           <section className="space-y-3">
-            <h4 className="text-sm font-bold text-foreground">Medidas e notas</h4>
-            <div className="grid gap-3 sm:grid-cols-2">
-              <FieldBlock label="Altura (ficha)">
-                <Input value={heightCm} onChange={(e) => setHeightCm(e.target.value)} type="number" className="rounded-xl" />
-              </FieldBlock>
-              <FieldBlock label="Peso (ficha)">
-                <Input value={weightKg} onChange={(e) => setWeightKg(e.target.value)} type="number" className="rounded-xl" />
-              </FieldBlock>
-            </div>
+            <h4 className="text-sm font-bold text-foreground">Notas clínicas</h4>
             <FieldBlock label="Notas clínicas (ficha)">
               <textarea
                 value={clinicalNotes}
@@ -243,9 +393,11 @@ export default function PatientFichaMedicaPanel({ loading, riskRow, emergencyCon
           <section className="space-y-3">
             <h4 className="text-sm font-bold text-foreground">Contactos de emergência</h4>
             {contacts.length === 0 ? (
-              <p className="rounded-2xl border border-dashed border-[#E2E8F0] bg-[#FAFBFC] px-4 py-8 text-center text-sm text-muted-foreground">
-                Sem contactos registrados.
-              </p>
+              <ClinicalEmptyState
+                icon={Users}
+                title="Sem contactos de emergência"
+                description="Adicione contactos para situações urgentes ou peça ao paciente para completar na app."
+              />
             ) : (
               <ul className="space-y-3">
                 {contacts.map((c, i) => (

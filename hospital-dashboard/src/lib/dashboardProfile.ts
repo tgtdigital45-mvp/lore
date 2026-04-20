@@ -42,6 +42,20 @@ export function profileDob(p: PatientRow["profiles"]): string | null {
   return row?.date_of_birth ?? null;
 }
 
+export function profilePhoneE164(p: PatientRow["profiles"]): string | null {
+  if (!p) return null;
+  const row = Array.isArray(p) ? p[0] : p;
+  const t = row && "phone_e164" in row ? (row as { phone_e164?: string | null }).phone_e164 : null;
+  return typeof t === "string" && t.trim() ? t.trim() : null;
+}
+
+export function profileEmailDisplay(p: PatientRow["profiles"]): string | null {
+  if (!p) return null;
+  const row = Array.isArray(p) ? p[0] : p;
+  const t = row && "email_display" in row ? (row as { email_display?: string | null }).email_display : null;
+  return typeof t === "string" && t.trim() ? t.trim() : null;
+}
+
 export function profileAvatarUrl(p: PatientRow["profiles"]): string | null {
   if (!p) return null;
   const row = Array.isArray(p) ? p[0] : p;

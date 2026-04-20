@@ -13,7 +13,7 @@ export function InterventionTimeline({ entries }: Props) {
   }
 
   return (
-    <ul className="intervention-timeline">
+    <ul className="intervention-timeline rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
       {entries.map((s) => (
         <li key={s.id} className="intervention-timeline__item">
           <div>

@@ -26,6 +26,7 @@ import { formatBiomarkerValue, formatPtDateTime } from "../../../lib/dashboardFo
 import { buildMetricHistorySeries, type MetricHistoryChartModel } from "@/lib/biomarkerHistoryChart";
 import { examDisplayDateIso } from "@/lib/examDisplayDate";
 import { useBiomarkerHistoryContext } from "@/hooks/useBiomarkerHistoryContext";
+import { hasStaffBackendForFetch } from "@/lib/backendUrl";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -515,7 +516,7 @@ export default function PatientExamesPanel({
                       </button>
 
                       <div className="flex shrink-0 items-center justify-end gap-1 border-t border-[#F1F5F9] px-3 py-2 sm:border-l sm:border-t-0 sm:px-4">
-                        {!backendUrl ? (
+                        {!hasStaffBackendForFetch(backendUrl) ? (
                           <span className="px-2 text-xs text-muted-foreground">Configure o backend</span>
                         ) : inlineOnly ? (
                           <span className="px-2 text-xs text-muted-foreground" title="OCR sem arquivo no armazenamento">
@@ -715,10 +716,11 @@ export default function PatientExamesPanel({
           </p>
         </div>
 
-        {!backendUrl ? (
+        {!hasStaffBackendForFetch(backendUrl) ? (
           <div className="rounded-2xl border border-amber-200 bg-amber-50/80 px-4 py-3 text-sm text-amber-950">
             Indique o URL do onco-backend em <code className="rounded bg-white/80 px-1.5 py-0.5 font-mono text-xs">VITE_BACKEND_URL</code>{" "}
-            (ou override em sessão em desenvolvimento).
+            (produção). Em desenvolvimento, com o backend na porta 3001, o Vite encaminha <code className="rounded bg-white/80 px-1.5 py-0.5 font-mono text-xs">/api</code>{" "}
+            automaticamente.
           </div>
         ) : (
           <>

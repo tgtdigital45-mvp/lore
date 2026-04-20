@@ -14,8 +14,11 @@ import {
   resolveBackendUrl,
   persistSessionBackendUrl,
   BACKEND_URL_STORAGE_KEY,
+  hasStaffBackendForFetch,
+  staffApiRequestUrl,
 } from "../lib/backendUrl";
 import { supabase } from "../lib/supabase";
+import { sanitizeHttpApiMessage, sanitizeSupabaseError, userFacingApiError } from "../lib/errorMessages";
 import type {
   BiomarkerModalRow,
   MedicalDocModalRow,
@@ -163,7 +166,7 @@ export function usePatientModalController(
 
   const staffUploadExam = useCallback(
     async (file: File) => {
-      if (!session || !modalPatient || !backendUrl) {
+      if (!session || !modalPatient || !hasStaffBackendForFetch(backendUrl)) {
         setStaffUploadMsg("Indique o URL do onco-backend (variável VITE_BACKEND_URL) e selecione um paciente.");
         return;
       }
@@ -187,7 +190,7 @@ export function usePatientModalController(
           reader.onerror = () => reject(reader.error);
           reader.readAsDataURL(file);
         });
-        const r = await fetch(`${backendUrl}/api/staff/ocr/analyze`, {
+        const r = await fetch(staffApiRequestUrl(backendUrl, "/api/staff/ocr/analyze"), {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -201,7 +204,7 @@ export function usePatientModalController(
         });
         const j = (await r.json()) as { error?: string; message?: string };
         if (!r.ok) {
-          setStaffUploadMsg((j.message as string | undefined) ?? j.error ?? `Erro ${r.status}`);
+          setStaffUploadMsg(sanitizeHttpApiMessage((j.message as string | undefined) ?? j.error, `Erro ${r.status}`));
           return;
         }
         setStaffUploadMsg("Exame processado e registrado no prontuário.");
@@ -230,7 +233,7 @@ export function usePatientModalController(
         );
         setModalMedicalDocs(!mdocs.error && mdocs.data ? (mdocs.data as MedicalDocModalRow[]) : []);
       } catch (e) {
-        setStaffUploadMsg(e instanceof Error ? e.message : "Falha no envio");
+        setStaffUploadMsg(userFacingApiError(e, "Falha no envio. Verifique a ligação."));
       } finally {
         setStaffUploadBusy(false);
       }
@@ -239,7 +242,7 @@ export function usePatientModalController(
   );
 
   const sendWhatsApp = useCallback(async () => {
-    if (!session || !modalPatient || !backendUrl) return;
+    if (!session || !modalPatient || !hasStaffBackendForFetch(backendUrl)) return;
     const text = waCompose.trim();
     if (!text) {
       setWaSendError("Digite uma mensagem.");
@@ -249,7 +252,7 @@ export function usePatientModalController(
     setWaSendError(null);
     setWaSendOk(null);
     try {
-      const r = await fetch(`${backendUrl}/api/whatsapp/send`, {
+      const r = await fetch(staffApiRequestUrl(backendUrl, "/api/whatsapp/send"), {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -259,7 +262,7 @@ export function usePatientModalController(
       });
       const j = (await r.json()) as { error?: string; message?: string };
       if (!r.ok) {
-        setWaSendError((j.message as string | undefined) ?? j.error ?? `Erro ${r.status}`);
+        setWaSendError(sanitizeHttpApiMessage((j.message as string | undefined) ?? j.error, `Erro ${r.status}`));
         return;
       }
       setWaCompose("");
@@ -272,7 +275,7 @@ export function usePatientModalController(
         .limit(25);
       setModalOutbound((data ?? []) as OutboundMessageRow[]);
     } catch (e) {
-      setWaSendError(e instanceof Error ? e.message : "Falha de rede");
+      setWaSendError(userFacingApiError(e, "Falha de rede. Verifique a ligação."));
     } finally {
       setWaSendBusy(false);
     }
@@ -280,21 +283,21 @@ export function usePatientModalController(
 
   const openStaffExamView = useCallback(
     async (documentId: string, mode: "open" | "download" = "open") => {
-      if (!session || !backendUrl) {
+      if (!session || !hasStaffBackendForFetch(backendUrl)) {
         setDocOpenError("Indique o URL do onco-backend (VITE_BACKEND_URL no .env).");
         return;
       }
       setDocOpenError(null);
       try {
         if (mode === "download") {
-          const r = await fetch(`${backendUrl}/api/staff/exams/${documentId}/download`, {
+          const r = await fetch(staffApiRequestUrl(backendUrl, `/api/staff/exams/${documentId}/download`), {
             headers: { Authorization: `Bearer ${session.access_token}` },
           });
           if (!r.ok) {
             let msg = `Erro ${r.status}`;
             try {
               const j = (await r.json()) as { message?: string; error?: string };
-              msg = (j.message as string | undefined) ?? j.error ?? msg;
+              msg = sanitizeHttpApiMessage((j.message as string | undefined) ?? j.error, msg);
             } catch {
               /* ignore */
             }
@@ -327,18 +330,18 @@ export function usePatientModalController(
           return;
         }
 
-        const r = await fetch(`${backendUrl}/api/staff/exams/${documentId}/view`, {
+        const r = await fetch(staffApiRequestUrl(backendUrl, `/api/staff/exams/${documentId}/view`), {
           headers: { Authorization: `Bearer ${session.access_token}` },
         });
         const j = (await r.json()) as { url?: string; error?: string; message?: string };
         if (!r.ok) {
-          setDocOpenError((j.message as string | undefined) ?? j.error ?? `Erro ${r.status}`);
+          setDocOpenError(sanitizeHttpApiMessage((j.message as string | undefined) ?? j.error, `Erro ${r.status}`));
           return;
         }
         if (!j.url) return;
         window.open(j.url, "_blank", "noopener,noreferrer");
       } catch (e) {
-        setDocOpenError(e instanceof Error ? e.message : "Falha de rede");
+        setDocOpenError(userFacingApiError(e, "Falha de rede. Verifique a ligação."));
       }
     },
     [session, backendUrl]
@@ -402,7 +405,7 @@ export function usePatientModalController(
           .limit(150),
         supabase
           .from("treatment_infusions")
-          .select("id, cycle_id, patient_id, session_at, status")
+          .select("id, cycle_id, patient_id, session_at, status, weight_kg, notes")
           .eq("patient_id", pid)
           .order("session_at", { ascending: false })
           .limit(80),
@@ -437,7 +440,7 @@ export function usePatientModalController(
       ]);
       if (cancelled) return;
       if (cyc.error || sym.error) {
-        setModalError(cyc.error?.message ?? sym.error?.message ?? "Erro ao carregar dados");
+        setModalError(sanitizeSupabaseError(cyc.error ?? sym.error ?? { message: "Erro ao carregar dados" }));
         setModalCycles([]);
         setModalSymptoms([]);
       } else {

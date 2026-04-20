@@ -92,7 +92,7 @@ export function VitalsTrendCharts({ vitals, hideTemperature }: Props) {
   const h = 72;
 
   return (
-    <div className="vitals-trend">
+    <div className="vitals-trend rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
       {seriesList.map((s) => (
         <div key={s.label} className="vitals-trend__block">
           <h4>

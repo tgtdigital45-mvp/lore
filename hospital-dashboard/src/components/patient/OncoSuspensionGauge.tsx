@@ -11,7 +11,7 @@ export function OncoSuspensionGauge({ score, reasons }: Props) {
   const dash = (pct / 100) * c;
 
   return (
-    <div className="flex flex-wrap items-center gap-6 rounded-2xl border-[3px] border-[#F3F4F6] bg-white/80 p-4">
+    <div className="flex flex-wrap items-center gap-6 rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
       <div className="min-w-0 flex-1">
         <p className="m-0 text-sm font-bold">Risco de suspensão (IA / heurística)</p>
         <p className="muted mt-1 text-xs leading-relaxed">

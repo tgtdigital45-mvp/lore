@@ -4,6 +4,7 @@ import { formatPtDateLong, formatPtDateTime } from "@/lib/dashboardFormat";
 import { medicationLogWhenIso, medicationNameFromLog } from "@/lib/patientModalHelpers";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
+import { ClinicalEmptyState } from "@/components/patient/ClinicalEmptyState";
 import type { MedicationLogRow, MedicationRow } from "@/types/dashboard";
 
 function SectionTitle({ children }: { children: ReactNode }) {
@@ -85,20 +86,18 @@ export default function PatientMedicamentosPanel({ loading, medications, medicat
             <div className="h-[4.5rem] animate-pulse rounded-2xl bg-[#F1F5F9]" />
           </div>
         ) : sortedCatalog.length === 0 ? (
-          <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-[#E2E8F0] bg-[#FAFBFC] px-6 py-12 text-center">
-            <Pill className="mb-3 size-10 text-muted-foreground/50" strokeWidth={1.25} />
-            <p className="text-sm font-medium text-foreground">Nenhum medicamento cadastrado</p>
-            <p className="mt-1 max-w-sm text-xs text-muted-foreground">
-              Quando o paciente adicionar medicação na app, aparece aqui com dose e frequência.
-            </p>
-          </div>
+          <ClinicalEmptyState
+            icon={Pill}
+            title="Nenhum medicamento cadastrado"
+            description="Quando o paciente adicionar medicação na app, aparece aqui com dose e frequência."
+          />
         ) : (
           <ul className="space-y-3">
             {sortedCatalog.map((m) => (
               <li
                 key={m.id}
                 className={cn(
-                  "rounded-2xl border bg-white px-4 py-4 shadow-sm",
+                  "rounded-2xl border border-slate-100 bg-white px-4 py-4 shadow-sm",
                   m.active ? "border-[#E8EAED]" : "border-[#E2E8F0] bg-[#FAFAFA]/80 opacity-95"
                 )}
               >
@@ -168,9 +167,11 @@ export default function PatientMedicamentosPanel({ loading, medications, medicat
         {loading ? (
           <div className="h-32 animate-pulse rounded-2xl bg-[#F1F5F9]" aria-busy="true" />
         ) : filteredLogs.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-[#E2E8F0] bg-[#FAFBFC] px-6 py-10 text-center text-sm text-muted-foreground">
-            Sem registros de medicação visíveis. Confirme vínculo aprovado com o hospital ou peça ao paciente para registrar tomas na app.
-          </div>
+          <ClinicalEmptyState
+            icon={Pill}
+            title="Sem registros de medicação visíveis"
+            description="Confirme vínculo aprovado com o hospital ou peça ao paciente para registrar tomas na app."
+          />
         ) : (
           <div className="overflow-x-auto rounded-xl border border-[#E8EAED] bg-white">
             <table className="w-full min-w-[560px] text-sm">

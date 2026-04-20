@@ -6,7 +6,7 @@
 
 @layer base {
   :root {
-    --background: 210 20% 98%;
+    --background: 220 14% 96%;
     --foreground: 0 0% 10%;
     --card: 0 0% 100%;
     --card-foreground: 0 0% 10%;
@@ -26,6 +26,12 @@
     --input: 220 13% 91%;
     --ring: 0 0% 10%;
     --radius: 1rem;
+    /* Corporate flat surfaces */
+    --glass-surface: rgba(255, 255, 255, 1);
+    --glass-surface-strong: rgba(255, 255, 255, 1);
+    --glass-border: rgba(226, 232, 240, 0.9);
+    --glass-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+    --glass-blur: none;
   }
 }
 
@@ -34,8 +40,30 @@
     @apply border-border;
   }
   body {
-    @apply bg-background text-foreground antialiased;
+    @apply text-foreground antialiased;
     font-family: "Inter", system-ui, sans-serif;
+    background-color: #f3f4f6;
+  }
+}
+
+@layer utilities {
+  .glass {
+    @apply border border-white/40 bg-white/70 backdrop-blur-md;
+    box-shadow: 0 8px 32px rgba(31, 38, 135, 0.08);
+  }
+  .gradient-teal {
+    background: linear-gradient(90deg, #2dd4bf 0%, #0f766e 100%);
+  }
+  /** Placeholder com brilho deslocado (usa `animate-shimmer` do Tailwind). */
+  .skeleton-shimmer {
+    background: linear-gradient(
+      105deg,
+      hsl(214 32% 93%) 0%,
+      hsl(210 40% 98%) 42%,
+      hsl(214 32% 93%) 84%
+    );
+    background-size: 220% 100%;
+    @apply animate-shimmer;
   }
 }
 

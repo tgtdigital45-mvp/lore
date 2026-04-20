@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { refreshSupabaseSessionIfStale } from "@/lib/authSession";
 import { ensureStaffIfPending } from "@/staffLink";
 import { supabase } from "@/lib/supabase";
+import { sanitizeSupabaseError } from "@/lib/errorMessages";
 
 export type InfusionResourceRow = {
   id: string;
@@ -94,8 +95,8 @@ export function useInfusionAgenda() {
 
       if (version !== loadVersion.current) return;
 
-      if (resR.error) setError(resR.error.message);
-      else if (bookR.error) setError(bookR.error.message);
+      if (resR.error) setError(sanitizeSupabaseError(resR.error));
+      else if (bookR.error) setError(sanitizeSupabaseError(bookR.error));
       else setError(null);
 
       setResources(
@@ -107,7 +108,7 @@ export function useInfusionAgenda() {
       setBookings((bookR.data ?? []) as unknown as InfusionBookingRow[]);
     } catch (err) {
       if (version === loadVersion.current) {
-        setError(err instanceof Error ? err.message : "Erro ao carregar agenda de infusão.");
+        setError(err instanceof Error ? sanitizeSupabaseError(err) : "Erro ao carregar agenda de infusão.");
       }
     } finally {
       if (version === loadVersion.current) setLoading(false);
@@ -130,8 +131,13 @@ export function useInfusionAgenda() {
   useEffect(() => {
     if (!hospitalId || authUserId === undefined || !authUserId) return;
 
+    // Unique topic per subscription lifecycle. Supabase dedupes `channel(name)`; reusing a name
+    // after subscribe() and before removeChannel completes can make `.on()` run on an already-
+    // subscribed channel (React Strict Mode / fast remounts) and throw.
+    const scope = crypto.randomUUID();
+
     const chResources = supabase
-      .channel(`infusion_resources:${hospitalId}`)
+      .channel(`infusion_resources:${hospitalId}:${scope}`)
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "infusion_resources", filter: `hospital_id=eq.${hospitalId}` },
@@ -140,7 +146,7 @@ export function useInfusionAgenda() {
       .subscribe();
 
     const chBookings = supabase
-      .channel(`infusion_bookings:${hospitalId}`)
+      .channel(`infusion_bookings:${hospitalId}:${scope}`)
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "infusion_resource_bookings", filter: `hospital_id=eq.${hospitalId}` },

@@ -17,6 +17,14 @@ export type PatientRow = {
   is_in_nadir: boolean;
   /** Public Aura code (AURA-XXXXXX) for hospital linking */
   patient_code?: string | null;
+  /** M / F / I (intersexo) / O (outro) */
+  sex?: string | null;
+  blood_type?: string | null;
+  cpf?: string | null;
+  occupation?: string | null;
+  insurance_plan?: string | null;
+  address_city?: string | null;
+  address_state?: string | null;
   is_pregnant?: boolean | null;
   uses_continuous_medication?: boolean;
   continuous_medication_notes?: string | null;
@@ -25,10 +33,35 @@ export type PatientRow = {
   height_cm?: number | null;
   weight_kg?: number | null;
   clinical_notes?: string | null;
+  /** Fase assistencial (dossiê adaptativo). */
+  care_phase?:
+    | "active_treatment"
+    | "consolidation"
+    | "maintenance"
+    | "follow_up"
+    | "palliative"
+    | string
+    | null;
   patient_emergency_contacts?: EmergencyContactEmbed[] | EmergencyContactEmbed | null;
   profiles:
-    | { full_name: string; date_of_birth?: string | null; avatar_url?: string | null }
-    | { full_name: string; date_of_birth?: string | null; avatar_url?: string | null }[]
+    | {
+        full_name: string;
+        date_of_birth?: string | null;
+        avatar_url?: string | null;
+        phone_e164?: string | null;
+        email_display?: string | null;
+        whatsapp_opt_in_at?: string | null;
+        whatsapp_opt_in_revoked_at?: string | null;
+      }
+    | {
+        full_name: string;
+        date_of_birth?: string | null;
+        avatar_url?: string | null;
+        phone_e164?: string | null;
+        email_display?: string | null;
+        whatsapp_opt_in_at?: string | null;
+        whatsapp_opt_in_revoked_at?: string | null;
+      }[]
     | null;
 };
 
@@ -41,6 +74,16 @@ export type PatientHospitalLinkMgmtRow = {
     | { id: string; patient_code?: string | null; profiles: { full_name?: string } | { full_name?: string }[] | null }
     | null;
   hospitals: { id: string; name: string } | { id: string; name: string }[] | null;
+};
+
+/** Pedido de vínculo criado pelo staff (Adicionar por código), ainda não aprovado pelo paciente no app. */
+export type PendingStaffLinkRequest = {
+  id: string;
+  patient_id: string;
+  hospital_id: string;
+  requested_at: string;
+  patient_code: string;
+  patient_name: string;
 };
 
 export type TreatmentCycleRow = {
@@ -124,6 +167,21 @@ export type VitalLogRow = {
   notes: string | null;
 };
 
+/** Compromissos do calendário do paciente (`patient_appointments`) — alinhado à app móvel. */
+export type PatientAppointmentRow = {
+  id: string;
+  patient_id: string;
+  title: string;
+  kind: string;
+  starts_at: string;
+  reminder_minutes_before: number;
+  notes: string | null;
+  pinned: boolean;
+  infusion_booking_id: string | null;
+  checked_in_at: string | null;
+  checked_in_source: "patient" | "staff" | null;
+};
+
 /** Registros do diário de nutrição (água, refeições, apetite) — não confundir com exames anexados. */
 export type NutritionLogRow = {
   id: string;
@@ -146,6 +204,14 @@ export type OutboundMessageRow = {
   created_at: string;
   error_detail: string | null;
   symptom_log_id?: string | null;
+};
+
+/** Mensagens WhatsApp recebidas (webhook Evolution → backend). */
+export type WhatsappInboundRow = {
+  id: string;
+  body: string | null;
+  from_phone: string | null;
+  created_at: string;
 };
 
 export type ClinicalTaskRow = {
@@ -184,6 +250,11 @@ export type BiomarkerModalRow = {
   reference_range: string | null;
   reference_alert: string | null;
   logged_at: string;
+  is_critical?: boolean;
+  critical_low?: number | null;
+  critical_high?: number | null;
+  evaluation_type?: string | null;
+  response_category?: string | null;
 };
 
 export type MedicalDocModalRow = {
@@ -230,6 +301,8 @@ export type RiskRow = PatientRow & {
   hasAlert24h: boolean;
   /** Pior semáforo na janela de triagem (derivado de `symptom_logs.triage_semaphore`). */
   urgencySemaphore: "red" | "yellow" | "green" | null;
+  /** Risco de suspensão 0–100 (heurística alinhada ao dossiê). */
+  suspensionRiskScore: number;
 };
 
 export type HospitalMetaRow = {
@@ -237,6 +310,12 @@ export type HospitalMetaRow = {
   name: string;
   alert_rules: Record<string, unknown>;
   integration_settings: Record<string, unknown>;
+  logo_url?: string | null;
+  brand_color_hex?: string | null;
+  display_name?: string | null;
+  triage_config?: Record<string, unknown>;
+  alert_webhook_url?: string | null;
+  fhir_export_enabled?: boolean;
 };
 
 export type MessageFeedRow = {
@@ -266,6 +345,27 @@ export type TreatmentInfusionRow = {
   patient_id: string;
   session_at: string;
   status: string;
+  weight_kg: number | null;
+  notes: string | null;
+};
+
+/** Regras de alerta por paciente (`patient_alert_rules`). */
+export type PatientAlertRuleKind = "symptom_fever" | "medication_overuse" | "custom";
+
+export type PatientAlertRule = {
+  id: string;
+  patient_id: string;
+  name: string;
+  kind: PatientAlertRuleKind;
+  condition: Record<string, unknown>;
+  severity: string;
+  action_note: string | null;
+  enabled: boolean;
+  created_at: string;
+  channels?: { push?: boolean; whatsapp?: boolean; sms?: boolean } | null;
+  active_from?: string | null;
+  active_until?: string | null;
+  snooze_hours?: number | null;
 };
 
 /** Vista `cycle_readiness` — heurística MVP. */

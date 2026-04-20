@@ -415,6 +415,37 @@ function dossierReportStyles(): string {
             text-transform: uppercase;
         }
         .note { font-size: 0.85rem; color: var(--text-muted); margin-bottom: 0.75rem; }
+        .confidential-banner {
+            background: #fef2f2;
+            border: 2px solid #b91c1c;
+            color: #7f1d1d;
+            padding: 0.75rem 1rem;
+            border-radius: 8px;
+            font-weight: 700;
+            text-align: center;
+            margin-bottom: 1rem;
+        }
+        .audit-footer {
+            margin-top: 2rem;
+            padding-top: 1rem;
+            border-top: 1px solid var(--border-color);
+            font-size: 0.75rem;
+            color: var(--text-muted);
+        }
+        @media print {
+            body::after {
+                content: "CONFIDENCIAL";
+                position: fixed;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%) rotate(-45deg);
+                font-size: 5rem;
+                color: rgba(185, 28, 28, 0.06);
+                z-index: 9999;
+                pointer-events: none;
+                font-weight: 800;
+            }
+        }
 `;
 }
 
@@ -445,23 +476,38 @@ function formatFactorHtml(f: SuspensionRiskFactor): string {
   return `<li>${pts}${rest}</li>`;
 }
 
+export type DossierReportAuditMeta = {
+  /** Nome do profissional que gerou o relatório (auditoria). */
+  staffName: string;
+  /** Rótulo do sistema (ex.: Aura OncoCare). */
+  systemLabel?: string;
+};
+
 export function buildDossierReportHtml(
   include: Record<DossierReportSectionId, boolean>,
-  data: DossierReportPayload
+  data: DossierReportPayload,
+  audit?: DossierReportAuditMeta
 ): string {
   const cancer = CANCER_PT[data.cancerKey] ?? data.cancerKey;
   const generated = formatPtDateTime(new Date().toISOString());
   const stageLabel = data.stage?.trim() ? esc(data.stage) : esc("—");
+  const staff = esc((audit?.staffName ?? "—").trim() || "—");
+  const sys = esc(audit?.systemLabel ?? "Aura OncoCare Hospital");
 
   const parts: string[] = [];
 
   parts.push(`<div class="document-container">`);
+
+  parts.push(`<div class="confidential-banner" role="note">
+        ${esc("⚠ DOCUMENTO CONFIDENCIAL — USO INTERNO EXCLUSIVO DA EQUIPA CLÍNICA")}
+    </div>`);
 
   parts.push(`<header class="report-header">
         <div class="logo-placeholder">${esc("Aura Onco")}</div>
         <div class="header-meta">
             <h1>${esc("Relatório clínico")}</h1>
             <p><strong>${esc("Dossiê Aura")}</strong> — ${esc("Gerado em")} ${esc(generated)}</p>
+            <p class="note">${esc("Auditoria:")} ${esc("gerado por")} <strong>${staff}</strong> · ${esc("sistema")} ${sys}</p>
             <span class="badge-internal">${esc("Uso interno")}</span>
         </div>
     </header>`);
@@ -641,6 +687,11 @@ export function buildDossierReportHtml(
       )
     );
   }
+
+  parts.push(`<footer class="audit-footer">
+        ${esc("Confidencialidade:")} ${esc("este documento contém informação de saúde sensível (LGPD/HIPAA). Impressão e partilha apenas para fins assistenciais autorizados.")}
+        <br/><span>${esc("Responsável pela geração:")} ${staff} · ${esc(generated)} · ${sys}</span>
+    </footer>`);
 
   parts.push(`</div>`);
 

@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
+import { sanitizeSupabaseError } from "@/lib/errorMessages";
 
 type Props = {
   loadTriage: () => void | Promise<void>;
@@ -13,9 +14,21 @@ type Props = {
   hospitalOptions: { id: string; name: string }[];
 };
 
+type ValidityPreset = "" | "30" | "90" | "180" | "365";
+
+function validityEndIso(preset: ValidityPreset): string | null {
+  if (!preset) return null;
+  const days = Number(preset);
+  const d = new Date();
+  d.setUTCDate(d.getUTCDate() + days);
+  d.setUTCHours(23, 59, 59, 999);
+  return d.toISOString();
+}
+
 export function AddPatientByCodeCard({ loadTriage, hospitalId, hospitalOptions }: Props) {
   const [code, setCode] = useState("");
   const [targetHospitalId, setTargetHospitalId] = useState<string>("");
+  const [validityPreset, setValidityPreset] = useState<ValidityPreset>("");
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ kind: "ok" | "err" | "info"; text: string } | null>(null);
 
@@ -46,58 +59,89 @@ export function AddPatientByCodeCard({ loadTriage, hospitalId, hospitalOptions }
       });
 
       if (searchErr) {
-        setMsg({ kind: "err", text: searchErr.message });
+        setMsg({ kind: "err", text: sanitizeSupabaseError(searchErr) });
         return;
       }
 
-      const row = (searchRows as { patient_id: string; masked_name: string; already_linked: boolean }[] | null)?.[0];
+      const row = (searchRows as { patient_id: string; masked_name: string; link_status: string }[] | null)?.[0];
       if (!row) {
         setMsg({ kind: "err", text: "Código não encontrado. Confirme com o paciente no app Aura." });
         return;
       }
 
-      if (row.already_linked) {
+      const st = (row.link_status ?? "none").toLowerCase();
+
+      if (st === "approved") {
         setMsg({
           kind: "info",
-          text: `Este pedido já existe ou o vínculo está ativo (${row.masked_name}). A lista será atualizada.`,
+          text: `Este paciente já está vinculado ao hospital (${row.masked_name}). A fila foi atualizada.`,
+        });
+        await loadTriage();
+        return;
+      }
+
+      if (st === "pending") {
+        setMsg({
+          kind: "info",
+          text: `Já existe um pedido pendente para ${row.masked_name}. O paciente deve aprovar em Aura → Autorizações. Não é possível enviar outro pedido até essa decisão.`,
+        });
+        await loadTriage();
+        return;
+      }
+
+      if (st !== "none" && st !== "rejected" && st !== "revoked") {
+        setMsg({
+          kind: "info",
+          text: `Estado do vínculo: ${st}. Atualize a lista ou contacte suporte se precisar de ajuda.`,
         });
         await loadTriage();
         return;
       }
 
       const { data: auth } = await supabase.auth.getSession();
-      const uid = auth.session?.user?.id;
-      if (!uid) {
+      if (!auth.session?.user?.id) {
         setMsg({ kind: "err", text: "Sessão inválida. Inicie sessão novamente." });
         return;
       }
 
-      const { error: insErr } = await supabase.from("patient_hospital_links").insert({
-        patient_id: row.patient_id,
-        hospital_id: effectiveHospitalId,
-        permission_level: "read",
-        status: "pending",
-        requested_by: uid,
+      const accessUntil = validityEndIso(validityPreset);
+      const { data: rpcRows, error: rpcErr } = await supabase.rpc("staff_request_patient_hospital_link", {
+        p_patient_id: row.patient_id,
+        p_hospital_id: effectiveHospitalId,
+        p_permission_level: "read",
+        p_access_valid_until: accessUntil,
       });
 
-      if (insErr) {
-        if (insErr.code === "23505") {
+      if (rpcErr) {
+        const raw = rpcErr.message ?? "";
+        if (raw.includes("already_pending")) {
           setMsg({
             kind: "info",
-            text: "Já existe um pedido para este paciente neste hospital.",
+            text: `Já existe um pedido pendente para ${row.masked_name}. O paciente deve responder em Aura → Autorizações.`,
+          });
+        } else if (raw.includes("already_approved")) {
+          setMsg({
+            kind: "info",
+            text: `Este paciente já está vinculado ao hospital (${row.masked_name}).`,
           });
         } else {
-          setMsg({ kind: "err", text: insErr.message });
+          setMsg({ kind: "err", text: sanitizeSupabaseError(rpcErr) });
         }
         await loadTriage();
         return;
       }
 
+      const outcome = (rpcRows as { outcome?: string }[] | null)?.[0]?.outcome ?? "inserted";
+      const reopen = outcome === "reopened";
+
       setMsg({
         kind: "ok",
-        text: `Pedido enviado para ${row.masked_name}. O paciente deve aprovar em Aura → Autorizações.`,
+        text: reopen
+          ? `Novo pedido enviado para ${row.masked_name} (após estado anterior encerrado). O paciente deve aprovar em Aura → Autorizações.`
+          : `Pedido enviado para ${row.masked_name}. O paciente deve aprovar em Aura → Autorizações.`,
       });
       setCode("");
+      setValidityPreset("");
       await loadTriage();
     } finally {
       setBusy(false);
@@ -117,7 +161,7 @@ export function AddPatientByCodeCard({ loadTriage, hospitalId, hospitalOptions }
             <h3 className="text-sm font-bold uppercase tracking-wide text-muted-foreground">Adicionar paciente</h3>
           </div>
           <p className="mt-2 max-w-xl text-sm text-muted-foreground">
-            Digite o código público do paciente (Aura). Será criado um pedido de vínculo; após aprovação no celular, o dossiê passa a aparecer na triagem.
+            Digite o código público do paciente (Aura). Pode solicitar de novo após recusa ou revogação — cada pedido gera uma nova notificação no telemóvel do paciente (Aura → Autorizações).
           </p>
           {hospitalOptions.length === 1 ? (
             <p className="mt-2 text-xs text-muted-foreground">
@@ -147,6 +191,25 @@ export function AddPatientByCodeCard({ loadTriage, hospitalId, hospitalOptions }
             </select>
           </label>
         ) : null}
+
+        <label className="flex min-w-[160px] flex-col gap-1.5 text-xs font-semibold text-muted-foreground">
+          Validade indicada (opcional)
+          <select
+            className={cn(
+              "h-12 rounded-2xl border-[3px] border-[#F3F4F6] bg-white px-3 text-sm font-medium text-foreground",
+              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6366F1]"
+            )}
+            value={validityPreset}
+            onChange={(e) => setValidityPreset(e.target.value as ValidityPreset)}
+            disabled={busy}
+          >
+            <option value="">Sem prazo definido</option>
+            <option value="30">30 dias</option>
+            <option value="90">90 dias</option>
+            <option value="180">6 meses</option>
+            <option value="365">12 meses</option>
+          </select>
+        </label>
 
         <label className="flex min-w-[220px] flex-1 flex-col gap-1.5 text-xs font-semibold text-muted-foreground">
           Código do paciente

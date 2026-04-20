@@ -1,13 +1,16 @@
 import { useEffect, useState } from "react";
+import { AnimatePresence, motion } from "framer-motion";
 import { X } from "lucide-react";
 import {
   DOSSIER_REPORT_SECTION_OPTIONS,
+  type DossierReportAuditMeta,
   type DossierReportPayload,
   type DossierReportSectionId,
   buildDossierReportHtml,
 } from "@/lib/dossierReportHtml";
 import { Button } from "@/components/ui/button";
 import { printHtmlDocument } from "@/lib/printHtml";
+import { modalOverlayTransition, modalPanelTransition } from "@/lib/motionPresets";
 
 const ALL_TRUE: Record<DossierReportSectionId, boolean> = {
   identificacao: true,
@@ -25,9 +28,11 @@ type Props = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   payload: DossierReportPayload;
+  /** Metadados de auditoria (quem gerou o relatório). */
+  audit?: DossierReportAuditMeta;
 };
 
-export function DossierReportModal({ open, onOpenChange, payload }: Props) {
+export function DossierReportModal({ open, onOpenChange, payload, audit }: Props) {
   const [sel, setSel] = useState<Record<DossierReportSectionId, boolean>>(ALL_TRUE);
 
   useEffect(() => {
@@ -43,8 +48,6 @@ export function DossierReportModal({ open, onOpenChange, payload }: Props) {
     return () => document.removeEventListener("keydown", handleEscape);
   }, [open, onOpenChange]);
 
-  if (!open) return null;
-
   function toggle(id: DossierReportSectionId) {
     setSel((s) => ({ ...s, [id]: !s[id] }));
   }
@@ -55,7 +58,7 @@ export function DossierReportModal({ open, onOpenChange, payload }: Props) {
       window.alert("Seleccione pelo menos uma secção.");
       return;
     }
-    const html = buildDossierReportHtml(sel, payload);
+    const html = buildDossierReportHtml(sel, payload, audit);
     const ok = printHtmlDocument(html);
     if (!ok) {
       window.alert("Não foi possível preparar a impressão neste navegador. Tente Chrome ou Edge atualizados.");
@@ -65,17 +68,28 @@ export function DossierReportModal({ open, onOpenChange, payload }: Props) {
   }
 
   return (
-    <div
-      className="fixed inset-0 z-[100] flex items-end justify-center bg-black/45 p-4 sm:items-center"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="dossier-report-title"
-      onClick={() => onOpenChange(false)}
-    >
-      <div
-        className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-3xl border border-[#E8EAED] bg-white p-6 shadow-xl"
-        onClick={(e) => e.stopPropagation()}
-      >
+    <AnimatePresence>
+      {open ? (
+        <motion.div
+          key="dossier-report-overlay"
+          className="fixed inset-0 z-[100] flex items-end justify-center bg-slate-900/35 p-4 backdrop-blur-[10px] sm:items-center"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="dossier-report-title"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={modalOverlayTransition}
+          onClick={() => onOpenChange(false)}
+        >
+          <motion.div
+            className="dossier-modal-mesh max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-[2rem] p-6 shadow-2xl"
+            initial={{ opacity: 0, scale: 0.96 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.96 }}
+            transition={modalPanelTransition}
+            onClick={(e) => e.stopPropagation()}
+          >
         <div className="mb-4 flex items-start justify-between gap-3">
           <div>
             <h2 id="dossier-report-title" className="text-lg font-black tracking-tight">
@@ -121,7 +135,9 @@ export function DossierReportModal({ open, onOpenChange, payload }: Props) {
             Gerar e imprimir / PDF
           </Button>
         </div>
-      </div>
-    </div>
+          </motion.div>
+        </motion.div>
+      ) : null}
+    </AnimatePresence>
   );
 }

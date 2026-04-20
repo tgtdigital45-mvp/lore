@@ -4,8 +4,9 @@ import { supabase } from "@/lib/supabase";
 import { readEnvBackendUrl, resolveBackendUrl } from "@/lib/backendUrl";
 import { formatPtDateTime } from "@/lib/dashboardFormat";
 import { symptomCategoryLabel, symptomSeverityLabel } from "@/lib/patientModalHelpers";
-import type { OutboundMessageRow, SymptomLogDetail, WaProfileSnap } from "@/types/dashboard";
+import type { OutboundMessageRow, SymptomLogDetail, WaProfileSnap, WhatsappInboundRow } from "@/types/dashboard";
 import { Button } from "@/components/ui/button";
+import { sanitizeHttpApiMessage, userFacingApiError } from "@/lib/errorMessages";
 
 type Props = {
   session: Session | null;
@@ -19,6 +20,7 @@ export function PatientMensagensDossierPanel({ session, patientId }: Props) {
   const backendUrl = resolveBackendUrl(allowOverride, null, envUrl);
   const [symptoms, setSymptoms] = useState<SymptomLogDetail[]>([]);
   const [outbound, setOutbound] = useState<OutboundMessageRow[]>([]);
+  const [inbound, setInbound] = useState<WhatsappInboundRow[]>([]);
   const [symptomId, setSymptomId] = useState<string>("");
   const [compose, setCompose] = useState("");
   const [busy, setBusy] = useState(false);
@@ -47,7 +49,7 @@ export function PatientMensagensDossierPanel({ session, patientId }: Props) {
 
   useEffect(() => {
     void (async () => {
-      const [s, o] = await Promise.all([
+      const [s, o, inc] = await Promise.all([
         supabase
           .from("symptom_logs")
           .select(
@@ -62,9 +64,20 @@ export function PatientMensagensDossierPanel({ session, patientId }: Props) {
           .eq("patient_id", patientId)
           .order("created_at", { ascending: false })
           .limit(25),
+        supabase
+          .from("whatsapp_inbound_messages")
+          .select("id, body, from_phone, created_at")
+          .eq("patient_id", patientId)
+          .order("created_at", { ascending: false })
+          .limit(30),
       ]);
       setSymptoms(!s.error && s.data ? (s.data as SymptomLogDetail[]) : []);
       setOutbound(!o.error && o.data ? (o.data as OutboundMessageRow[]) : []);
+      if (!inc.error && inc.data) {
+        setInbound(inc.data as WhatsappInboundRow[]);
+      } else {
+        setInbound([]);
+      }
     })();
   }, [patientId]);
 
@@ -97,20 +110,30 @@ export function PatientMensagensDossierPanel({ session, patientId }: Props) {
       });
       const j = (await r.json()) as { error?: string; message?: string };
       if (!r.ok) {
-        setErr((j.message as string | undefined) ?? j.error ?? `Erro ${r.status}`);
+        setErr(sanitizeHttpApiMessage((j.message as string | undefined) ?? j.error, `Erro ${r.status}`));
         return;
       }
       setCompose("");
       setOk("Mensagem enviada.");
-      const { data } = await supabase
-        .from("outbound_messages")
-        .select("id, body, status, created_at, error_detail, symptom_log_id")
-        .eq("patient_id", patientId)
-        .order("created_at", { ascending: false })
-        .limit(25);
-      setOutbound((data ?? []) as OutboundMessageRow[]);
+      const [{ data: outData }, { data: inData }] = await Promise.all([
+        supabase
+          .from("outbound_messages")
+          .select("id, body, status, created_at, error_detail, symptom_log_id")
+          .eq("patient_id", patientId)
+          .order("created_at", { ascending: false })
+          .limit(25),
+        supabase
+          .from("whatsapp_inbound_messages")
+          .select("id, body, from_phone, created_at")
+          .eq("patient_id", patientId)
+          .order("created_at", { ascending: false })
+          .limit(30),
+      ]);
+      setOutbound((outData ?? []) as OutboundMessageRow[]);
+      if (!inData) setInbound([]);
+      else setInbound(inData as WhatsappInboundRow[]);
     } catch (e) {
-      setErr(e instanceof Error ? e.message : "Falha de rede");
+      setErr(userFacingApiError(e, "Falha de rede. Verifique a ligação."));
     } finally {
       setBusy(false);
     }
@@ -128,6 +151,13 @@ export function PatientMensagensDossierPanel({ session, patientId }: Props) {
 
   return (
     <div className="space-y-4">
+      <p className="text-xs text-muted-foreground">
+        O envio usa o backend (<code className="rounded bg-slate-100 px-1 font-mono text-[0.65rem]">POST /api/whatsapp/send</code>
+        ): Meta Cloud API ou Evolution API. Receção listada abaixo vem do webhook{" "}
+        <code className="font-mono">/api/evolution/webhook</code> (Evolution → Supabase). Com Meta e Evolution
+        configurados no servidor, defina <code className="font-mono">MESSAGING_PROVIDER=evolution</code> para usar
+        Baileys.
+      </p>
       <div>
         <label className="text-xs font-bold uppercase text-muted-foreground">Contexto clínico (opcional)</label>
         <select
@@ -153,7 +183,7 @@ export function PatientMensagensDossierPanel({ session, patientId }: Props) {
         />
       </div>
       <Button type="button" className="rounded-2xl" disabled={busy} onClick={() => void send()}>
-        {busy ? "A enviar…" : "Enviar via WhatsApp"}
+        {busy ? "A enviar…" : "Enviar mensagem"}
       </Button>
       {err ? (
         <p className="text-sm text-[#B91C1C]" role="alert">
@@ -162,7 +192,22 @@ export function PatientMensagensDossierPanel({ session, patientId }: Props) {
       ) : null}
       {ok ? <p className="text-sm text-[#166534]">{ok}</p> : null}
       <div>
-        <p className="text-xs font-bold uppercase text-muted-foreground">Últimos envios</p>
+        <p className="text-xs font-bold uppercase text-muted-foreground">Recebidas (paciente → hospital)</p>
+        {inbound.length === 0 ? (
+          <p className="mt-2 text-sm text-muted-foreground">Sem mensagens recebidas indexadas (webhook Evolution + migração Supabase).</p>
+        ) : (
+          <ul className="mt-2 space-y-2 text-sm">
+            {inbound.map((m) => (
+              <li key={m.id} className="rounded-xl border border-[#E0F2FE] bg-sky-50/40 px-3 py-2">
+                <span className="font-mono text-[0.65rem] text-slate-600">{m.from_phone ?? "—"}</span> · {formatPtDateTime(m.created_at)}
+                <p className="text-muted-foreground">{(m.body ?? "—").slice(0, 400)}</p>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+      <div>
+        <p className="text-xs font-bold uppercase text-muted-foreground">Últimos envios (hospital → paciente)</p>
         <ul className="mt-2 space-y-2 text-sm">
           {outbound.map((m) => (
             <li key={m.id} className="rounded-xl border border-[#F1F5F9] px-3 py-2">

@@ -1,17 +1,23 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { refreshSupabaseSessionIfStale } from "../lib/authSession";
+import { sanitizeSupabaseError } from "../lib/errorMessages";
 import { ensureStaffIfPending } from "../staffLink";
 import { mergeAlertRulesFromAssignments, patientClinicalAlert, symptomLogTriageRank } from "../lib/triage";
 import { riskFromRank } from "../lib/riskUi";
+import { calculateSuspensionRisk } from "../lib/suspensionRisk";
 import { supabase } from "../lib/supabase";
 import type {
   HospitalEmbed,
   HospitalMetaRow,
   PatientRow,
+  PendingStaffLinkRequest,
   RiskRow,
+  SymptomLogDetail,
   SymptomLogTriage,
   MergedAlertRules,
+  VitalLogRow,
+  WearableSampleRow,
 } from "../types/dashboard";
 
 type CohortRow = { bucket: string; symptom_count: number; requires_action_count: number };
@@ -19,6 +25,7 @@ type CohortRow = { bucket: string; symptom_count: number; requires_action_count:
 export function useTriageData(session: Session | null) {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [rows, setRows] = useState<RiskRow[]>([]);
+  const [pendingLinkRequests, setPendingLinkRequests] = useState<PendingStaffLinkRequest[]>([]);
   const [triageRules, setTriageRules] = useState<MergedAlertRules>({ fever_celsius_min: 37.8, alert_window_hours: 72 });
   const [busy, setBusy] = useState(false);
   const [staffProfile, setStaffProfile] = useState<{ full_name: string; role: string; avatar_url: string | null } | null>(null);
@@ -34,6 +41,11 @@ export function useTriageData(session: Session | null) {
 
   const triageReloadTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const loadVersion = useRef(0);
+  /** Evita `setBusy(true)` em refreshes em background (mantém dossié montado e lista estável). */
+  const rowsRef = useRef<RiskRow[]>([]);
+  useEffect(() => {
+    rowsRef.current = rows;
+  }, [rows]);
 
   const reloadStaffProfile = useCallback(async () => {
     const uid = session?.user?.id;
@@ -72,13 +84,17 @@ export function useTriageData(session: Session | null) {
       }
       if (version !== loadVersion.current) return;
       setLoadError(null);
-      setBusy(true);
+      if (rowsRef.current.length === 0) {
+        setBusy(true);
+      }
     const { data: assigns, error: aErr } = await supabase
       .from("staff_assignments")
-      .select("hospital_id, hospitals ( name, alert_rules )");
+      .select(
+        "hospital_id, hospitals ( name, alert_rules, logo_url, brand_color_hex, display_name, triage_config )"
+      );
     if (version !== loadVersion.current) return;
     if (aErr) {
-      setLoadError(aErr.message);
+      setLoadError(sanitizeSupabaseError(aErr));
       setHospitalNames([]);
       setHospitalsMeta([]);
       setRealtimeHospitalKey("");
@@ -90,6 +106,7 @@ export function useTriageData(session: Session | null) {
       setHospitalNames([]);
       setHospitalsMeta([]);
       setRealtimeHospitalKey("");
+      setPendingLinkRequests([]);
       setBusy(false);
       return;
     }
@@ -101,7 +118,24 @@ export function useTriageData(session: Session | null) {
     const names = new Set<string>();
     for (const row of assigns as {
       hospital_id: string;
-      hospitals?: { name?: string; alert_rules?: unknown } | { name?: string; alert_rules?: unknown }[] | null;
+      hospitals?:
+        | {
+            name?: string;
+            alert_rules?: unknown;
+            logo_url?: string | null;
+            brand_color_hex?: string | null;
+            display_name?: string | null;
+            triage_config?: unknown;
+          }
+        | {
+            name?: string;
+            alert_rules?: unknown;
+            logo_url?: string | null;
+            brand_color_hex?: string | null;
+            display_name?: string | null;
+            triage_config?: unknown;
+          }[]
+        | null;
     }[]) {
       const h = row.hospitals;
       const list = !h ? [] : Array.isArray(h) ? h : [h];
@@ -111,10 +145,18 @@ export function useTriageData(session: Session | null) {
         const ar = x.alert_rules;
         const rulesObj =
           typeof ar === "object" && ar !== null && !Array.isArray(ar) ? { ...(ar as Record<string, unknown>) } : {};
+        const triageCfg =
+          typeof x.triage_config === "object" && x.triage_config !== null && !Array.isArray(x.triage_config)
+            ? { ...(x.triage_config as Record<string, unknown>) }
+            : {};
         metaMap.set(row.hospital_id, {
           id: row.hospital_id,
           name: String(x.name ?? "Hospital"),
           alert_rules: rulesObj,
+          logo_url: x.logo_url ?? null,
+          brand_color_hex: x.brand_color_hex ?? null,
+          display_name: x.display_name ?? null,
+          triage_config: triageCfg,
         });
       }
     }
@@ -123,9 +165,19 @@ export function useTriageData(session: Session | null) {
     const hospitalIds = [...new Set(assigns.map((a) => a.hospital_id))];
     setRealtimeHospitalKey(hospitalIds.slice().sort().join(","));
     const intByHospital = new Map<string, Record<string, unknown>>();
-    const { data: intRows, error: intErr } = await supabase.from("hospitals").select("id, integration_settings").in("id", hospitalIds);
+    const { data: intRows, error: intErr } = await supabase
+      .from("hospitals")
+      .select(
+        "id, integration_settings, alert_webhook_url, fhir_export_enabled"
+      )
+      .in("id", hospitalIds);
     if (!intErr && intRows) {
-      for (const row of intRows as { id: string; integration_settings: unknown }[]) {
+      for (const row of intRows as {
+        id: string;
+        integration_settings: unknown;
+        alert_webhook_url?: string | null;
+        fhir_export_enabled?: boolean | null;
+      }[]) {
         const ir = row.integration_settings;
         intByHospital.set(
           row.id,
@@ -134,55 +186,108 @@ export function useTriageData(session: Session | null) {
       }
     }
 
-    const mergedMeta: HospitalMetaRow[] = [...metaMap.values()].map((m) => ({
-      ...m,
-      integration_settings: intByHospital.get(m.id) ?? {},
-    }));
+    const webhookByHospital = new Map<string, { url: string | null; fhir: boolean }>();
+    if (!intErr && intRows) {
+      for (const row of intRows as {
+        id: string;
+        alert_webhook_url?: string | null;
+        fhir_export_enabled?: boolean | null;
+      }[]) {
+        webhookByHospital.set(row.id, {
+          url: row.alert_webhook_url ?? null,
+          fhir: Boolean(row.fhir_export_enabled),
+        });
+      }
+    }
+
+    const mergedMeta: HospitalMetaRow[] = [...metaMap.values()].map((m) => {
+      const wh = webhookByHospital.get(m.id);
+      return {
+        ...m,
+        integration_settings: intByHospital.get(m.id) ?? {},
+        alert_webhook_url: wh?.url ?? null,
+        fhir_export_enabled: wh?.fhir ?? false,
+      };
+    });
     setHospitalsMeta(mergedMeta);
 
+    /** Pedidos enviados pelo staff, a aguardar aprovação no app Aura (não entram em `rows` até `approved`). */
+    const { data: pendingRaw, error: pendErr } = await supabase
+      .from("patient_hospital_links")
+      .select(
+        `id, patient_id, hospital_id, requested_at,
+        patients ( patient_code, profiles!patients_profile_id_fkey ( full_name ) )`
+      )
+      .in("hospital_id", hospitalIds)
+      .eq("status", "pending")
+      .not("requested_by", "is", null)
+      .order("requested_at", { ascending: false });
+    if (version !== loadVersion.current) return;
+    if (pendErr) {
+      setLoadError(sanitizeSupabaseError(pendErr));
+      setBusy(false);
+      return;
+    }
+    const mappedPending: PendingStaffLinkRequest[] = (pendingRaw ?? []).map((raw) => {
+      const pr = raw as {
+        id: string;
+        patient_id: string;
+        hospital_id: string;
+        requested_at: string;
+        patients:
+          | { patient_code?: string | null; profiles?: { full_name?: string | null } | { full_name?: string | null }[] | null }
+          | { patient_code?: string | null; profiles?: { full_name?: string | null } | { full_name?: string | null }[] | null }[]
+          | null;
+      };
+      const p0 = Array.isArray(pr.patients) ? pr.patients[0] : pr.patients;
+      const prof = p0?.profiles;
+      const prof0 = Array.isArray(prof) ? prof[0] : prof;
+      return {
+        id: pr.id,
+        patient_id: pr.patient_id,
+        hospital_id: pr.hospital_id,
+        requested_at: pr.requested_at,
+        patient_code: (p0?.patient_code ?? "").trim(),
+        patient_name: (prof0?.full_name ?? "").trim(),
+      };
+    });
+    if (version === loadVersion.current) setPendingLinkRequests(mappedPending);
+
+    /** Só vínculos pedidos por um profissional (fluxo «Adicionar por código»). Quem vem só de `patients.hospital_id` + trigger/backfill tem `requested_by` NULL e não entra na lista. */
     const { data: approvedLinks, error: linkErr } = await supabase
       .from("patient_hospital_links")
       .select("patient_id")
       .in("hospital_id", hospitalIds)
-      .eq("status", "approved");
+      .eq("status", "approved")
+      .not("requested_by", "is", null);
     if (linkErr) {
-      setLoadError(linkErr.message);
+      setLoadError(sanitizeSupabaseError(linkErr));
       setBusy(false);
       return;
     }
     const linkedPatientIds = [...new Set((approvedLinks ?? []).map((r) => r.patient_id))];
 
-    const { data: legacyPatients, error: lpErr } = await supabase
-      .from("patients")
-      .select("id, primary_cancer_type, current_stage, is_in_nadir, patient_code, profiles!patients_profile_id_fkey ( full_name, date_of_birth, avatar_url )")
-      .in("hospital_id", hospitalIds);
-    if (lpErr) {
-      setLoadError(lpErr.message);
+    if (linkedPatientIds.length === 0) {
+      setRows([]);
       setBusy(false);
       return;
     }
-    const legacyList = (legacyPatients ?? []) as unknown as PatientRow[];
-    const legacyIdSet = new Set(legacyList.map((p) => p.id));
-    const onlyViaLink = linkedPatientIds.filter((id) => !legacyIdSet.has(id));
 
-    let linkOnlyPatients: PatientRow[] = [];
-    if (onlyViaLink.length > 0) {
-      const { data: extra, error: exErr } = await supabase
-        .from("patients")
-        .select("id, primary_cancer_type, current_stage, is_in_nadir, patient_code, profiles!patients_profile_id_fkey ( full_name, date_of_birth, avatar_url )")
-        .in("id", onlyViaLink);
-      if (exErr) {
-        setLoadError(exErr.message);
-        setBusy(false);
-        return;
-      }
-      linkOnlyPatients = (extra ?? []) as unknown as PatientRow[];
+    const { data: linkedPatients, error: lpErr } = await supabase
+      .from("patients")
+      .select(
+        "id, profile_id, primary_cancer_type, current_stage, is_in_nadir, patient_code, profiles!patients_profile_id_fkey ( full_name, date_of_birth, avatar_url, phone_e164, whatsapp_opt_in_at, whatsapp_opt_in_revoked_at )"
+      )
+      .in("id", linkedPatientIds);
+    if (lpErr) {
+      setLoadError(sanitizeSupabaseError(lpErr));
+      setBusy(false);
+      return;
     }
 
-    const merged = new Map<string, PatientRow>();
-    for (const p of legacyList) merged.set(p.id, p);
-    for (const p of linkOnlyPatients) merged.set(p.id, p);
-    const plist = [...merged.values()];
+    const plist = ((linkedPatients ?? []) as unknown as PatientRow[]).filter(
+      (p) => (p.patient_code?.trim()?.length ?? 0) > 0
+    );
     if (plist.length === 0) {
       setRows([]);
       setBusy(false);
@@ -204,12 +309,88 @@ export function useTriageData(session: Session | null) {
       .gte("logged_at", sinceFetch.toISOString());
 
     if (lErr) {
-      setLoadError(lErr.message);
+      setLoadError(sanitizeSupabaseError(lErr));
       setBusy(false);
       return;
     }
 
     const logRows = (logs ?? []) as SymptomLogTriage[];
+
+    /**
+     * Vitals/wearables para `calculateSuspensionRisk` devem ser por paciente (como no dossiê).
+     * Uma única query com `.order().limit(N)` global prioriza poucos pacientes e zera vitals dos outros → score de suspensão falso.
+     */
+    const since48Iso = new Date(nowMs - 48 * 3600 * 1000).toISOString();
+    const since14dIso = new Date(nowMs - 14 * 86400000).toISOString();
+    const vitalsCap = Math.min(120 * ids.length, 8000);
+    const wearCap = Math.min(500 * ids.length, 20000);
+
+    const [{ data: allVitals, error: vBatchErr }, { data: allWear, error: wBatchErr }] = await Promise.all([
+      supabase
+        .from("vital_logs")
+        .select("id, patient_id, logged_at, vital_type, value_numeric, value_systolic, value_diastolic, unit, notes")
+        .in("patient_id", ids)
+        .gte("logged_at", since48Iso)
+        .order("logged_at", { ascending: false })
+        .limit(vitalsCap),
+      supabase
+        .from("health_wearable_samples")
+        .select("id, patient_id, metric, value_numeric, unit, observed_start, metadata")
+        .in("patient_id", ids)
+        .gte("observed_start", since14dIso)
+        .order("observed_start", { ascending: false })
+        .limit(wearCap),
+    ]);
+    if (version !== loadVersion.current) return;
+    if (vBatchErr) {
+      setLoadError(sanitizeSupabaseError(vBatchErr));
+      setBusy(false);
+      return;
+    }
+    if (wBatchErr) {
+      setLoadError(sanitizeSupabaseError(wBatchErr));
+      setBusy(false);
+      return;
+    }
+
+    const vitalsByPatient = new Map<string, VitalLogRow[]>();
+    const groupedV = new Map<string, (VitalLogRow & { patient_id: string })[]>();
+    for (const row of (allVitals ?? []) as (VitalLogRow & { patient_id: string })[]) {
+      const list = groupedV.get(row.patient_id) ?? [];
+      if (list.length < 120) list.push(row);
+      groupedV.set(row.patient_id, list);
+    }
+    for (const [pid, rows] of groupedV) {
+      vitalsByPatient.set(
+        pid,
+        rows.map((row) => {
+          const { patient_id: _pid, ...rest } = row;
+          void _pid;
+          return rest;
+        })
+      );
+    }
+
+    const wearablesByPatient = new Map<string, WearableSampleRow[]>();
+    const groupedW = new Map<string, Record<string, unknown>[]>();
+    for (const row of allWear ?? []) {
+      const pid = (row as { patient_id: string }).patient_id;
+      const list = groupedW.get(pid) ?? [];
+      if (list.length < 500) list.push(row as Record<string, unknown>);
+      groupedW.set(pid, list);
+    }
+    for (const [pid, rows] of groupedW) {
+      wearablesByPatient.set(
+        pid,
+        rows.map((row) => ({
+          ...row,
+          metadata:
+            typeof row.metadata === "object" && row.metadata !== null && !Array.isArray(row.metadata)
+              ? (row.metadata as Record<string, unknown>)
+              : {},
+        })) as WearableSampleRow[]
+      );
+    }
 
     const rules24h: MergedAlertRules = {
       fever_celsius_min: rules.fever_celsius_min,
@@ -243,6 +424,14 @@ export function useTriageData(session: Session | null) {
       const u = urgencyByPatient.get(p.id) ?? 0;
       const urgencySemaphore: "red" | "yellow" | "green" | null =
         u === 3 ? "red" : u === 2 ? "yellow" : u === 1 ? "green" : null;
+      const pLogs = logRows.filter((l) => l.patient_id === p.id);
+      const { score: suspensionRiskScore } = calculateSuspensionRisk(
+        p,
+        pLogs as unknown as SymptomLogDetail[],
+        vitalsByPatient.get(p.id) ?? [],
+        wearablesByPatient.get(p.id) ?? [],
+        rules.fever_celsius_min
+      );
       return {
         ...p,
         risk: n,
@@ -253,6 +442,7 @@ export function useTriageData(session: Session | null) {
         alertReasons: reasons,
         hasAlert24h,
         urgencySemaphore,
+        suspensionRiskScore,
       };
     });
 
@@ -266,7 +456,7 @@ export function useTriageData(session: Session | null) {
     if (version === loadVersion.current) setRows(enriched);
     } catch (err) {
       if (version === loadVersion.current) {
-        setLoadError(err instanceof Error ? err.message : "Erro ao carregar triagem.");
+        setLoadError(err instanceof Error ? sanitizeSupabaseError(err) : "Erro ao carregar triagem.");
       }
     } finally {
       if (version === loadVersion.current) setBusy(false);
@@ -295,10 +485,11 @@ export function useTriageData(session: Session | null) {
     if (!session?.user || !realtimeHospitalKey) return;
     const parts = realtimeHospitalKey.split(",").filter(Boolean);
     if (parts.length === 0) return;
+    const scope = crypto.randomUUID();
     const filter =
       parts.length === 1 ? `hospital_id=eq.${parts[0]}` : `hospital_id=in.(${parts.join(",")})`;
     const channel = supabase
-      .channel(`symptom_logs_triage:${realtimeHospitalKey}`)
+      .channel(`symptom_logs_triage:${realtimeHospitalKey}:${scope}`)
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "symptom_logs", filter },
@@ -316,27 +507,82 @@ export function useTriageData(session: Session | null) {
   }, [session?.user, realtimeHospitalKey, scheduleTriageReload]);
 
   useEffect(() => {
-    if (!session?.user) return;
-    let t: ReturnType<typeof setTimeout> | null = null;
+    if (!session?.user || !realtimeHospitalKey) return;
+    const parts = realtimeHospitalKey.split(",").filter(Boolean);
+    if (parts.length === 0) return;
+    const scope = crypto.randomUUID();
+    const filter =
+      parts.length === 1 ? `hospital_id=eq.${parts[0]}` : `hospital_id=in.(${parts.join(",")})`;
     const channel = supabase
-      .channel("triage_profiles_avatar")
+      .channel(`patient_hospital_links_triage:${realtimeHospitalKey}:${scope}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "patient_hospital_links", filter },
+        () => scheduleTriageReload()
+      )
+      .subscribe();
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [session?.user, realtimeHospitalKey, scheduleTriageReload]);
+
+  useEffect(() => {
+    if (!session?.user) return;
+    const staffId = session.user.id;
+    const scope = crypto.randomUUID();
+    const channel = supabase
+      .channel(`triage_profiles_patch:${scope}`)
       .on(
         "postgres_changes",
         { event: "UPDATE", schema: "public", table: "profiles" },
-        () => {
-          if (t) clearTimeout(t);
-          t = setTimeout(() => {
-            t = null;
-            scheduleTriageReload();
-          }, 1000);
+        (payload) => {
+          const newRow = payload.new as Record<string, unknown> | null | undefined;
+          const profileId = newRow && typeof newRow.id === "string" ? newRow.id : null;
+          if (!profileId) return;
+          if (profileId === staffId) {
+            void reloadStaffProfile();
+            return;
+          }
+          setRows((prev) => {
+            const idx = prev.findIndex((r) => r.profile_id === profileId);
+            if (idx < 0) return prev;
+            const row = prev[idx];
+            const prof = Array.isArray(row.profiles) ? row.profiles[0] : row.profiles;
+            if (!prof) return prev;
+            const mergedProf = {
+              ...prof,
+              full_name:
+                typeof newRow.full_name === "string" ? newRow.full_name : (prof.full_name ?? ""),
+              date_of_birth:
+                newRow.date_of_birth !== undefined
+                  ? (newRow.date_of_birth as string | null)
+                  : prof.date_of_birth,
+              avatar_url:
+                newRow.avatar_url !== undefined ? (newRow.avatar_url as string | null) : prof.avatar_url,
+              phone_e164:
+                newRow.phone_e164 !== undefined ? (newRow.phone_e164 as string | null) : prof.phone_e164,
+              email_display:
+                newRow.email_display !== undefined ? (newRow.email_display as string | null) : prof.email_display,
+              whatsapp_opt_in_at:
+                newRow.whatsapp_opt_in_at !== undefined
+                  ? (newRow.whatsapp_opt_in_at as string | null)
+                  : (prof as { whatsapp_opt_in_at?: string | null }).whatsapp_opt_in_at,
+              whatsapp_opt_in_revoked_at:
+                newRow.whatsapp_opt_in_revoked_at !== undefined
+                  ? (newRow.whatsapp_opt_in_revoked_at as string | null)
+                  : (prof as { whatsapp_opt_in_revoked_at?: string | null }).whatsapp_opt_in_revoked_at,
+            };
+            const next = [...prev];
+            next[idx] = { ...row, profiles: mergedProf };
+            return next;
+          });
         }
       )
       .subscribe();
     return () => {
-      if (t) clearTimeout(t);
       void supabase.removeChannel(channel);
     };
-  }, [session?.user, scheduleTriageReload]);
+  }, [session?.user, reloadStaffProfile]);
 
   useEffect(() => {
     if (!session) return;
@@ -364,7 +610,7 @@ export function useTriageData(session: Session | null) {
       });
       setCohortLoading(false);
       if (error) {
-        setCohortError(error.message);
+        setCohortError(sanitizeSupabaseError(error));
         setCohortRows([]);
         return;
       }
@@ -375,16 +621,18 @@ export function useTriageData(session: Session | null) {
   const kpiStats = useMemo(
     () => ({
       total: rows.length,
+      pendingLinks: pendingLinkRequests.length,
       alerts24h: rows.filter((r) => r.hasAlert24h).length,
       criticalHigh: rows.filter((r) => r.risk >= 3).length,
       nadir: rows.filter((r) => r.is_in_nadir).length,
     }),
-    [rows]
+    [rows, pendingLinkRequests]
   );
 
   return {
     loadError,
     rows,
+    pendingLinkRequests,
     triageRules,
     busy,
     loadTriage,
