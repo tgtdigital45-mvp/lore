@@ -65,14 +65,44 @@ Deno.serve(async (req) => {
     });
   }
 
-  const { data: patient, error: pErr } = await sb
+  /** Mesma regra que o RLS em `patients`: staff só com vínculo aprovado em patient_hospital_links. */
+  const { data: canAccess, error: linkErr } = await sb.rpc("staff_has_approved_patient_link", {
+    p_patient_id: patientId,
+  });
+  if (linkErr) {
+    return new Response(JSON.stringify({ error: "link_check_failed", message: linkErr.message }), {
+      status: 500,
+      headers: { ...cors, "Content-Type": "application/json" },
+    });
+  }
+  if (!canAccess) {
+    return new Response(
+      JSON.stringify({
+        error: "no_approved_patient_link",
+        message:
+          "Sem vínculo aprovado com este paciente. Aprove o acesso em Autorizações ou confirme o vínculo hospital–paciente.",
+      }),
+      { status: 403, headers: { ...cors, "Content-Type": "application/json" } }
+    );
+  }
+
+  const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  if (!serviceKey) {
+    return new Response(JSON.stringify({ error: "server_misconfigured", message: "SUPABASE_SERVICE_ROLE_KEY em falta na função." }), {
+      status: 500,
+      headers: { ...cors, "Content-Type": "application/json" },
+    });
+  }
+  const admin = createClient(url, serviceKey, { auth: { persistSession: false } });
+
+  const { data: patient, error: pErr } = await admin
     .from("patients")
     .select("id, full_name, hospital_id, care_phase")
     .eq("id", patientId)
     .maybeSingle();
   if (pErr || !patient) {
-    return new Response(JSON.stringify({ error: "forbidden_or_not_found" }), {
-      status: 403,
+    return new Response(JSON.stringify({ error: "patient_not_found" }), {
+      status: 404,
       headers: { ...cors, "Content-Type": "application/json" },
     });
   }
@@ -82,10 +112,10 @@ Deno.serve(async (req) => {
   const sinceIso = since.toISOString();
 
   const [symptoms, vitals, biomarkers, medLogs] = await Promise.all([
-    sb.from("symptom_logs").select("logged_at, symptom_key, severity, notes").eq("patient_id", patientId).gte("logged_at", sinceIso).order("logged_at", { ascending: false }).limit(80),
-    sb.from("vital_logs").select("logged_at, temperature_c, heart_rate, spo2, weight_kg").eq("patient_id", patientId).gte("logged_at", sinceIso).order("logged_at", { ascending: false }).limit(80),
-    sb.from("biomarker_logs").select("logged_at, name, value_numeric, unit, is_critical").eq("patient_id", patientId).gte("logged_at", sinceIso).order("logged_at", { ascending: false }).limit(40),
-    sb.from("medication_logs").select("logged_at, taken, medication_name").eq("patient_id", patientId).gte("logged_at", sinceIso).order("logged_at", { ascending: false }).limit(120),
+    admin.from("symptom_logs").select("logged_at, symptom_key, severity, notes").eq("patient_id", patientId).gte("logged_at", sinceIso).order("logged_at", { ascending: false }).limit(80),
+    admin.from("vital_logs").select("logged_at, temperature_c, heart_rate, spo2, weight_kg").eq("patient_id", patientId).gte("logged_at", sinceIso).order("logged_at", { ascending: false }).limit(80),
+    admin.from("biomarker_logs").select("logged_at, name, value_numeric, unit, is_critical").eq("patient_id", patientId).gte("logged_at", sinceIso).order("logged_at", { ascending: false }).limit(40),
+    admin.from("medication_logs").select("logged_at, taken, medication_name").eq("patient_id", patientId).gte("logged_at", sinceIso).order("logged_at", { ascending: false }).limit(120),
   ]);
 
   const symRows = symptoms.data ?? [];
