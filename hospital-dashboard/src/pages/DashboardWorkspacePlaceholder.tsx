@@ -5,7 +5,6 @@ import { PendingStaffLinksPanel } from "@/components/oncocare/PendingStaffLinksP
 import { DashboardKpiStrip, type DashboardKpiModel } from "@/components/oncocare/DashboardKpiStrip";
 import { clinicalTier } from "@/lib/clinicalTier";
 import { Button } from "@/components/ui/button";
-import { SkeletonPulse } from "@/components/ui/SkeletonPulse";
 
 /** Painel à direita quando nenhum paciente está selecionado na rota `/paciente` — mostra KPIs ao vivo da fila. */
 export function DashboardWorkspacePlaceholder() {
@@ -39,15 +38,7 @@ export function DashboardWorkspacePlaceholder() {
         <PendingStaffLinksPanel items={pendingLinkRequests} hospitalNameById={hospitalNameById} />
       ) : null}
 
-      {busy ? (
-        <div className="grid gap-3 sm:grid-cols-2 sm:gap-4 xl:grid-cols-4">
-          {[...Array(4)].map((_, i) => (
-            <SkeletonPulse key={i} className="h-[120px]" />
-          ))}
-        </div>
-      ) : (
-        <DashboardKpiStrip kpi={kpi} />
-      )}
+      <DashboardKpiStrip kpi={kpi} loading={busy} />
 
       <div className="mx-auto flex w-full max-w-lg flex-col items-center justify-center gap-4 rounded-2xl border border-slate-100 bg-white/90 p-8 text-center shadow-sm sm:p-12">
         <div className="flex h-16 w-16 items-center justify-center rounded-full border border-slate-200 bg-white shadow-sm">

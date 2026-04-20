@@ -10,7 +10,9 @@ function buildSeries(vitals: VitalLogRow[], type: string, color: string, label: 
     .filter((p) => Number.isFinite(p.y))
     .sort((a, b) => a.t - b.t);
   if (pts.length === 0) return null;
-  return { label, points: pts, color, unit: type === "temperature" ? "°C" : type === "spo2" ? "%" : undefined };
+  const unit =
+    type === "temperature" ? "°C" : type === "spo2" ? "%" : type === "weight" ? "kg" : undefined;
+  return { label, points: pts, color, unit };
 }
 
 function buildBpSeries(vitals: VitalLogRow[]): Series | null {
@@ -77,10 +79,12 @@ export function VitalsTrendCharts({ vitals, hideTemperature }: Props) {
     const hr = buildSeries(vitals, "heart_rate", "var(--risk-attention)", "Freq. cardíaca");
     const spo2 = buildSeries(vitals, "spo2", "var(--vital-oxygen)", "SpO₂");
     const bp = buildBpSeries(vitals);
+    const wt = buildSeries(vitals, "weight", "#64748b", "Peso");
     if (t && !hideTemperature) list.push(t);
     if (hr) list.push(hr);
     if (spo2) list.push(spo2);
     if (bp) list.push(bp);
+    if (wt) list.push(wt);
     return list;
   }, [vitals, hideTemperature]);
 

@@ -1,38 +1,84 @@
-import { Line, LineChart, YAxis } from "recharts";
+import { useMemo } from "react";
+import { CartesianGrid, Line, LineChart, ResponsiveContainer, YAxis } from "recharts";
 
-/** Fixed pixel size avoids ResponsiveContainer measuring -1 in flex layouts (Recharts warning / throw). */
-const SPARK_W = 112;
-const SPARK_H = 40;
+const SPARK_H = 44;
+const STROKE_ORANGE = "#f97316";
+const DOT_BLACK = "#0a0a0a";
 
 type Props = {
   data: { iso: string; v: number }[];
+  /** Cor do valor numérico (semântica: febre, SpO₂, etc.). */
   color: string;
   unit?: string;
   label: string;
 };
 
+/** Uma leitura só: duplica o ponto para desenhar segmento estável com o mesmo estilo. */
+function buildChartRows(data: { iso: string; v: number }[]): { i: number; v: number }[] {
+  const base = data.map((d, idx) => ({ i: idx, v: d.v }));
+  if (base.length === 1) {
+    return [
+      { i: 0, v: base[0].v },
+      { i: 1, v: base[0].v },
+    ];
+  }
+  return base;
+}
+
 export function VitalMicroSpark({ data, color, unit, label }: Props) {
-  const chartData = data.map((d, i) => ({ i, v: d.v }));
+  const chartData = useMemo(() => buildChartRows(data), [data]);
   const last = data.length > 0 ? data[data.length - 1].v : null;
+  const n = chartData.length;
+  const showChart = data.length >= 1;
 
   return (
-    <div className="min-w-0 flex flex-1 flex-col gap-1">
+    <div className="min-w-0 flex flex-1 flex-col gap-0.5">
       <span className="text-[0.65rem] font-semibold uppercase tracking-wide text-muted-foreground">{label}</span>
-      <div className="flex min-w-0 flex-wrap items-end gap-2">
-        <span className="shrink-0 text-lg font-black tabular-nums leading-none" style={{ color }}>
-          {last != null ? last.toFixed(last >= 10 ? 0 : 1) : "—"}
-          {unit ? <span className="text-xs font-medium text-muted-foreground"> {unit}</span> : null}
-        </span>
-        <div className="flex h-10 shrink-0 items-center overflow-hidden" style={{ width: SPARK_W }}>
-          {chartData.length > 1 ? (
-            <LineChart width={SPARK_W} height={SPARK_H} data={chartData} margin={{ top: 2, right: 2, left: 2, bottom: 2 }}>
+      <span className="text-sm font-bold tabular-nums leading-tight" style={{ color }}>
+        {last != null ? last.toFixed(last >= 10 ? 0 : 1) : "—"}
+        {unit ? <span className="text-[0.65rem] font-medium text-muted-foreground"> {unit}</span> : null}
+      </span>
+      <div className="h-11 w-full min-w-0 overflow-hidden rounded-md bg-slate-50/80 ring-1 ring-slate-100/90">
+        {showChart && n >= 2 ? (
+          <ResponsiveContainer width="100%" height={SPARK_H}>
+            <LineChart
+              data={chartData}
+              margin={{ top: 10, right: 6, left: 2, bottom: 4 }}
+            >
+              <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
               <YAxis hide domain={["auto", "auto"]} />
-              <Line type="monotone" dataKey="v" stroke={color} strokeWidth={2} dot={false} isAnimationActive={false} />
+              <Line
+                type="natural"
+                dataKey="v"
+                stroke={STROKE_ORANGE}
+                strokeWidth={2.5}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                dot={(props: { cx?: number; cy?: number; index?: number }) => {
+                  const { cx, cy, index } = props;
+                  if (cx == null || cy == null || index == null) return null;
+                  if (index !== n - 1) return null;
+                  return (
+                    <circle
+                      cx={cx}
+                      cy={cy}
+                      r={3.5}
+                      fill={DOT_BLACK}
+                      stroke="#ffffff"
+                      strokeWidth={1.25}
+                    />
+                  );
+                }}
+                activeDot={false}
+                isAnimationActive={false}
+              />
             </LineChart>
-          ) : (
-            <div className="text-[0.7rem] text-muted-foreground">Sem série 24h</div>
-          )}
-        </div>
+          </ResponsiveContainer>
+        ) : (
+          <div className="flex h-11 items-center justify-center px-1 text-center text-[0.65rem] leading-tight text-muted-foreground">
+            Sem série 24h
+          </div>
+        )}
       </div>
     </div>
   );

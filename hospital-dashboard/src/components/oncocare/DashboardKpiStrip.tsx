@@ -1,6 +1,7 @@
 import { motion } from "framer-motion";
 import { Activity, HeartPulse, TrendingUp, Users } from "lucide-react";
 import { Card } from "@/components/ui/card";
+import { SkeletonPulse } from "@/components/ui/SkeletonPulse";
 
 export type DashboardKpiModel = {
   activePatients: number;
@@ -13,9 +14,11 @@ export type DashboardKpiModel = {
 
 type Props = {
   kpi: DashboardKpiModel;
+  /** Mesma grelha com skeletons de altura fixa — evita CLS. */
+  loading?: boolean;
 };
 
-export function DashboardKpiStrip({ kpi }: Props) {
+export function DashboardKpiStrip({ kpi, loading }: Props) {
   const cards = [
     {
       label: "Pacientes ativos",
@@ -58,6 +61,23 @@ export function DashboardKpiStrip({ kpi }: Props) {
       iconWrapClass: "rounded-2xl bg-emerald-100/80 p-2 text-emerald-600 sm:p-2.5",
     },
   ];
+
+  if (loading) {
+    return (
+      <div
+        className="grid gap-3 sm:grid-cols-2 sm:gap-4 xl:grid-cols-4"
+        aria-busy="true"
+        aria-label="A carregar indicadores"
+      >
+        <span className="sr-only">A carregar indicadores…</span>
+        {[0, 1, 2, 3].map((i) => (
+          <div key={i} className="h-full min-h-[120px]">
+            <SkeletonPulse className="h-full min-h-[120px] w-full" rounded="2xl" />
+          </div>
+        ))}
+      </div>
+    );
+  }
 
   return (
     <div className="grid gap-3 sm:grid-cols-2 sm:gap-4 xl:grid-cols-4">

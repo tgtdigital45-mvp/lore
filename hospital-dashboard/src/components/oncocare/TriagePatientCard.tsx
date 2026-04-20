@@ -1,16 +1,16 @@
+import { useState } from "react";
 import { motion } from "framer-motion";
 import { Link, useNavigate } from "react-router-dom";
-import { MessageSquare } from "lucide-react";
+import { Eye, EyeOff, MessageSquare } from "lucide-react";
 import { CANCER_PT } from "@/constants/dashboardLabels";
-import { clinicalTier, TIER_ACCENT } from "@/lib/clinicalTier";
-import { latestVital, vitalPointsLast24h } from "@/lib/vitalsSpark";
+import { clinicalTier, TIER_ACCENT, type ClinicalTier } from "@/lib/clinicalTier";
+import { latestVital } from "@/lib/vitalsSpark";
 import type { RiskRow, VitalLogRow } from "@/types/dashboard";
 import { profileName, profileDob, profileAvatarUrl, ageFromDob, initialsFromName } from "@/lib/dashboardProfile";
-import { formatPatientCodeDisplay } from "@/lib/patientCode";
+import { formatPatientCodeDisplay, maskPatientCodeDisplay } from "@/lib/patientCode";
 import { formatPtShort, formatRelativeSince } from "@/lib/dashboardFormat";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import { VitalMicroSpark } from "./VitalMicroSpark";
 import { PatientFaceThumb } from "./PatientFaceThumb";
 import { patientWhatsappContact } from "@/lib/patientWhatsApp";
 
@@ -24,6 +24,16 @@ function suspensionRingColors(score: number): { borderColor: string; color: stri
   if (score >= 50) return { borderColor: "#EF4444", color: "#EF4444" };
   if (score >= 25) return { borderColor: "#F59E0B", color: "#B45309" };
   return { borderColor: "#22C55E", color: "#15803D" };
+}
+
+function clinicalTierBadgeTitle(tier: ClinicalTier, row: Pick<RiskRow, "risk" | "hasClinicalAlert" | "is_in_nadir">): string {
+  if (tier === "critical") {
+    return `Crítico: risco≥4 ou alerta clínico. risk=${row.risk}, hasClinicalAlert=${row.hasClinicalAlert}. Ver clinicalTier.ts.`;
+  }
+  if (tier === "attention") {
+    return `Atenção: risco≥2 ou nádir. risk=${row.risk}, is_in_nadir=${row.is_in_nadir}, hasClinicalAlert=${row.hasClinicalAlert}. Ver clinicalTier.ts.`;
+  }
+  return `Estável: risk=${row.risk}, is_in_nadir=${row.is_in_nadir}. Ver clinicalTier.ts.`;
 }
 
 type Props = {
@@ -43,11 +53,9 @@ export function TriagePatientCard({ row, vitals, isSelected }: Props) {
   const accent = TIER_ACCENT[tier];
   const suspensionScore = row.suspensionRiskScore;
   const suspensionColors = suspensionRingColors(suspensionScore);
-  const tempPts = vitalPointsLast24h(vitals, "temperature");
-  const spoPts = vitalPointsLast24h(vitals, "spo2");
-  const hrPts = vitalPointsLast24h(vitals, "heart_rate");
   const lastSpo2 = latestVital(vitals, "spo2");
   const lastTemp = latestVital(vitals, "temperature");
+  const lastHr = latestVital(vitals, "heart_rate");
 
   const name = profileName(row.profiles);
   const age = ageFromDob(profileDob(row.profiles));
@@ -61,6 +69,7 @@ export function TriagePatientCard({ row, vitals, isSelected }: Props) {
   const dossierPath = `/paciente/${row.id}`;
   const messagesPath = `${dossierPath}?tab=mensagens`;
   const wa = patientWhatsappContact(row);
+  const [patientCodeVisible, setPatientCodeVisible] = useState(true);
 
   return (
     <div className="relative">
@@ -110,8 +119,9 @@ export function TriagePatientCard({ row, vitals, isSelected }: Props) {
                 ) : null}
                 <Badge
                   variant="secondary"
+                  title={clinicalTierBadgeTitle(tier, row)}
                   className={cn(
-                    "rounded-full px-2 py-0.5 text-[0.6rem] font-bold uppercase",
+                    "max-w-full cursor-help rounded-full px-2 py-0.5 text-[0.6rem] font-bold uppercase",
                     tier === "critical" && "bg-red-100 text-red-800",
                     tier === "attention" && "bg-amber-100 text-amber-900",
                     tier === "stable" && "bg-lime-200 text-lime-900"
@@ -120,8 +130,24 @@ export function TriagePatientCard({ row, vitals, isSelected }: Props) {
                   {statusTag}
                 </Badge>
               </div>
-              <p className="mt-1 text-[0.72rem] text-slate-500">
-                <span className="font-mono text-slate-700">{code}</span> · {age ?? "—"}
+              <p className="mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[0.72rem] text-slate-500">
+                <span className="inline-flex items-center gap-1 font-mono text-slate-700 tabular-nums">
+                  {patientCodeVisible ? code : maskPatientCodeDisplay(code)}
+                </span>
+                <button
+                  type="button"
+                  className="inline-flex shrink-0 rounded-md p-1 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500"
+                  aria-label={patientCodeVisible ? "Ocultar código do paciente" : "Mostrar código do paciente"}
+                  aria-pressed={patientCodeVisible}
+                  title={patientCodeVisible ? "Ocultar código" : "Mostrar código"}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setPatientCodeVisible((v) => !v);
+                  }}
+                >
+                  {patientCodeVisible ? <EyeOff className="size-3.5" aria-hidden /> : <Eye className="size-3.5" aria-hidden />}
+                </button>
+                <span className="text-slate-500">· {age ?? "—"}</span>
               </p>
               <p className="mt-0.5 line-clamp-1 text-[0.72rem] text-slate-500">
                 {CANCER_PT[row.primary_cancer_type] ?? row.primary_cancer_type}
@@ -145,19 +171,32 @@ export function TriagePatientCard({ row, vitals, isSelected }: Props) {
             <p className="mt-2 text-right text-[0.65rem] text-slate-400">Sem sintomas recentes</p>
           )}
 
-          <div className="mt-3 grid grid-cols-3 gap-2 rounded-2xl border border-slate-100 bg-surface-muted/50 p-2">
-            <VitalMicroSpark
-              data={tempPts}
-              color={lastTemp != null && lastTemp >= 38 ? "#EF4444" : "#0F172A"}
-              unit="°C"
-              label="Temp."
-            />
-            <VitalMicroSpark data={spoPts} color={spo2Color(lastSpo2)} unit="%" label="SpO₂" />
-            <VitalMicroSpark data={hrPts} color="#6366F1" unit="bpm" label="FC" />
+          <div className="mt-2 flex flex-wrap items-baseline gap-x-4 gap-y-1 text-[0.72rem]">
+            <span className="tabular-nums">
+              <span className="font-semibold uppercase tracking-wide text-muted-foreground">Temp.</span>{" "}
+              <span
+                className="font-bold"
+                style={{ color: lastTemp != null && lastTemp >= 38 ? "#EF4444" : "#0F172A" }}
+              >
+                {lastTemp != null ? `${lastTemp.toFixed(1)} °C` : "—"}
+              </span>
+            </span>
+            <span className="tabular-nums">
+              <span className="font-semibold uppercase tracking-wide text-muted-foreground">SpO₂</span>{" "}
+              <span className="font-bold" style={{ color: spo2Color(lastSpo2) }}>
+                {lastSpo2 != null ? `${Math.round(lastSpo2)} %` : "—"}
+              </span>
+            </span>
+            <span className="tabular-nums">
+              <span className="font-semibold uppercase tracking-wide text-muted-foreground">FC</span>{" "}
+              <span className="font-bold text-indigo-600">
+                {lastHr != null ? `${Math.round(lastHr)} bpm` : "—"}
+              </span>
+            </span>
           </div>
 
-          <div className="mt-3 flex justify-end border-t border-slate-100/80 pt-3">
-            {wa.canMessage ? (
+          {wa.canMessage ? (
+            <div className="mt-2 flex justify-end">
               <Link
                 to={messagesPath}
                 onClick={(e) => e.stopPropagation()}
@@ -166,12 +205,8 @@ export function TriagePatientCard({ row, vitals, isSelected }: Props) {
                 <MessageSquare className="size-3.5 shrink-0" strokeWidth={2} />
                 Mensagens
               </Link>
-            ) : (
-              <span className="text-[0.65rem] font-medium text-slate-400" title="Telefone E.164 e opt-in WhatsApp necessários">
-                WhatsApp indisponível
-              </span>
-            )}
-          </div>
+            </div>
+          ) : null}
         </div>
       </motion.div>
 

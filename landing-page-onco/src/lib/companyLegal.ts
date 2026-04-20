@@ -11,5 +11,5 @@ export const COMPANY_PHONE = '(45) 9928-3994'
 /** E-mail constante no cadastro CNPJ (RFB). */
 export const COMPANY_EMAIL_RFB = 'selso@univel.br'
 
-/** Canal do encarregado de dados (DPO) para LGPD e produto Onco. */
-export const DPO_EMAIL = 'privacidade@onco.app'
+/** Canal do encarregado de dados (DPO) para LGPD e produto Aura-Onco. */
+export const DPO_EMAIL = 'selso@univel.br'

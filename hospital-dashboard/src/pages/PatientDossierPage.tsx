@@ -13,19 +13,17 @@ import {
   FileText,
   Syringe,
   Flame,
-  TrendingDown,
-  Heart,
-  TrendingUp,
   CheckSquare,
   FlaskConical,
   Pill,
   BookOpen,
   Salad,
   Watch,
-  MessageSquare,
+  HeartPulse,
 } from "lucide-react";
 import { toast } from "sonner";
 import { usePatientClinicalBundle } from "@/hooks/usePatientClinicalBundle";
+import { useHeuristicRules } from "@/hooks/useHeuristicRules";
 import { useDossierExtended } from "@/hooks/useDossierExtended";
 import { usePatientExamesHandlers } from "@/hooks/usePatientExamesHandlers";
 import { calculateSuspensionRisk } from "@/lib/suspensionRisk";
@@ -41,13 +39,10 @@ import { userFacingApiError } from "@/lib/errorMessages";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { TemperatureAreaChart } from "@/components/patient/TemperatureAreaChart";
+import { VitalsExplorerPanel } from "@/components/patient/VitalsExplorerPanel";
 import { ToxicityHeatmap } from "@/components/patient/ToxicityHeatmap";
 import { PatientTimelinePanel } from "@/components/patient/PatientTimelinePanel";
 import { PatientNotesPanel } from "@/components/patient/PatientNotesPanel";
-import { TumorResponseWaterfall } from "@/components/patient/TumorResponseWaterfall";
-import { ProQoLRadarChart } from "@/components/patient/ProQoLRadarChart";
-import { RiskTrendsPanel } from "@/components/patient/RiskTrendsPanel";
 import { PatientTasksPanel } from "@/components/patient/PatientTasksPanel";
 import { CtcaeSwimmerPlot, type CtcaeMatrixRow } from "@/components/patient/CtcaeSwimmerPlot";
 import PatientExamesPanel from "@/components/patient/tabs/PatientExamesPanel";
@@ -74,6 +69,7 @@ import { rememberPatientVisit } from "@/lib/panelDefaultPath";
 import { cn } from "@/lib/utils";
 import { useOncoCare } from "@/context/OncoCareContext";
 import { computeNutritionActivityAdherence } from "@/lib/dossierAdherence";
+import { latestVital } from "@/lib/vitalsSpark";
 
 type DossierTab =
   | "resumo"
@@ -89,9 +85,7 @@ type DossierTab =
   | "agendamentos"
   | "mensagens"
   | "toxicidade"
-  | "resposta_tumoral"
-  | "qualidade_vida"
-  | "riscos"
+  | "sinais_vitais"
   | "tarefas";
 
 const ALL_TAB_DEFS: { id: DossierTab; label: string; icon: React.ElementType }[] = [
@@ -101,9 +95,7 @@ const ALL_TAB_DEFS: { id: DossierTab; label: string; icon: React.ElementType }[]
   { id: "ficha", label: "Ficha médica", icon: FileText },
   { id: "tratamento", label: "Tratamento", icon: Syringe },
   { id: "toxicidade", label: "Toxicidade", icon: Flame },
-  { id: "resposta_tumoral", label: "Resposta tumoral", icon: TrendingDown },
-  { id: "qualidade_vida", label: "Qualidade de vida", icon: Heart },
-  { id: "riscos", label: "Risco (tendência)", icon: TrendingUp },
+  { id: "sinais_vitais", label: "Sinais vitais", icon: HeartPulse },
   { id: "tarefas", label: "Tarefas", icon: CheckSquare },
   { id: "exames", label: "Exames", icon: FlaskConical },
   { id: "medicamentos", label: "Medicamentos", icon: Pill },
@@ -111,22 +103,12 @@ const ALL_TAB_DEFS: { id: DossierTab; label: string; icon: React.ElementType }[]
   { id: "nutricao", label: "Nutrição", icon: Salad },
   { id: "atividades", label: "Atividade e wearables", icon: Watch },
   { id: "agendamentos", label: "Agendamentos", icon: Calendar },
-  { id: "mensagens", label: "Mensagens", icon: MessageSquare },
 ];
 
 function tabVisibleForCarePhase(tab: DossierTab, phase: string | null | undefined): boolean {
   const p = phase ?? "active_treatment";
   if (p === "follow_up") {
-    const hide = new Set<DossierTab>([
-      "tratamento",
-      "toxicidade",
-      "nutricao",
-      "atividades",
-      "resposta_tumoral",
-      "tarefas",
-      "qualidade_vida",
-      "riscos",
-    ]);
+    const hide = new Set<DossierTab>(["tratamento", "toxicidade", "nutricao", "atividades", "tarefas"]);
     return !hide.has(tab);
   }
   return true;
@@ -148,7 +130,7 @@ export function PatientDossierPage() {
   const [carePhaseBusy, setCarePhaseBusy] = useState(false);
 
   const tabParam = searchParams.get("tab");
-  const validTabs = new Set<DossierTab>(ALL_TAB_DEFS.map((x) => x.id));
+  const validTabs = new Set<DossierTab>([...ALL_TAB_DEFS.map((x) => x.id), "mensagens"]);
   const tab: DossierTab =
     tabParam && validTabs.has(tabParam as DossierTab) ? (tabParam as DossierTab) : "resumo";
 
@@ -156,6 +138,8 @@ export function PatientDossierPage() {
     if (t === "resumo") setSearchParams({}, { replace: true });
     else setSearchParams({ tab: t }, { replace: true });
   };
+
+  const { rules: heuristicRules } = useHeuristicRules();
 
   const {
     loading,
@@ -249,7 +233,15 @@ export function PatientDossierPage() {
     );
   }
 
-  const suspension = calculateSuspensionRisk(riskRow, symptoms, vitals, wearables, triageRules.fever_celsius_min);
+  const suspension = calculateSuspensionRisk(
+    riskRow,
+    symptoms,
+    vitals,
+    wearables,
+    triageRules.fever_celsius_min,
+    biomarkers,
+    heuristicRules
+  );
   const nadir = computeClinicalNadirSummary(cycles, infusions);
   const active = nadir.activeCycle;
   const planned = active?.planned_sessions ?? 6;
@@ -262,6 +254,16 @@ export function PatientDossierPage() {
   const code = formatPatientCodeDisplay(riskRow.patient_code) ?? `PR-${riskRow.id.slice(0, 8).toUpperCase()}`;
 
   const nutritionActivityAdherence = computeNutritionActivityAdherence(nutritionLogs, wearables, 14);
+
+  const lastTempSnap = latestVital(vitals, "temperature");
+  const lastHrSnap = latestVital(vitals, "heart_rate");
+  const lastSpo2Snap = latestVital(vitals, "spo2");
+  const lastWtSnap = latestVital(vitals, "weight");
+  const lastBpRow = [...vitals]
+    .filter((v) => v.vital_type === "blood_pressure" && v.value_systolic != null)
+    .sort((a, b) => new Date(b.logged_at).getTime() - new Date(a.logged_at).getTime())[0];
+  const lastBpLabel =
+    lastBpRow != null ? `${lastBpRow.value_systolic}/${lastBpRow.value_diastolic ?? "—"}` : null;
 
   const alertSymptoms = symptoms.filter(
     (s) => s.requires_action || s.severity === "severe" || s.severity === "life_threatening"
@@ -384,6 +386,7 @@ export function PatientDossierPage() {
             code={code}
             alertCount={alertCount}
             onOpenReport={() => setReportOpen(true)}
+            messagesTo="?tab=mensagens"
             className="border-0 bg-transparent"
           />
         </div>
@@ -469,10 +472,10 @@ export function PatientDossierPage() {
               estimatedNadirWindowLabel: nadir.estimatedNadirWindowLabel,
               cycleLabel,
             }}
-            medicationLogs={medicationLogs}
             medications={medications}
             alertRules={alertRules}
             symptomsTimeline={symptoms}
+            suspensionRisk={riskRow?.suspensionRiskScore}
             onRefreshRules={refreshParaclinical}
             onOpenSuspensionModal={() => setSuspensionFactorsOpen(true)}
             onGoTratamento={() => setTab("tratamento")}
@@ -495,51 +498,42 @@ export function PatientDossierPage() {
                 </h2>
                 <span className="rounded-full bg-green-100 px-3 py-1 text-xs font-medium text-green-700">Tempo real</span>
               </div>
-              <TemperatureAreaChart vitals={vitals} />
-              <div className="mt-4 grid gap-3 sm:grid-cols-3">
-                <div className="rounded-2xl bg-[#FEF2F2] px-3 py-2 text-center">
-                  <p className="text-[0.65rem] font-bold uppercase text-destructive">Temp. máx</p>
-                  <p className="text-xl font-black text-[#EF4444]">
-                    {(() => {
-                      const t = vitals.filter((v) => v.vital_type === "temperature" && v.value_numeric != null);
-                      if (t.length === 0) return "—";
-                      const mx = Math.max(...t.map((x) => x.value_numeric!));
-                      return `${mx.toFixed(1)}°C`;
-                    })()}
-                  </p>
-                </div>
-                <div className="rounded-2xl bg-[#ECFEFF] px-3 py-2 text-center">
-                  <p className="text-[0.65rem] font-bold uppercase text-[#0E7490]">Média SpO₂</p>
-                  <p className="text-xl font-black text-[#14B8A6]">
-                    {(() => {
-                      const s = vitals.filter((v) => v.vital_type === "spo2" && v.value_numeric != null);
-                      if (s.length === 0) return "—";
-                      const avg = s.reduce((a, x) => a + (x.value_numeric ?? 0), 0) / s.length;
-                      return `${avg.toFixed(0)}%`;
-                    })()}
-                  </p>
-                </div>
-                <div className="rounded-2xl bg-[#EFF6FF] px-3 py-2 text-center">
-                  <p className="text-[0.65rem] font-bold uppercase text-[#1D4ED8]">VFC</p>
-                  <p className="text-xl font-black text-[#3B82F6]">
-                    {(() => {
-                      const h = wearables.filter((w) => w.metric === "hrv_sdnn" && w.value_numeric != null);
-                      if (h.length === 0) return "—";
-                      return `${h[0].value_numeric}ms`;
-                    })()}
-                  </p>
-                </div>
+              <p className="text-sm leading-relaxed text-slate-700">
+                <span className="font-semibold text-slate-900">Últimos valores:</span> Temp.{" "}
+                {lastTempSnap != null ? `${lastTempSnap.toFixed(1)} °C` : "—"} · FC{" "}
+                {lastHrSnap != null ? `${Math.round(lastHrSnap)} bpm` : "—"} · SpO₂{" "}
+                {lastSpo2Snap != null ? `${Math.round(lastSpo2Snap)} %` : "—"} · PA{" "}
+                {lastBpLabel ?? "—"}
+                {lastWtSnap != null ? ` · Peso ${lastWtSnap.toFixed(1)} kg` : ""}
+              </p>
+              <div className="mt-4 flex flex-wrap gap-2">
+                <Button type="button" className="rounded-2xl" onClick={() => setTab("sinais_vitais")}>
+                  Ver sinais vitais
+                </Button>
+              </div>
+              <div className="mt-4 rounded-2xl border border-slate-100 bg-slate-50/80 px-3 py-2 text-center text-sm text-slate-600">
+                <span className="font-semibold text-slate-800">VFC (wearable, último): </span>
+                {(() => {
+                  const h = wearables.filter((w) => w.metric === "hrv_sdnn" && w.value_numeric != null);
+                  if (h.length === 0) return "—";
+                  return `${h[0].value_numeric} ms`;
+                })()}
               </div>
             </Card>
 
             <Card className="dossier-glass-card rounded-3xl border-0 p-5 shadow-none transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg">
-              <h2 className="mb-2 flex items-center gap-2 text-lg font-bold">Toxicidade (CTCAE)</h2>
+              <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+                <h2 className="flex items-center gap-2 text-lg font-bold">Toxicidade (CTCAE)</h2>
+                <Button type="button" variant="outline" size="sm" className="rounded-2xl" onClick={() => setTab("toxicidade")}>
+                  Ver toxicidade completa
+                </Button>
+              </div>
               <p className="mb-4 text-sm text-muted-foreground">
-                O mapa de calor e o gráfico estilo swimmer estão na aba <strong>Toxicidade</strong>.
+                Mapa de calor dos últimos 28 dias; a aba <strong>Toxicidade</strong> inclui também o gráfico swimmer / matriz de eventos.
               </p>
-              <Button type="button" variant="outline" className="rounded-2xl" onClick={() => setTab("toxicidade")}>
-                Abrir toxicidade
-              </Button>
+              <div className="overflow-x-auto rounded-2xl border border-slate-100 bg-white/80 p-2">
+                <ToxicityHeatmap symptoms={symptoms} days={28} />
+              </div>
             </Card>
 
           </div>
@@ -821,24 +815,21 @@ export function PatientDossierPage() {
         </div>
       ) : null}
 
-      {tab === "resposta_tumoral" ? (
+      {tab === "sinais_vitais" ? (
         <Card className="dossier-glass-card rounded-3xl border-0 p-6 shadow-none transition-all duration-200 hover:shadow-lg">
-          <h2 className="mb-4 text-lg font-bold">Resposta tumoral (RECIST)</h2>
-          <TumorResponseWaterfall evaluations={dossierExt.tumorEvals} />
-        </Card>
-      ) : null}
-
-      {tab === "qualidade_vida" ? (
-        <Card className="dossier-glass-card rounded-3xl border-0 p-6 shadow-none transition-all duration-200 hover:shadow-lg">
-          <h2 className="mb-4 text-lg font-bold">Qualidade de vida (PRO)</h2>
-          <ProQoLRadarChart responses={dossierExt.proResponses} />
-        </Card>
-      ) : null}
-
-      {tab === "riscos" ? (
-        <Card className="dossier-glass-card rounded-3xl border-0 p-6 shadow-none transition-all duration-200 hover:shadow-lg">
-          <h2 className="mb-4 text-lg font-bold">Tendência de risco (scores armazenados)</h2>
-          <RiskTrendsPanel scores={dossierExt.riskScores} />
+          <h2 className="mb-4 flex items-center gap-2 text-lg font-bold">
+            <HeartPulse className="size-5 text-teal-700" />
+            Sinais vitais
+          </h2>
+          <VitalsExplorerPanel vitals={vitals} />
+          <div className="mt-6 rounded-2xl border border-slate-100 bg-slate-50/80 px-3 py-2 text-center text-sm text-slate-600">
+            <span className="font-semibold text-slate-800">VFC (wearable, último): </span>
+            {(() => {
+              const h = wearables.filter((w) => w.metric === "hrv_sdnn" && w.value_numeric != null);
+              if (h.length === 0) return "—";
+              return `${h[0].value_numeric} ms`;
+            })()}
+          </div>
         </Card>
       ) : null}
 

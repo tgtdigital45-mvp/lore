@@ -80,6 +80,8 @@ export function usePatientClinicalData(
       const nowMs = Date.now();
       const fetchHours = Math.max(168, triageRules.alert_window_hours);
       const sinceFetch = new Date(nowMs - fetchHours * 3600 * 1000).toISOString();
+      /** Janela longa só para vital_logs — aba Sinais vitais (filtros até 1 ano). */
+      const sinceVitals = new Date(nowMs - 400 * 86400000).toISOString();
       const sinceWear = new Date(nowMs - 14 * 86400000).toISOString();
 
       const [cyc, sym, inf, vit, wear, nut, appt, cr, ec] = await Promise.all([
@@ -110,9 +112,9 @@ export function usePatientClinicalData(
           .from("vital_logs")
           .select("id, logged_at, vital_type, value_numeric, value_systolic, value_diastolic, unit, notes")
           .eq("patient_id", patientId)
-          .gte("logged_at", sinceFetch)
+          .gte("logged_at", sinceVitals)
           .order("logged_at", { ascending: false })
-          .limit(150),
+          .limit(2000),
         supabase
           .from("health_wearable_samples")
           .select("id, metric, value_numeric, unit, observed_start, metadata")

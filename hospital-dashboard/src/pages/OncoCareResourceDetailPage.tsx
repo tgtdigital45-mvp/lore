@@ -13,6 +13,7 @@ import { patientDisplayName, kindLabel } from "@/lib/infusionResourceUi";
 import { useOncoCare } from "@/context/OncoCareContext";
 import { useInfusionAgenda, type InfusionBookingRow } from "@/hooks/useInfusionAgenda";
 import { supabase } from "@/lib/supabase";
+import { SkeletonPulse } from "@/components/ui/SkeletonPulse";
 
 function toDatetimeLocalValue(ms: number): string {
   const d = new Date(ms);
@@ -193,7 +194,27 @@ export function OncoCareResourceDetailPage() {
         <p className="rounded-2xl border-[3px] border-[#FECACA] bg-[#FEF2F2] px-4 py-3 text-sm text-[#B91C1C]">{error}</p>
       ) : null}
       {loading ? (
-        <p className="text-sm text-muted-foreground">Carregando…</p>
+        <div className="flex flex-col gap-8" aria-busy="true" aria-label="A carregar recurso">
+          <span className="sr-only">A carregar…</span>
+          <div className="overflow-hidden rounded-[36px] border-[3px] border-[#E8ECEF] bg-gradient-to-br from-white via-[#FAFBFC] to-[#F0F9FF] p-6 shadow-sm sm:p-8">
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <div className="min-w-0 flex-1 space-y-3">
+                <SkeletonPulse rounded="xl" className="h-7 w-36" />
+                <SkeletonPulse rounded="xl" className="h-9 w-full max-w-md" />
+                <SkeletonPulse rounded="xl" className="h-[4.5rem] w-full max-w-xl" />
+              </div>
+              <SkeletonPulse rounded="2xl" className="h-11 w-52 shrink-0" />
+            </div>
+          </div>
+          <div className="grid max-w-2xl gap-5">
+            <SkeletonPulse rounded="3xl" className="h-32 w-full border-[3px] border-transparent" />
+            <SkeletonPulse rounded="3xl" className="h-36 w-full border-[3px] border-transparent" />
+          </div>
+          <div className="grid gap-6 lg:grid-cols-2">
+            <SkeletonPulse rounded="3xl" className="min-h-[min(420px,50vh)] w-full" />
+            <SkeletonPulse rounded="3xl" className="min-h-[320px] w-full" />
+          </div>
+        </div>
       ) : selected ? (
         <>
           <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>

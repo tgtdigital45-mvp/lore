@@ -1,9 +1,10 @@
 import { useMemo } from "react";
 import { Link } from "react-router-dom";
-import { Loader2, Sparkles, Tv } from "lucide-react";
+import { Sparkles, Tv } from "lucide-react";
 import { useInfusionAgenda, type InfusionBookingRow } from "@/hooks/useInfusionAgenda";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { SkeletonPulse } from "@/components/ui/SkeletonPulse";
 import { formatPtDateTime } from "@/lib/dashboardFormat";
 import { buildOperationalFeed, infusionPatientName, resourceLabelById } from "@/lib/infusionOpsShared";
 import { InfusionOpsKpiStrip } from "@/components/infusionOps/InfusionOpsKpiStrip";
@@ -31,22 +32,18 @@ export function InfusionOpsDashboardPage() {
     [resources, bookings, now, error]
   );
 
-  if (loading && !hospitalId) {
-    return (
-      <div className="relative flex min-h-[50vh] flex-col items-center justify-center gap-4 overflow-hidden bg-slate-50 px-4">
-        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_80%_60%_at_50%_-20%,rgba(20,184,166,0.2),transparent)]" />
-        <Loader2 className="relative size-10 animate-spin text-teal-600" aria-hidden />
-        <p className="relative text-sm font-semibold text-slate-600">A carregar painel de infusão…</p>
-      </div>
-    );
-  }
+  const initialLoading = loading && !hospitalId;
 
   return (
     <div className="relative min-h-full overflow-hidden pb-12">
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_100%_55%_at_50%_-30%,rgba(20,184,166,0.16),transparent)]" />
       <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-teal-400/40 to-transparent" />
 
-      <div className="relative mx-auto max-w-7xl space-y-8 px-4 py-8 sm:px-5 lg:px-8">
+      <div
+        className="relative mx-auto max-w-7xl space-y-8 px-4 py-8 sm:px-5 lg:px-8"
+        aria-busy={initialLoading}
+      >
+        {initialLoading ? <span className="sr-only">A carregar painel de infusão…</span> : null}
         <header className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
           <div className="max-w-2xl space-y-3">
             <div className="inline-flex items-center gap-2 rounded-full border border-teal-200/80 bg-teal-50/90 px-3 py-1 text-[0.65rem] font-bold uppercase tracking-wider text-teal-800 ring-1 ring-teal-100/60">
@@ -72,9 +69,24 @@ export function InfusionOpsDashboardPage() {
           </Button>
         </header>
 
-        <InfusionOpsKpiStrip kpis={kpis} sessionsInHorizon={upcoming.length} variant="desk" />
+        {initialLoading ? (
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4" aria-hidden>
+            {[0, 1, 2, 3].map((i) => (
+              <SkeletonPulse key={i} rounded="2xl" className="min-h-[104px] w-full" />
+            ))}
+          </div>
+        ) : (
+          <InfusionOpsKpiStrip kpis={kpis} sessionsInHorizon={upcoming.length} variant="desk" />
+        )}
 
-        <InfusionOpsOperationalFeed alerts={alerts} notices={notices} size="desk" />
+        {initialLoading ? (
+          <div className="space-y-3 rounded-2xl border border-slate-200/80 bg-white/80 p-4 shadow-sm ring-1 ring-slate-100/90" aria-hidden>
+            <SkeletonPulse rounded="xl" className="h-12 w-full" />
+            <SkeletonPulse rounded="xl" className="h-14 w-full" />
+          </div>
+        ) : (
+          <InfusionOpsOperationalFeed alerts={alerts} notices={notices} size="desk" />
+        )}
 
         <section aria-labelledby="postos-heading">
           <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
@@ -86,18 +98,30 @@ export function InfusionOpsDashboardPage() {
             </div>
           </div>
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-            {resources.map((c) => (
-              <InfusionOpsResourceCard key={c.id} chair={c} bookings={bookings} nowMs={now} variant="desk" />
-            ))}
+            {initialLoading
+              ? [0, 1, 2, 3, 4, 5].map((i) => (
+                  <SkeletonPulse key={i} rounded="3xl" className="min-h-[220px] w-full" />
+                ))
+              : resources.map((c) => (
+                  <InfusionOpsResourceCard key={c.id} chair={c} bookings={bookings} nowMs={now} variant="desk" />
+                ))}
           </div>
         </section>
 
         <Card className="overflow-hidden rounded-3xl border border-slate-200/90 bg-white/95 p-6 shadow-[0_12px_40px_rgba(15,23,42,0.06)] ring-1 ring-slate-100/90 sm:p-8">
           <div className="mb-5 flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-4">
             <h2 className="text-lg font-black text-slate-900 sm:text-xl">Próximas sessões (6h)</h2>
-            <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-600">{upcoming.length} na janela</span>
+            <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-600">
+              {initialLoading ? "—" : `${upcoming.length} na janela`}
+            </span>
           </div>
-          {upcoming.length === 0 ? (
+          {initialLoading ? (
+            <div className="space-y-3 py-2" aria-hidden>
+              <SkeletonPulse rounded="2xl" className="h-16 w-full" />
+              <SkeletonPulse rounded="2xl" className="h-16 w-full" />
+              <SkeletonPulse rounded="2xl" className="h-16 w-full" />
+            </div>
+          ) : upcoming.length === 0 ? (
             <p className="py-6 text-center text-sm font-medium text-slate-500">Sem marcações nesta janela.</p>
           ) : (
             <ul className="space-y-2">

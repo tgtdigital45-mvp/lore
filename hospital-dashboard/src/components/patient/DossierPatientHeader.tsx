@@ -1,8 +1,11 @@
-import { AlertTriangle, MoreHorizontal } from "lucide-react";
+import { useState } from "react";
+import { Link } from "react-router-dom";
+import { AlertTriangle, Eye, EyeOff, MessageSquare, MoreHorizontal } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { CANCER_PT } from "@/constants/dashboardLabels";
+import { maskPatientCodeDisplay } from "@/lib/patientCode";
 import { cn } from "@/lib/utils";
 import type { RiskRow } from "@/types/dashboard";
 
@@ -15,6 +18,8 @@ export type DossierPatientHeaderProps = {
   code: string;
   alertCount: number;
   onOpenReport: () => void;
+  /** Relative link to messages tab (e.g. `?tab=mensagens`). Omitted when not shown. */
+  messagesTo?: string | null;
   className?: string;
 };
 
@@ -30,8 +35,10 @@ export function DossierPatientHeader({
   code,
   alertCount,
   onOpenReport,
+  messagesTo,
   className,
 }: DossierPatientHeaderProps) {
+  const [patientCodeVisible, setPatientCodeVisible] = useState(true);
   const cancer = CANCER_PT[riskRow.primary_cancer_type] ?? riskRow.primary_cancer_type;
   const rating =
     riskRow.risk >= 3 ? "Quente" : riskRow.risk >= 2 ? "Morno" : "Frio";
@@ -62,14 +69,39 @@ export function DossierPatientHeader({
                 </Badge>
               ) : null}
             </div>
-            <p className="mt-2 text-sm text-slate-500">
-              {age ?? "—"} anos · <span className="font-mono text-slate-700">{code}</span>
+            <p className="mt-2 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-sm text-slate-500">
+              <span>
+                {age ?? "—"} anos
+              </span>
+              <span aria-hidden>·</span>
+              <span className="inline-flex items-center gap-1 font-mono text-slate-700 tabular-nums">
+                {patientCodeVisible ? code : maskPatientCodeDisplay(code)}
+              </span>
+              <button
+                type="button"
+                className="inline-flex shrink-0 rounded-md p-1 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500"
+                aria-label={patientCodeVisible ? "Ocultar código do paciente" : "Mostrar código do paciente"}
+                aria-pressed={patientCodeVisible}
+                title={patientCodeVisible ? "Ocultar código" : "Mostrar código"}
+                onClick={() => setPatientCodeVisible((v) => !v)}
+              >
+                {patientCodeVisible ? <EyeOff className="size-3.5" aria-hidden /> : <Eye className="size-3.5" aria-hidden />}
+              </button>
             </p>
             <p className="mt-1 text-sm font-semibold text-slate-800">{cancer}</p>
           </div>
         </div>
 
         <div className="flex flex-col items-stretch gap-3 sm:flex-row sm:items-center lg:flex-col lg:items-end">
+          {messagesTo ? (
+            <Link
+              to={messagesTo}
+              className="inline-flex items-center justify-center gap-2 rounded-full border border-teal-200 bg-white px-4 py-2 text-sm font-semibold text-teal-800 shadow-sm transition-colors hover:bg-teal-50 sm:justify-end"
+            >
+              <MessageSquare className="size-4 shrink-0" strokeWidth={2} aria-hidden />
+              Mensagens
+            </Link>
+          ) : null}
           <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-right text-xs sm:text-sm">
             <div>
               <p className="font-medium uppercase tracking-wide text-slate-400">Prioridade</p>

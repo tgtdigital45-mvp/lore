@@ -379,41 +379,47 @@ export function OncoCarePatientsPage() {
         </p>
       ) : null}
 
-      {busy ? (
-        <div className="mt-6 flex flex-col gap-2" aria-busy="true" aria-label="A carregar pacientes">
-          {[...Array(6)].map((_, i) => (
-            <SkeletonPulse key={i} rounded="2xl" className="h-16" />
-          ))}
-        </div>
-      ) : null}
+      <div
+        id="patient-list"
+        className="mt-6 flex min-h-[min(40vh,28rem)] flex-col gap-2"
+        aria-busy={busy}
+        aria-label={busy ? "A carregar pacientes" : "Lista de pacientes"}
+      >
+        {busy ? (
+          <>
+            <span className="sr-only">A carregar pacientes…</span>
+            {[...Array(6)].map((_, i) => (
+              <SkeletonPulse key={i} rounded="2xl" className="min-h-[5.75rem] w-full shrink-0" />
+            ))}
+          </>
+        ) : (
+          <>
+            {sortedList.map((r) => (
+              <PatientRow key={r.id} row={r} />
+            ))}
 
-      {!busy && (
-        <div className="mt-6 flex flex-col gap-2" id="patient-list">
-          {sortedList.map((r) => (
-            <PatientRow key={r.id} row={r} />
-          ))}
-
-          {list.length === 0 ? (
-            <div className="flex flex-col items-center gap-4 rounded-2xl border border-dashed border-slate-200 bg-white px-8 py-14 text-center shadow-card">
-              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-surface-muted">
-                <Users className="size-6 text-slate-400" />
+            {list.length === 0 ? (
+              <div className="flex flex-col items-center gap-4 rounded-2xl border border-dashed border-slate-200 bg-white px-8 py-14 text-center shadow-card">
+                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-surface-muted">
+                  <Users className="size-6 text-slate-400" />
+                </div>
+                <div className="max-w-md">
+                  <p className="text-base font-bold text-slate-800">Nenhum paciente encontrado</p>
+                  <p className="mt-1.5 text-sm text-muted-foreground">
+                    {patientSearch
+                      ? `Nenhum resultado para "${patientSearch}". Tente outra busca ou limpe os filtros.`
+                      : "Ajuste os filtros ou adicione um novo paciente."}
+                  </p>
+                </div>
+                <Button type="button" variant="outline" size="sm" className="rounded-xl border-slate-200" onClick={() => setIsAddPatientOpen(true)}>
+                  <UserPlus className="mr-2 size-4" />
+                  Adicionar paciente
+                </Button>
               </div>
-              <div className="max-w-md">
-                <p className="text-base font-bold text-slate-800">Nenhum paciente encontrado</p>
-                <p className="mt-1.5 text-sm text-muted-foreground">
-                  {patientSearch
-                    ? `Nenhum resultado para "${patientSearch}". Tente outra busca ou limpe os filtros.`
-                    : "Ajuste os filtros ou adicione um novo paciente."}
-                </p>
-              </div>
-              <Button type="button" variant="outline" size="sm" className="rounded-xl border-slate-200" onClick={() => setIsAddPatientOpen(true)}>
-                <UserPlus className="mr-2 size-4" />
-                Adicionar paciente
-              </Button>
-            </div>
-          ) : null}
-        </div>
-      )}
+            ) : null}
+          </>
+        )}
+      </div>
 
       <AddPatientModal
         open={isAddPatientOpen}

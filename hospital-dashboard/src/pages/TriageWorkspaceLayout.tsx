@@ -4,6 +4,7 @@ import { Outlet, useMatch } from "react-router-dom";
 import { useOncoCare } from "@/context/OncoCareContext";
 import { PendingStaffLinksPanel } from "@/components/oncocare/PendingStaffLinksPanel";
 import { TriagePatientCard } from "@/components/oncocare/TriagePatientCard";
+import { TriagePatientCardSkeleton } from "@/components/oncocare/TriagePatientCardSkeleton";
 import { useBulkVitals } from "@/hooks/useBulkVitals";
 import { clinicalTier } from "@/lib/clinicalTier";
 import { Button } from "@/components/ui/button";
@@ -164,7 +165,12 @@ export function TriageWorkspaceLayout() {
             aria-label="Lista de pacientes na fila"
           >
             {busy ? (
-              <p className="text-sm text-muted-foreground">Carregando pacientes…</p>
+              <div className="space-y-3" aria-busy="true" aria-label="A carregar pacientes">
+                <span className="sr-only">A carregar pacientes…</span>
+                {[0, 1, 2, 3].map((i) => (
+                  <TriagePatientCardSkeleton key={i} />
+                ))}
+              </div>
             ) : triageList.length === 0 ? (
               <p className="rounded-3xl border border-dashed border-slate-200 bg-white p-8 text-center text-slate-500 shadow-card">
                 {pendingLinkRequests.length > 0

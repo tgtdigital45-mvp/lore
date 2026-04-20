@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef } from "react";
 import type { SymptomLogDetail } from "../../types/dashboard";
-import { SYMPTOM_CATEGORY_PT } from "../../constants/dashboardLabels";
+import { SYMPTOM_CATEGORY_EN_FALLBACK, SYMPTOM_CATEGORY_PT } from "../../constants/dashboardLabels";
 
 type PrdRowKey = "pain" | "nausea" | "fatigue";
 
@@ -53,7 +53,7 @@ function rowLabel(key: string): string {
   if (key === "pain") return PRD_ROW_LABEL.pain;
   if (key === "nausea") return PRD_ROW_LABEL.nausea;
   if (key === "fatigue") return PRD_ROW_LABEL.fatigue;
-  return SYMPTOM_CATEGORY_PT[key] ?? key;
+  return SYMPTOM_CATEGORY_PT[key] ?? SYMPTOM_CATEGORY_EN_FALLBACK[key] ?? key;
 }
 
 function sortRowKeys(keys: string[]): string[] {

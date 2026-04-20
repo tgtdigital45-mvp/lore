@@ -301,15 +301,20 @@ export function OncoCareAgendaPage() {
             </p>
           </div>
 
-          {loading ? (
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3" aria-busy="true" aria-label="A carregar posições">
-              {[...Array(6)].map((_, i) => (
-                <SkeletonPulse key={i} rounded="2xl" className="h-44" />
-              ))}
-            </div>
-          ) : (
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {resources.map((c) => {
+          <div
+            className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3"
+            aria-busy={loading}
+            aria-label={loading ? "A carregar posições" : "Posições da unidade"}
+          >
+            {loading ? (
+              <>
+                <span className="sr-only">A carregar posições…</span>
+                {[...Array(6)].map((_, i) => (
+                  <SkeletonPulse key={i} rounded="2xl" className="h-44 min-h-[11rem] w-full" />
+                ))}
+              </>
+            ) : (
+              resources.map((c) => {
                 const preview = getResourcePreview(c, bookings, now);
                 const { bar, dot } = toneStyles(preview.tone);
                 const editing = editingId === c.id;
@@ -317,7 +322,7 @@ export function OncoCareAgendaPage() {
                   <div
                     key={c.id}
                     className={cn(
-                      "group flex h-full overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-card transition hover:border-slate-200 hover:shadow-md",
+                      "group flex h-full min-h-[11rem] overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-card transition hover:border-slate-200 hover:shadow-md",
                       "border-l-4",
                       bar
                     )}
@@ -405,9 +410,9 @@ export function OncoCareAgendaPage() {
                     ) : null}
                   </div>
                 );
-              })}
-            </div>
-          )}
+              })
+            )}
+          </div>
         </div>
 
         <aside className="w-full shrink-0 xl:sticky xl:top-24 xl:w-[min(100%,380px)] xl:max-w-[380px]">

@@ -8,7 +8,6 @@ import {
 import type {
   CycleReadinessRow,
   EmergencyContactEmbed,
-  MedicationLogRow,
   MedicationRow,
   PatientAlertRule,
   SymptomLogDetail,
@@ -25,25 +24,11 @@ export type DossierBentoNadir = {
   cycleLabel: string;
 };
 
-function estimateMedicationAdherence(logs: MedicationLogRow[]): { score: number; subtitle: string } {
-  const weekAgo = Date.now() - 7 * 86400000;
-  const recent = logs.filter((l) => {
-    const raw = l.taken_at ?? l.created_at ?? l.scheduled_time;
-    if (!raw) return false;
-    return new Date(raw).getTime() >= weekAgo;
-  });
-  if (recent.length === 0) return { score: 78, subtitle: "Estimativa (sem tomas nos últimos 7 d)" };
-  const ok = recent.filter((l) => {
-    const st = (l.status ?? "").toLowerCase();
-    return st === "taken" || l.taken_time != null || st === "completed" || st === "confirmed";
-  }).length;
-  return { score: Math.round((ok / recent.length) * 100), subtitle: "Adesão à medicação (7 d)" };
-}
-
-function scoreColor(score: number): string {
-  if (score >= 80) return "#84cc16";
-  if (score >= 50) return "#f59e0b";
-  return "#ef4444";
+/** Semântica invertida: risco alto = vermelho, baixo = verde. */
+function suspensionRiskColor(score: number): string {
+  if (score >= 70) return "#ef4444";
+  if (score <= 30) return "#84cc16";
+  return "#f59e0b";
 }
 
 export type DossierBentoGridProps = {
@@ -51,10 +36,11 @@ export type DossierBentoGridProps = {
   emergencyContacts: EmergencyContactEmbed[];
   cycleReadiness: CycleReadinessRow | null;
   nadir: DossierBentoNadir;
-  medicationLogs: MedicationLogRow[];
   medications: MedicationRow[];
   alertRules: PatientAlertRule[];
   symptomsTimeline: SymptomLogDetail[];
+  /** 0–100: risco de suspensão (quanto maior, pior). */
+  suspensionRisk?: number;
   onRefreshRules: () => void;
   onOpenSuspensionModal: () => void;
   onGoTratamento: () => void;
@@ -69,18 +55,26 @@ export function DossierBentoGrid({
   emergencyContacts,
   cycleReadiness,
   nadir,
-  medicationLogs,
   medications,
   alertRules,
   symptomsTimeline,
+  suspensionRisk,
   onRefreshRules,
   onOpenSuspensionModal,
   onGoTratamento,
   className,
 }: DossierBentoGridProps) {
   const primary = emergencyContacts[0];
-  const { score: adherenceScore, subtitle: adherenceSubtitle } = estimateMedicationAdherence(medicationLogs);
-  const chartData = [{ name: "adesao", value: adherenceScore, fill: scoreColor(adherenceScore) }];
+  const rawRisk = suspensionRisk;
+  const riskDefined = typeof rawRisk === "number" && Number.isFinite(rawRisk);
+  const riskValue = riskDefined ? Math.max(0, Math.min(100, Math.round(rawRisk))) : 0;
+  const chartData = [
+    {
+      name: "suspensao",
+      value: riskDefined ? riskValue : 0,
+      fill: riskDefined ? suspensionRiskColor(riskValue) : "#e2e8f0",
+    },
+  ];
 
   const timeline = [...symptomsTimeline]
     .sort((a, b) => new Date(b.logged_at).getTime() - new Date(a.logged_at).getTime())
@@ -180,11 +174,11 @@ export function DossierBentoGrid({
         </div>
       </div>
 
-      {/* Score de saúde / adesão — RadialBar */}
+      {/* Risco de suspensão — RadialBar */}
       <div className="lg:col-span-3">
         <div className="dossier-glass-card rounded-3xl border-0 p-5 shadow-none ring-0 transition-shadow duration-300 hover:shadow-lg">
-          <h2 className="mb-1 text-xs font-bold uppercase tracking-widest text-slate-400">Score de adesão</h2>
-          <p className="mb-2 text-[0.7rem] text-slate-500">{adherenceSubtitle}</p>
+          <h2 className="mb-1 text-xs font-bold uppercase tracking-widest text-slate-400">Risco de suspensão</h2>
+          <p className="mb-2 text-[0.7rem] text-slate-500">Índice agregado (0 = baixo risco · 100 = alto)</p>
           <div className="relative mx-auto h-[160px] w-full min-w-0 max-w-[200px]">
             <ResponsiveContainer width="100%" height={160} minWidth={0}>
               <RadialBarChart
@@ -202,10 +196,13 @@ export function DossierBentoGrid({
               </RadialBarChart>
             </ResponsiveContainer>
             <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center pt-2">
-              <span className="text-3xl font-black tabular-nums" style={{ color: scoreColor(adherenceScore) }}>
-                {adherenceScore}
+              <span
+                className="text-3xl font-black tabular-nums"
+                style={{ color: riskDefined ? suspensionRiskColor(riskValue) : "#94a3b8" }}
+              >
+                {riskDefined ? riskValue : "—"}
               </span>
-              <span className="text-[0.65rem] font-bold uppercase text-slate-400">/ 100</span>
+              {riskDefined ? <span className="text-[0.65rem] font-bold uppercase text-slate-400">/ 100</span> : null}
             </div>
           </div>
           <Button

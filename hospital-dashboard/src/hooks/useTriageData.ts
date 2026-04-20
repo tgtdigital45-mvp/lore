@@ -8,6 +8,8 @@ import { riskFromRank } from "../lib/riskUi";
 import { calculateSuspensionRisk } from "../lib/suspensionRisk";
 import { supabase } from "../lib/supabase";
 import type {
+  BiomarkerModalRow,
+  HeuristicRule,
   HospitalEmbed,
   HospitalMetaRow,
   PatientRow,
@@ -303,7 +305,7 @@ export function useTriageData(session: Session | null) {
     const { data: logs, error: lErr } = await supabase
       .from("symptom_logs")
       .select(
-        "patient_id, severity, logged_at, symptom_category, body_temperature, entry_kind, pain_level, nausea_level, fatigue_level, ae_max_grade, triage_semaphore"
+        "patient_id, severity, logged_at, symptom_category, body_temperature, entry_kind, pain_level, nausea_level, fatigue_level, ae_max_grade, triage_semaphore, notes"
       )
       .in("patient_id", ids)
       .gte("logged_at", sinceFetch.toISOString());
@@ -321,11 +323,32 @@ export function useTriageData(session: Session | null) {
      * Uma única query com `.order().limit(N)` global prioriza poucos pacientes e zera vitals dos outros → score de suspensão falso.
      */
     const since48Iso = new Date(nowMs - 48 * 3600 * 1000).toISOString();
+    const since7dIso = new Date(nowMs - 7 * 86400000).toISOString();
     const since14dIso = new Date(nowMs - 14 * 86400000).toISOString();
     const vitalsCap = Math.min(120 * ids.length, 8000);
     const wearCap = Math.min(500 * ids.length, 20000);
+    const bioCap = Math.min(200 * ids.length, 16000);
 
-    const [{ data: allVitals, error: vBatchErr }, { data: allWear, error: wBatchErr }] = await Promise.all([
+    const [
+      { data: heuristicRows, error: hrErr },
+      { data: allBiomarkers, error: bioErr },
+      { data: allVitals, error: vBatchErr },
+      { data: allWear, error: wBatchErr },
+    ] = await Promise.all([
+      supabase
+        .from("heuristic_rules")
+        .select("id, category, rule_name, condition_json, points, time_window_hours, priority, description, is_active")
+        .eq("is_active", true)
+        .order("priority", { ascending: false }),
+      supabase
+        .from("biomarker_logs")
+        .select(
+          "id, patient_id, medical_document_id, name, value_numeric, value_text, unit, is_abnormal, reference_range, reference_alert, logged_at, is_critical, critical_low, critical_high, evaluation_type, response_category"
+        )
+        .in("patient_id", ids)
+        .gte("logged_at", since7dIso)
+        .order("logged_at", { ascending: false })
+        .limit(bioCap),
       supabase
         .from("vital_logs")
         .select("id, patient_id, logged_at, vital_type, value_numeric, value_systolic, value_diastolic, unit, notes")
@@ -342,6 +365,7 @@ export function useTriageData(session: Session | null) {
         .limit(wearCap),
     ]);
     if (version !== loadVersion.current) return;
+    const heuristicRules = (hrErr ? [] : (heuristicRows ?? [])) as HeuristicRule[];
     if (vBatchErr) {
       setLoadError(sanitizeSupabaseError(vBatchErr));
       setBusy(false);
@@ -352,7 +376,6 @@ export function useTriageData(session: Session | null) {
       setBusy(false);
       return;
     }
-
     const vitalsByPatient = new Map<string, VitalLogRow[]>();
     const groupedV = new Map<string, (VitalLogRow & { patient_id: string })[]>();
     for (const row of (allVitals ?? []) as (VitalLogRow & { patient_id: string })[]) {
@@ -390,6 +413,23 @@ export function useTriageData(session: Session | null) {
               : {},
         })) as WearableSampleRow[]
       );
+    }
+
+    const biomarkersByPatient = new Map<string, BiomarkerModalRow[]>();
+    const groupedBio = new Map<string, BiomarkerModalRow[]>();
+    for (const row of (bioErr ? [] : allBiomarkers) ?? []) {
+      const raw = row as BiomarkerModalRow & { patient_id: string };
+      const pid = raw.patient_id;
+      const list = groupedBio.get(pid) ?? [];
+      if (list.length < 80) {
+        const { patient_id: _pid, ...rest } = raw;
+        void _pid;
+        list.push(rest as BiomarkerModalRow);
+      }
+      groupedBio.set(pid, list);
+    }
+    for (const [pid, rows] of groupedBio) {
+      biomarkersByPatient.set(pid, rows);
     }
 
     const rules24h: MergedAlertRules = {
@@ -430,7 +470,9 @@ export function useTriageData(session: Session | null) {
         pLogs as unknown as SymptomLogDetail[],
         vitalsByPatient.get(p.id) ?? [],
         wearablesByPatient.get(p.id) ?? [],
-        rules.fever_celsius_min
+        rules.fever_celsius_min,
+        biomarkersByPatient.get(p.id) ?? [],
+        heuristicRules
       );
       return {
         ...p,

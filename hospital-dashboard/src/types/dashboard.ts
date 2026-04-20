@@ -274,6 +274,7 @@ export type SymptomLogTriage = {
   symptom_category: string | null;
   body_temperature: number | null;
   logged_at: string;
+  notes?: string | null;
   entry_kind?: string | null;
   pain_level?: number | null;
   nausea_level?: number | null;
@@ -389,4 +390,17 @@ export type WearableSampleRow = {
   unit: string | null;
   observed_start: string;
   metadata: Record<string, unknown>;
+};
+
+/** Regras de heurística `public.heuristic_rules` (risco de suspensão). */
+export type HeuristicRule = {
+  id: string;
+  category: string;
+  rule_name: string;
+  condition_json: Record<string, unknown>;
+  points: number;
+  time_window_hours: number;
+  priority: number;
+  description: string | null;
+  is_active: boolean;
 };

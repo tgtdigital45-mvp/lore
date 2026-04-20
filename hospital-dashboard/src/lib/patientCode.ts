@@ -13,3 +13,10 @@ export function formatPatientCodeDisplay(code: string | null | undefined): strin
   const c = String(code).trim().toUpperCase();
   return c.startsWith("AURA-") ? c : `AURA-${c}`;
 }
+
+/** Código já formatado (ex.: AURA-XXXXXX) mascarado para privacidade na UI. */
+export function maskPatientCodeDisplay(formatted: string): string {
+  const t = formatted.trim().toUpperCase();
+  if (t.startsWith("AURA-")) return "AURA-••••••";
+  return "••••••••";
+}
