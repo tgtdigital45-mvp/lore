@@ -6,7 +6,7 @@ See: `.planning/PROJECT.md` (updated 2026-04-20)
 
 **Core value:** Dossiê clínico do dia a dia completo e consentido, com dados protegidos por RLS e integrações auditáveis.
 
-**Current focus:** Phase 1 — Backend webhooks & telefone
+**Current focus:** Phase 1 — Dashboard UX (DASH-01, DASH-02)
 
 **Milestone:** Initial GSD bootstrap (codebase map + project shell)
 
@@ -21,4 +21,5 @@ See: `.planning/PROJECT.md` (updated 2026-04-20)
 | Roadmap | `.planning/ROADMAP.md` |
 
 ---
-*State initialized: 2026-04-20*
+*State initialized: 2026-04-20*  
+*Last updated: 2026-04-21 — roadmap reordenado (API em Phase 5)*

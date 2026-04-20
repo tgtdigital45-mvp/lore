@@ -22,10 +22,13 @@ O dossiê clínico do dia a dia (sintomas, medicamentos, tratamento, exames, cal
 
 ### Active
 
-- [ ] **Lookup Evolution/WhatsApp** escalável por telefone (evitar scan em memória em `evolutionWebhook.ts`).
-- [ ] **Consolidação UX dashboard** — remover/encerrar `PatientModal` duplicado vs `PatientDossierPage`.
-- [ ] **Cobertura de testes** — expandir além do backend (E2E Maestro, testes RLS integrados).
-- [ ] **Mobile** — deep linking universal, onboarding guiado, dark mode completo, auditoria a11y (ver `docs/RELATORIO-PROJETO.md` §8).
+*(Ordem GSD acordada: dashboard e qualidade primeiro; API/webhooks por último — ver `.planning/ROADMAP.md`.)*
+
+- [ ] **Consolidação UX dashboard** — remover/encerrar `PatientModal` duplicado vs `PatientDossierPage` (**Phase 1**).
+- [ ] **Cobertura de testes** — E2E Maestro, testes RLS smoke, Vitest em rotas críticas não-webhook (**Phase 2**).
+- [ ] **Mobile** — deep linking documentado, backlog a11y priorizado (**Phase 3**).
+- [ ] **Onboarding docs** — README/RELATORIO ligam `.planning/` e fluxo GSD (**Phase 4**).
+- [ ] **Lookup Evolution/WhatsApp** escalável por telefone e normalização única (**Phase 5 — futuro próximo**; `evolutionWebhook.ts`, `whatsappRoutes.ts`).
 - [ ] **Operação** — Realtime filtrado por hospital, métricas agregadas, cron de consultas (roadmap legado em `TODO_MASTER.md`).
 
 ### Out of Scope
@@ -73,4 +76,5 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-20 after GSD `/gsd-new-project` bootstrap (brownfield + codebase map, sem research paralelo nesta sessão)*
+*Last updated: 2026-04-21 — prioridade Active alinhada ao roadmap (API em última fase)*  
+*Previous: 2026-04-20 after GSD `/gsd-new-project` bootstrap*

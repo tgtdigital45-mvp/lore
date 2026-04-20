@@ -7,11 +7,7 @@
 
 Escopo GSD inicial: **endurecimento e evolução** do produto existente (não greenfield). Cada requisito é verificável.
 
-### Backend & integrações
-
-- [ ] **API-01**: Lookup de paciente por telefone em webhooks Evolution (ou equivalente) **sem** varrer milhares de linhas em memória de forma descontrolada — ver `backend/src/evolutionWebhook.ts`.
-- [ ] **API-02**: Autenticação e validação de payloads nos webhooks (Meta / Evolution) documentada e consistente com `backend/src/config.ts`.
-- [ ] **API-03**: Normalização de dígitos de telefone **única** partilhada entre `whatsappRoutes.ts` e `evolutionWebhook.ts`.
+**Ordem de execução acordada:** começar por dashboard, dados/qualidade, mobile e documentação; **API/webhooks escaláveis por último** (fase futura próxima).
 
 ### Dashboard hospitalar
 
@@ -30,11 +26,17 @@ Escopo GSD inicial: **endurecimento e evolução** do produto existente (não gr
 ### Qualidade & operações
 
 - [ ] **QUAL-01**: Suite E2E Maestro (`.maestro/`) a correr em CI ou documentação explícita de gate manual antes de release.
-- [ ] **QUAL-02**: Cobertura mínima acordada para novos handlers Express críticos (webhook, OCR).
+- [ ] **QUAL-02**: Cobertura mínima acordada para novos handlers Express críticos (ex.: OCR, rotas de exames); alinhar com a fase API quando esta arrancar.
 
 ### Documentação
 
 - [ ] **DOCS-01**: `docs/RELATORIO-PROJETO.md` ou `README.md` referenciam `.planning/` e o fluxo GSD para onboarding.
+
+### Backend & integrações *(última fase — feature futura próxima)*
+
+- [ ] **API-01**: Lookup de paciente por telefone em webhooks Evolution (ou equivalente) **sem** varrer milhares de linhas em memória de forma descontrolada — ver `backend/src/evolutionWebhook.ts`.
+- [ ] **API-02**: Autenticação e validação de payloads nos webhooks (Meta / Evolution) documentada e consistente com `backend/src/config.ts`.
+- [ ] **API-03**: Normalização de dígitos de telefone **única** partilhada entre `whatsappRoutes.ts` e `evolutionWebhook.ts`.
 
 ## v2 Requirements
 
@@ -54,17 +56,17 @@ Escopo GSD inicial: **endurecimento e evolução** do produto existente (não gr
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| API-01 | Phase 1 | Pending |
-| API-02 | Phase 1 | Pending |
-| API-03 | Phase 1 | Pending |
-| DASH-01 | Phase 2 | Pending |
-| DASH-02 | Phase 2 | Pending |
-| DATA-01 | Phase 3 | Pending |
-| MOBL-01 | Phase 4 | Pending |
-| MOBL-02 | Phase 4 | Pending |
-| QUAL-01 | Phase 3 | Pending |
-| QUAL-02 | Phase 3 | Pending |
-| DOCS-01 | Phase 5 | Pending |
+| DASH-01 | Phase 1 | Pending |
+| DASH-02 | Phase 1 | Pending |
+| DATA-01 | Phase 2 | Pending |
+| QUAL-01 | Phase 2 | Pending |
+| QUAL-02 | Phase 2 | Pending |
+| MOBL-01 | Phase 3 | Pending |
+| MOBL-02 | Phase 3 | Pending |
+| DOCS-01 | Phase 4 | Pending |
+| API-01 | Phase 5 | Pending |
+| API-02 | Phase 5 | Pending |
+| API-03 | Phase 5 | Pending |
 
 **Coverage:**
 
@@ -74,4 +76,4 @@ Escopo GSD inicial: **endurecimento e evolução** do produto existente (não gr
 
 ---
 *Requirements defined: 2026-04-20*  
-*Last updated: 2026-04-20 after `/gsd-new-project`*
+*Last updated: 2026-04-21 — prioridade: DASH → dados/qualidade → mobile → docs → API (futuro próximo)*
