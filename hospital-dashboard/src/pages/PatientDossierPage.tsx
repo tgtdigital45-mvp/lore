@@ -36,6 +36,7 @@ import { formatPatientCodeDisplay } from "@/lib/patientCode";
 import { formatPtDateTime, formatPtShort } from "@/lib/dashboardFormat";
 import { refreshSupabaseSessionIfStale } from "@/lib/authSession";
 import { supabase } from "@/lib/supabase";
+import { postEdgeFunctionJson } from "@/lib/supabaseEdgeFetch";
 import { userFacingApiError } from "@/lib/errorMessages";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -298,11 +299,11 @@ export function PatientDossierPage() {
     if (!patientId) return;
     setAiBusy(true);
     try {
-      const { data, error: fnErr } = await supabase.functions.invoke("generate-evolution-report", {
-        body: { patient_id: patientId, horizon_days: 7 },
+      const data = await postEdgeFunctionJson<{ html?: string }>("generate-evolution-report", {
+        patient_id: patientId,
+        horizon_days: 7,
       });
-      if (fnErr) throw fnErr;
-      const html = (data as { html?: string } | null)?.html;
+      const html = data?.html;
       if (html && typeof html === "string") {
         const w = window.open("", "_blank");
         if (w) {

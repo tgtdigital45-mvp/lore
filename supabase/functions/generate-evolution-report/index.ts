@@ -4,11 +4,7 @@
  * Body: { patient_id: uuid, horizon_days?: number }
  */
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
-
-const cors = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+import { corsHeaders, handleOptions } from "../_shared/cors.ts";
 
 function esc(s: string): string {
   return s
@@ -19,36 +15,53 @@ function esc(s: string): string {
 }
 
 Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: cors });
-  }
+  const opt = handleOptions(req);
+  if (opt) return opt;
+
+  const cors = corsHeaders(req);
+
   if (req.method !== "POST") {
-    return new Response(JSON.stringify({ error: "method_not_allowed" }), { status: 405, headers: { ...cors, "Content-Type": "application/json" } });
+    return new Response(JSON.stringify({ error: "method_not_allowed" }), {
+      status: 405,
+      headers: { ...cors, "Content-Type": "application/json" },
+    });
   }
 
   const url = Deno.env.get("SUPABASE_URL");
   const anon = Deno.env.get("SUPABASE_ANON_KEY");
   const authHeader = req.headers.get("Authorization");
   if (!url || !anon || !authHeader) {
-    return new Response(JSON.stringify({ error: "server_misconfigured" }), { status: 500, headers: { ...cors, "Content-Type": "application/json" } });
+    return new Response(JSON.stringify({ error: "server_misconfigured" }), {
+      status: 500,
+      headers: { ...cors, "Content-Type": "application/json" },
+    });
   }
 
   let body: { patient_id?: string; horizon_days?: number };
   try {
     body = (await req.json()) as typeof body;
   } catch {
-    return new Response(JSON.stringify({ error: "invalid_json" }), { status: 400, headers: { ...cors, "Content-Type": "application/json" } });
+    return new Response(JSON.stringify({ error: "invalid_json" }), {
+      status: 400,
+      headers: { ...cors, "Content-Type": "application/json" },
+    });
   }
   const patientId = body.patient_id;
   if (!patientId || typeof patientId !== "string") {
-    return new Response(JSON.stringify({ error: "patient_id_required" }), { status: 400, headers: { ...cors, "Content-Type": "application/json" } });
+    return new Response(JSON.stringify({ error: "patient_id_required" }), {
+      status: 400,
+      headers: { ...cors, "Content-Type": "application/json" },
+    });
   }
   const horizon = Math.min(30, Math.max(1, body.horizon_days ?? 7));
 
   const sb = createClient(url, anon, { global: { headers: { Authorization: authHeader } } });
   const { data: userData, error: userErr } = await sb.auth.getUser();
   if (userErr || !userData.user) {
-    return new Response(JSON.stringify({ error: "unauthorized" }), { status: 401, headers: { ...cors, "Content-Type": "application/json" } });
+    return new Response(JSON.stringify({ error: "unauthorized" }), {
+      status: 401,
+      headers: { ...cors, "Content-Type": "application/json" },
+    });
   }
 
   const { data: patient, error: pErr } = await sb
@@ -57,7 +70,10 @@ Deno.serve(async (req) => {
     .eq("id", patientId)
     .maybeSingle();
   if (pErr || !patient) {
-    return new Response(JSON.stringify({ error: "forbidden_or_not_found" }), { status: 403, headers: { ...cors, "Content-Type": "application/json" } });
+    return new Response(JSON.stringify({ error: "forbidden_or_not_found" }), {
+      status: 403,
+      headers: { ...cors, "Content-Type": "application/json" },
+    });
   }
 
   const since = new Date();
@@ -194,6 +210,7 @@ ${bioRows
 </body></html>`;
 
   return new Response(JSON.stringify({ html, meta: { horizon_days: horizon, patient_id: patientId } }), {
+    status: 200,
     headers: { ...cors, "Content-Type": "application/json" },
   });
 });

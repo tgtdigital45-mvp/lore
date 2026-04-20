@@ -1,4 +1,4 @@
-import { lazy, useEffect, useMemo, useState, type FormEvent } from "react";
+import { lazy, Suspense, useEffect, useMemo, useState, type FormEvent } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { Navigate, Route, Routes } from "react-router-dom";
 import { Activity, Eye, EyeOff, Loader2 } from "lucide-react";
@@ -39,6 +39,9 @@ const HospitalSettingsPage = lazy(() =>
 );
 const InfusionOpsDashboardPage = lazy(() =>
   import("./pages/InfusionOpsDashboardPage").then((m) => ({ default: m.InfusionOpsDashboardPage }))
+);
+const InfusionOpsDisplayPage = lazy(() =>
+  import("./pages/InfusionOpsDisplayPage").then((m) => ({ default: m.InfusionOpsDisplayPage }))
 );
 const MensagensWorkspacePage = lazy(() =>
   import("./pages/MensagensWorkspacePage").then((m) => ({ default: m.MensagensWorkspacePage }))
@@ -314,6 +317,20 @@ export default function App() {
   return (
     <OncoCareProvider session={session}>
       <Routes>
+        <Route
+          path="tv/operacao-infusao"
+          element={
+            <Suspense
+              fallback={
+                <div className="flex min-h-screen items-center justify-center bg-slate-100" role="status" aria-live="polite">
+                  <Loader2 className="size-12 animate-spin text-teal-600" aria-hidden />
+                </div>
+              }
+            >
+              <InfusionOpsDisplayPage />
+            </Suspense>
+          }
+        />
         <Route element={<OncoCareLayout />}>
           <Route index element={<DefaultPanelNavigate />} />
           <Route path="paciente" element={<TriageWorkspaceLayout />}>

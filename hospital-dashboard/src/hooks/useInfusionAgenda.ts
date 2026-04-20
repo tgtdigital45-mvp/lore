@@ -33,13 +33,19 @@ export type InfusionBookingRow = {
 const BOOKING_WINDOW_PAST_MS = 7 * 24 * 60 * 60 * 1000;
 const BOOKING_WINDOW_FUTURE_MS = 45 * 24 * 60 * 60 * 1000;
 
-export function useInfusionAgenda() {
+export type UseInfusionAgendaOptions = {
+  /** Refresco extra além do tempo real (útil em ecrãs transmitidos). */
+  pollIntervalMs?: number;
+};
+
+export function useInfusionAgenda(options?: UseInfusionAgendaOptions) {
   const [authUserId, setAuthUserId] = useState<string | null | undefined>(undefined);
   const [hospitalId, setHospitalId] = useState<string | null>(null);
   const [resources, setResources] = useState<InfusionResourceRow[]>([]);
   const [bookings, setBookings] = useState<InfusionBookingRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [dataUpdatedAt, setDataUpdatedAt] = useState<number | null>(null);
   const loadVersion = useRef(0);
 
   useEffect(() => {
@@ -106,6 +112,9 @@ export function useInfusionAgenda() {
         }))
       );
       setBookings((bookR.data ?? []) as unknown as InfusionBookingRow[]);
+      if (version === loadVersion.current && !resR.error && !bookR.error) {
+        setDataUpdatedAt(Date.now());
+      }
     } catch (err) {
       if (version === loadVersion.current) {
         setError(err instanceof Error ? sanitizeSupabaseError(err) : "Erro ao carregar agenda de infusão.");
@@ -160,6 +169,13 @@ export function useInfusionAgenda() {
     };
   }, [hospitalId, authUserId, loadData]);
 
+  useEffect(() => {
+    const ms = options?.pollIntervalMs;
+    if (!ms || ms < 5000 || !authUserId || !hospitalId) return;
+    const id = window.setInterval(() => void loadData(), ms);
+    return () => window.clearInterval(id);
+  }, [options?.pollIntervalMs, authUserId, hospitalId, loadData]);
+
   const kpis = useMemo(() => {
     const now = Date.now();
     let maintenance = 0;
@@ -190,5 +206,6 @@ export function useInfusionAgenda() {
     error,
     reload: loadData,
     kpis,
+    dataUpdatedAt,
   };
 }

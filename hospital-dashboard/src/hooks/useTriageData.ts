@@ -536,9 +536,10 @@ export function useTriageData(session: Session | null) {
         "postgres_changes",
         { event: "UPDATE", schema: "public", table: "profiles" },
         (payload) => {
-          const newRow = payload.new as Record<string, unknown> | null | undefined;
-          if (!newRow || typeof newRow.id !== "string") return;
-          const profileId = newRow.id;
+          const raw = payload.new as Record<string, unknown> | null | undefined;
+          if (!raw || typeof raw.id !== "string") return;
+          const profileId = raw.id;
+          const patch: Record<string, unknown> = raw;
           if (profileId === staffId) {
             void reloadStaffProfile();
             return;
@@ -552,24 +553,24 @@ export function useTriageData(session: Session | null) {
             const mergedProf = {
               ...prof,
               full_name:
-                typeof newRow.full_name === "string" ? newRow.full_name : (prof.full_name ?? ""),
+                typeof patch.full_name === "string" ? patch.full_name : (prof.full_name ?? ""),
               date_of_birth:
-                newRow.date_of_birth !== undefined
-                  ? (newRow.date_of_birth as string | null)
+                patch.date_of_birth !== undefined
+                  ? (patch.date_of_birth as string | null)
                   : prof.date_of_birth,
               avatar_url:
-                newRow.avatar_url !== undefined ? (newRow.avatar_url as string | null) : prof.avatar_url,
+                patch.avatar_url !== undefined ? (patch.avatar_url as string | null) : prof.avatar_url,
               phone_e164:
-                newRow.phone_e164 !== undefined ? (newRow.phone_e164 as string | null) : prof.phone_e164,
+                patch.phone_e164 !== undefined ? (patch.phone_e164 as string | null) : prof.phone_e164,
               email_display:
-                newRow.email_display !== undefined ? (newRow.email_display as string | null) : prof.email_display,
+                patch.email_display !== undefined ? (patch.email_display as string | null) : prof.email_display,
               whatsapp_opt_in_at:
-                newRow.whatsapp_opt_in_at !== undefined
-                  ? (newRow.whatsapp_opt_in_at as string | null)
+                patch.whatsapp_opt_in_at !== undefined
+                  ? (patch.whatsapp_opt_in_at as string | null)
                   : (prof as { whatsapp_opt_in_at?: string | null }).whatsapp_opt_in_at,
               whatsapp_opt_in_revoked_at:
-                newRow.whatsapp_opt_in_revoked_at !== undefined
-                  ? (newRow.whatsapp_opt_in_revoked_at as string | null)
+                patch.whatsapp_opt_in_revoked_at !== undefined
+                  ? (patch.whatsapp_opt_in_revoked_at as string | null)
                   : (prof as { whatsapp_opt_in_revoked_at?: string | null }).whatsapp_opt_in_revoked_at,
             };
             const next = [...prev];
