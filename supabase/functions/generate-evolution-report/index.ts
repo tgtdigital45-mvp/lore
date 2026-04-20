@@ -1,6 +1,7 @@
 /**
  * Gera relatório HTML de evolução clínica (agregação + opcional LLM).
- * Auth: JWT do staff (invoke do dashboard).
+ * Auth: JWT do staff no POST (validado com getUser); `verify_jwt=false` no config.toml
+ * para o gateway não bloquear OPTIONS (CORS preflight sem Authorization).
  * Body: { patient_id: uuid, horizon_days?: number }
  */
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";

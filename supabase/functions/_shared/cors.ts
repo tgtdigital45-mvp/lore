@@ -14,8 +14,8 @@ export function corsHeaders(req: Request): Record<string, string> {
   };
 }
 
-/** Resposta a OPTIONS (preflight). */
+/** Resposta a OPTIONS (preflight). Corpo "ok" + 200 para máxima compatibilidade com proxies. */
 export function handleOptions(req: Request): Response | null {
   if (req.method !== "OPTIONS") return null;
-  return new Response(null, { status: 204, headers: corsHeaders(req) });
+  return new Response("ok", { status: 200, headers: corsHeaders(req) });
 }

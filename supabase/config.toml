@@ -361,6 +361,11 @@ authorization_url_path = "/oauth/consent"
 # Allow dynamic client registration
 allow_dynamic_registration = false
 
+# Sem isto, o gateway exige JWT em todos os métodos; OPTIONS (CORS preflight) não leva Authorization → falha CORS.
+# A função valida o utilizador com `getUser()` no corpo do POST.
+[functions.generate-evolution-report]
+verify_jwt = false
+
 [edge_runtime]
 enabled = true
 # Supported request policies: `oneshot`, `per_worker`.
