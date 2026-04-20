@@ -2,6 +2,7 @@ import type { Express, Request, Response } from "express";
 import type { RateLimitRequestHandler } from "express-rate-limit";
 import { z } from "zod";
 import type { Env } from "./config.js";
+import { resolveMessagingProvider } from "./messagingProvider.js";
 import { authenticateBearer } from "./authMiddleware.js";
 import { idempotencyMiddleware } from "./idempotencyMiddleware.js";
 import { logStructured } from "./logger.js";
@@ -39,6 +40,45 @@ function profileFromPatientRow(profiles: unknown): {
 
 function hasOptIn(p: { whatsapp_opt_in_at: string | null; whatsapp_opt_in_revoked_at: string | null }): boolean {
   return p.whatsapp_opt_in_at != null && p.whatsapp_opt_in_revoked_at == null;
+}
+
+async function sendViaEvolution(
+  env: Env,
+  toDigits: string,
+  message: string
+): Promise<
+  | { ok: true; provider_message_id: string | null }
+  | { ok: false; detail: string; status: number }
+> {
+  const base = env.EVOLUTION_API_BASE_URL!.replace(/\/$/, "");
+  const inst = encodeURIComponent(env.EVOLUTION_INSTANCE_NAME!.trim());
+  const url = `${base}/message/sendText/${inst}`;
+  const r = await fetch(url, {
+    method: "POST",
+    headers: {
+      apikey: env.EVOLUTION_API_KEY!,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ number: toDigits, text: message }),
+  });
+  let raw: Record<string, unknown> = {};
+  try {
+    raw = (await r.json()) as Record<string, unknown>;
+  } catch {
+    raw = {};
+  }
+  if (!r.ok) {
+    const detail =
+      typeof raw.error === "string"
+        ? raw.error
+        : typeof raw.message === "string"
+          ? raw.message
+          : JSON.stringify(raw).slice(0, 500);
+    return { ok: false, detail, status: r.status };
+  }
+  const key = raw.key as { id?: string } | undefined;
+  const id = key?.id ?? null;
+  return { ok: true, provider_message_id: id };
 }
 
 function mapMetaStatus(s: string): "sent" | "delivered" | "read" | "failed" {
@@ -125,8 +165,12 @@ export function mountWhatsappRoutes(app: Express, env: Env, limiter: RateLimitRe
       return;
     }
 
-    if (!env.WHATSAPP_ACCESS_TOKEN || !env.WHATSAPP_PHONE_NUMBER_ID) {
-      res.status(503).json({ error: "whatsapp_not_configured" });
+    const mode = resolveMessagingProvider(env);
+    if (!mode) {
+      res.status(503).json({
+        error: "messaging_not_configured",
+        message: "Configure Meta Cloud API (WHATSAPP_*) ou Evolution API (EVOLUTION_*). Opcional: MESSAGING_PROVIDER=meta|evolution.",
+      });
       return;
     }
 
@@ -187,6 +231,70 @@ export function mountWhatsappRoutes(app: Express, env: Env, limiter: RateLimitRe
     const to = digitsOnly(prof.phone_e164);
     if (!to) {
       res.status(400).json({ error: "missing_phone_e164", message: "Cadastre telefone E.164 no perfil do paciente." });
+      return;
+    }
+
+    if (mode === "evolution") {
+      const evResult = await sendViaEvolution(env, to, message);
+      if (!evResult.ok) {
+        logStructured("evolution_send_error", { detail: evResult.detail.slice(0, 500), status: evResult.status });
+        await admin.from("outbound_messages").insert({
+          patient_id: patientId,
+          hospital_id: hospitalId,
+          actor_id: userId,
+          channel: "whatsapp",
+          body: message,
+          status: "failed",
+          error_detail: evResult.detail.slice(0, 2000),
+          metadata: { provider: "evolution", status: evResult.status },
+          symptom_log_id: symptomLogId ?? null,
+        });
+        res.status(502).json({
+          error: "evolution_send_failed",
+          message: "Não foi possível enviar a mensagem (Evolution API).",
+        });
+        return;
+      }
+
+      const { data: inserted, error: insErr } = await admin
+        .from("outbound_messages")
+        .insert({
+          patient_id: patientId,
+          hospital_id: hospitalId,
+          actor_id: userId,
+          channel: "whatsapp",
+          body: message,
+          status: "sent",
+          provider_message_id: evResult.provider_message_id,
+          metadata: {
+            provider: "evolution",
+            symptom_log_id: symptomLogId ?? undefined,
+            evolution_message_id: evResult.provider_message_id,
+          },
+          symptom_log_id: symptomLogId ?? null,
+        })
+        .select("id")
+        .single();
+
+      if (insErr) {
+        logStructured("evolution_outbound_insert_failed", { err: insErr.message });
+      }
+
+      const { error: auditErr } = await supabase.rpc("record_audit", {
+        p_target_patient_id: patientId,
+        p_action: "WHATSAPP_OUTBOUND",
+        p_metadata: { channel: "whatsapp", provider: "evolution", outbound_id: inserted?.id ?? null },
+      });
+      if (auditErr) {
+        logStructured("whatsapp_record_audit_warn", { message: auditErr.message });
+      }
+
+      res.json({ ok: true, provider: "evolution", provider_message_id: evResult.provider_message_id, outbound_id: inserted?.id ?? null });
+      return;
+    }
+
+    if (!env.WHATSAPP_ACCESS_TOKEN || !env.WHATSAPP_PHONE_NUMBER_ID) {
+      res.status(503).json({ error: "whatsapp_not_configured" });
       return;
     }
 

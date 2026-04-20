@@ -72,6 +72,17 @@ const envSchema = z.object({
   WHATSAPP_VERIFY_TOKEN: z.preprocess(trim, z.string().optional().or(z.literal(""))),
   WHATSAPP_APP_SECRET: z.preprocess(trim, z.string().optional().or(z.literal(""))),
   WHATSAPP_API_VERSION: z.preprocess(trim, z.string().optional().or(z.literal(""))),
+  /** Evolution API v2 (WhatsApp). Opcional; usado quando `resolveMessagingProvider` escolhe evolution. */
+  EVOLUTION_API_BASE_URL: z.preprocess((v) => {
+    const t = trim(v);
+    return t === "" ? undefined : t;
+  }, z.string().url().optional()),
+  EVOLUTION_API_KEY: z.preprocess(trim, z.string().optional().or(z.literal(""))),
+  EVOLUTION_INSTANCE_NAME: z.preprocess(trim, z.string().optional().or(z.literal(""))),
+  /** Segredo na query `?secret=` de POST /api/evolution/webhook */
+  EVOLUTION_WEBHOOK_SECRET: z.preprocess(trim, z.string().optional().or(z.literal(""))),
+  /** Força canal quando Meta e Evolution estão ambos configurados: meta | evolution */
+  MESSAGING_PROVIDER: z.preprocess(trim, z.string().optional().or(z.literal(""))),
   /** Lista separada por vírgulas de origens CORS permitidas. Vazio = modo permissivo (dev). */
   CORS_ORIGINS: z.preprocess(trim, z.string().optional().or(z.literal(""))),
 });
@@ -118,6 +129,11 @@ export function loadEnv(): Env {
       parsed.data.WHATSAPP_API_VERSION === "" || parsed.data.WHATSAPP_API_VERSION === undefined
         ? "v21.0"
         : parsed.data.WHATSAPP_API_VERSION,
+    EVOLUTION_API_BASE_URL: parsed.data.EVOLUTION_API_BASE_URL,
+    EVOLUTION_API_KEY: emptyToUndef(parsed.data.EVOLUTION_API_KEY),
+    EVOLUTION_INSTANCE_NAME: emptyToUndef(parsed.data.EVOLUTION_INSTANCE_NAME),
+    EVOLUTION_WEBHOOK_SECRET: emptyToUndef(parsed.data.EVOLUTION_WEBHOOK_SECRET),
+    MESSAGING_PROVIDER: emptyToUndef(parsed.data.MESSAGING_PROVIDER),
     CORS_ORIGINS:
       parsed.data.CORS_ORIGINS === "" || parsed.data.CORS_ORIGINS === undefined
         ? undefined
