@@ -1,0 +1,49 @@
+# ============================================================
+# Fluxo: TRATAMENTO
+# Ecrã: app/(tabs)/health/treatment/index.tsx
+#
+# Cobre:
+#   - Navegação para Tratamento
+#   - Estado vazio (sem ciclos) vs. lista de ciclos
+#   - Abertura do ecrã "Novo ciclo"
+#   - Cancelamento sem criar ciclo
+#   - Scroll na lista de ciclos
+#   - Abertura do detalhe de um ciclo (primeiro item da lista)
+#
+# SUGESTÕES de testID:
+#   treatment/index.tsx:
+#     Pressable "Novo ciclo"     → testID="btn-novo-ciclo"
+#     Pressable "Primeiro ciclo" (empty) → testID="btn-primeiro-ciclo"
+#     FlatList de ciclos         → testID="lista-ciclos"
+#     Card de cada ciclo         → testID={`ciclo-card-${cycleId}`}
+#   treatment/kind.tsx (wizard passo 1):
+#     Pressable tipo "Quimioterapia" → testID="tipo-quimio"
+#     Pressable tipo "Imunoterapia"  → testID="tipo-imuno"
+# ============================================================
+
+appId: com.auraonco.app
+
+---
+
+# Navegação a partir de Saúde
+- tapOn:
+    text: "Tratamento"
+- assertVisible: "Tratamento"
+- takeScreenshot: "07_tratamento"
+
+# --- Caso: sem ciclos (empty state) ---
+- runFlow:
+    when:
+      visible: "Configure seu tratamento"
+    file: _treatment_empty.yaml
+
+# --- Caso: com ciclos na lista ---
+- runFlow:
+    when:
+      visible: "Histórico de ciclos"
+    file: _treatment_list.yaml
+
+# Voltar para Saúde
+- tapOn:
+    text: "Voltar"
+- assertVisible: "Categorias de Saúde"

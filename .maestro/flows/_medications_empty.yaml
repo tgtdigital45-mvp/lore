@@ -1,0 +1,18 @@
+# Sub-fluxo: estado vazio de Medicamentos
+appId: com.auraonco.app
+
+---
+- assertVisible: "Configure seus medicamentos"
+- assertVisible: "Adicionar um medicamento"
+- takeScreenshot: "04a_med_vazio"
+
+# Abrir o assistente de cadastro
+- tapOn:
+    text: "Adicionar um medicamento"
+# SUGESTÃO: adicionar testID="wizard-step-nome" na página name.tsx
+- assertVisible: "Nome do medicamento"     # título esperado no passo 1 do wizard
+- takeScreenshot: "04b_med_wizard_nome"
+
+# Cancelar / voltar sem criar medicamento
+- tapOn:
+    text: "Voltar"

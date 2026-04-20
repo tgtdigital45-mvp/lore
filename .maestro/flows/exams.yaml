@@ -1,0 +1,77 @@
+# ============================================================
+# Fluxo: EXAMES
+# Ecrã: app/(tabs)/exams/index.tsx (tab Exames)
+#
+# Cobre:
+#   - Navegação para a tab Exames (swipe adicional para a esquerda)
+#   - Validação do ecrã de documentos médicos
+#   - Campo de pesquisa
+#   - Filtros de tipo (Todos, Exame, Relatório, etc.)
+#   - Botão "Adicionar" → modal de origem
+#   - Cancelamento do modal de origem
+#   - Scroll na lista de documentos
+#
+# SUGESTÕES de testID:
+#   exams/index.tsx:
+#     TextInput pesquisa           → testID="input-busca-exames"
+#     Pressable "Adicionar"        → testID="btn-adicionar-exame"
+#     Pressable filtro "Todos"     → testID="filtro-todos"
+#     Pressable filtro "Exame"     → testID="filtro-exame"
+#     Modal opções câmera/galeria  → testID="modal-fonte"
+# ============================================================
+
+appId: com.auraonco.app
+
+---
+
+# Navegar para o tab Exames (swipe da direita → Exames é o 3.º tab)
+# Assume-se que estamos no tab Saúde; um swipe para a esquerda chega a Exames
+- swipe:
+    direction: LEFT
+    duration: 300
+
+- assertVisible: "Exames"
+- takeScreenshot: "08_exames"
+
+# --- Validações principais ---
+- assertVisible: "Adicionar"
+# Pode estar vazio ou com documentos
+
+# --- Campo de pesquisa ---
+- tapOn:
+    text: "Pesquisar exames"       # placeholder do TextInput
+- inputText: "hemograma"
+- takeScreenshot: "08a_exames_pesquisa"
+- clearText
+- hideKeyboard
+
+# --- Filtros de tipo ---
+- runFlow:
+    when:
+      visible: "Exame"
+    file: _exams_filters.yaml
+
+# --- Botão Adicionar → modal de escolha de origem ---
+- tapOn:
+    text: "Adicionar"
+- assertVisible: "Câmera"
+- assertVisible: "Galeria"
+- takeScreenshot: "08b_exames_modal_fonte"
+
+# Fechar modal (Cancelar ou gesto de dismiss)
+- runFlow:
+    when:
+      visible: "Cancelar"
+    file: _do_nothing.yaml
+- tapOn:
+    text: "Cancelar"
+
+# Scroll na lista de documentos (se existirem)
+- scrollUntilVisible:
+    element:
+      text: "Sobre exames"
+    direction: DOWN
+    timeout: 5000
+
+- assertVisible: "Sobre exames"
+- takeScreenshot: "08c_exames_scroll_fundo"

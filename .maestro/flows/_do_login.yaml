@@ -1,0 +1,36 @@
+# ============================================================
+# Sub-fluxo interno: executa o preenchimento do formulário
+# Chamado apenas quando o ecrã de login está visível
+# ============================================================
+
+appId: com.auraonco.app
+
+---
+
+# Campo e-mail — seleção por placeholder (sem testID no código atual)
+# SUGESTÃO: adicionar testID="input-email" ao TextInput de email em login.tsx
+- tapOn:
+    text: "E-mail"
+- clearText
+- inputText: ${AURA_TEST_EMAIL:-teste@auraonco.dev}
+
+# Campo senha — seleção por placeholder
+# SUGESTÃO: adicionar testID="input-password" ao TextInput de senha em login.tsx
+- tapOn:
+    text: "Senha"
+- clearText
+- inputText: ${AURA_TEST_PASSWORD:-Senha@Teste123}
+
+# Fechar teclado
+- hideKeyboard
+
+# Botão "Entrar" — identificado por accessibilityLabel
+# SUGESTÃO: adicionar testID="btn-entrar" ao Pressable de submit em login.tsx
+- tapOn:
+    text: "Entrar"
+
+# Aguarda resposta do Supabase (até 10 s por causa da latência da API)
+- extendedWaitUntil:
+    visible:
+      text: "Métricas em foco"
+    timeout: 10000

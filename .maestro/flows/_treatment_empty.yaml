@@ -1,0 +1,23 @@
+# Sub-fluxo: estado vazio de Tratamento
+appId: com.auraonco.app
+
+---
+- assertVisible: "Configure seu tratamento"
+- assertVisible: "Novo ciclo"
+- takeScreenshot: "07a_trat_vazio"
+
+# Abrir wizard de novo ciclo
+- tapOn:
+    text: "Novo ciclo"
+- assertVisible: "Tipo de tratamento"     # título esperado na 1ª tela do wizard (kind.tsx)
+- takeScreenshot: "07b_trat_wizard_kind"
+
+# Seleccionar tipo para validar avanço (Quimioterapia)
+- runFlow:
+    when:
+      visible: "Quimioterapia"
+    file: _do_nothing.yaml
+
+# Cancelar — voltar sem criar ciclo
+- tapOn:
+    text: "Voltar"

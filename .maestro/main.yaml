@@ -1,0 +1,46 @@
+# ============================================================
+# Aura Onco — Suite Principal Maestro
+# Executa o Caminho Crítico completo da aplicação
+#
+# Pré-requisitos:
+#   - Maestro CLI instalado: curl -Ls "https://get.maestro.mobile.dev" | bash
+#   - App instalado no emulador/dispositivo
+#   - Variáveis de ambiente definidas (opcional):
+#       AURA_TEST_EMAIL    → email de uma conta de teste
+#       AURA_TEST_PASSWORD → senha correspondente
+#
+# Execução:
+#   maestro test .maestro/main.yaml
+#   (ou por fluxo: maestro test .maestro/flows/login.yaml)
+# ============================================================
+
+appId: com.auraonco.app         # Android Package / iOS Bundle ID (app.json)
+
+---
+
+# 1. Login — autenticação com e-mail + senha
+- runFlow: flows/login.yaml
+
+# 2. Ecrã Resumo (tab inicial após login)
+- runFlow: flows/home.yaml
+
+# 3. Navegação para Saúde → mapa de categorias
+- runFlow: flows/health.yaml
+
+# 4. Saúde → Medicamentos
+- runFlow: flows/medications.yaml
+
+# 5. Saúde → Sinais Vitais
+- runFlow: flows/vitals.yaml
+
+# 6. Saúde → Sintomas (Diário)
+- runFlow: flows/diary.yaml
+
+# 7. Saúde → Tratamento
+- runFlow: flows/treatment.yaml
+
+# 8. Tab Exames
+- runFlow: flows/exams.yaml
+
+# 9. Calendário (acesso via Home)
+- runFlow: flows/calendar.yaml

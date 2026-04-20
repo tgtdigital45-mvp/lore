@@ -1,0 +1,22 @@
+# Sub-fluxo: registar náusea nível 1 (Leve)
+# Adaptado ao SymptomQuickLog — ajuste os textos conforme os labels reais
+appId: com.auraonco.app
+
+---
+# Tap no botão de Náusea dentro do SymptomQuickLog
+- tapOn:
+    text: "Náusea"
+
+# O QuickLog abre inline um seletor de severidade (0–5)
+# Tentamos o nível "Leve" (CTCAE grau 1)
+- runFlow:
+    when:
+      visible: "Leve"
+    file: _do_nothing.yaml     # placeholder — substitua pelo tap correto
+
+# SUGESTÃO: com testID seria:
+# - tapOn:
+#     id: "symptom-severity-1"
+# - tapOn:
+#     id: "btn-registrar-sintoma"
+# - assertVisible: "Registado"

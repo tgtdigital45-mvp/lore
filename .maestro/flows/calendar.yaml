@@ -1,0 +1,76 @@
+# ============================================================
+# Fluxo: CALENDÁRIO
+# Ecrã: app/calendar.tsx
+#
+# Acesso: ícone no header do Resumo (Home) ou rota directa
+#
+# Cobre:
+#   - Navegação para o Calendário via ícone no header
+#   - Validação do calendário mensal
+#   - Scroll para ver eventos/doses do dia seleccionado
+#   - Navegação entre meses (próximo / anterior)
+#   - Volta ao Resumo
+#
+# SUGESTÕES de testID:
+#   app/(tabs)/index.tsx:
+#     Pressable ícone calendário no header → testID="btn-abrir-calendario"
+#   app/calendar.tsx:
+#     Pressable ">" próximo mês   → testID="btn-proximo-mes"
+#     Pressable "<" mês anterior  → testID="btn-mes-anterior"
+#     FlatList de eventos do dia  → testID="lista-eventos-dia"
+# ============================================================
+
+appId: com.auraonco.app
+
+---
+
+# Voltar ao Resumo (garantia de estado antes de aceder ao calendário)
+# Usamos swipe para a direita até à tab Resumo
+- swipe:
+    direction: RIGHT
+    duration: 300
+- swipe:
+    direction: RIGHT
+    duration: 300
+- assertVisible: "Métricas em foco"
+- takeScreenshot: "09_home_antes_calendario"
+
+# Abrir o Calendário a partir do header do Resumo
+# SUGESTÃO: adicionar testID="btn-abrir-calendario" ao Pressable no header
+- tapOn:
+    text: "Calendário"          # accessibilityLabel esperado no ícone de calendário
+- assertVisible: "Calendário"
+- takeScreenshot: "09a_calendario"
+
+# Validar componente de calendário mensal
+- assertVisible: "Hoje"
+
+# Navegar para o próximo mês
+- tapOn:
+    text: "›"                   # seta de próximo mês (ajuste se for diferente)
+- wait: 500
+- takeScreenshot: "09b_calendario_proximo_mes"
+
+# Voltar ao mês actual
+- tapOn:
+    text: "‹"
+- wait: 500
+
+# Seleccionar o dia de hoje para ver eventos/doses
+- tapOn:
+    text: "Hoje"
+- assertVisible: "Doses"
+- takeScreenshot: "09c_calendario_eventos_dia"
+
+# Scroll na lista de eventos do dia
+- scroll:
+    direction: DOWN
+    duration: 300
+- wait: 500
+- takeScreenshot: "09d_calendario_scroll_eventos"
+
+# Voltar ao Resumo
+- tapOn:
+    text: "Voltar"
+- assertVisible: "Métricas em foco"
+- takeScreenshot: "09e_home_apos_calendario"

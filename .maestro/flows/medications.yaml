@@ -1,0 +1,49 @@
+# ============================================================
+# Fluxo: MEDICAMENTOS
+# Ecrã: app/(tabs)/health/medications/index.tsx
+#
+# Cobre:
+#   - Navegação para Medicamentos a partir de Saúde
+#   - Estado vazio (primeiro uso) vs. lista existente
+#   - Abertura do assistente de cadastro (Novo)
+#   - Cancelamento do assistente (sem criar medicamento)
+#   - Scroll na lista de medicamentos
+#   - Validação dos botões principais
+#
+# SUGESTÕES de testID a adicionar em medications/index.tsx:
+#   Pressable "Adicionar um medicamento" → testID="btn-adicionar-med-empty"
+#   Pressable "Novo" (header)            → testID="btn-novo-med"
+#   Pressable "Adicionar medicamento"    → testID="btn-adicionar-med-card"
+#   Pressable "Editar" / "Concluir"      → testID="btn-editar-lista"
+#
+# SUGESTÃO em medications/name.tsx (wizard passo 1):
+#   TextInput nome do medicamento        → testID="input-med-nome"
+#   Pressable "Continuar"                → testID="btn-continuar-nome"
+# ============================================================
+
+appId: com.auraonco.app
+
+---
+
+# Navegação: a partir de Saúde, tap em Medicamentos
+- tapOn:
+    text: "Medicamentos"
+- assertVisible: "Medicamentos"
+- takeScreenshot: "04_medicamentos_lista"
+
+# --- Caso: sem medicamentos (empty state) ---
+- runFlow:
+    when:
+      visible: "Configure seus medicamentos"
+    file: _medications_empty.yaml
+
+# --- Caso: com medicamentos na lista ---
+- runFlow:
+    when:
+      visible: "Meus medicamentos"
+    file: _medications_list.yaml
+
+# Voltar a Saúde
+- tapOn:
+    text: "Voltar"
+- assertVisible: "Categorias de Saúde"

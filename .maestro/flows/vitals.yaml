@@ -1,0 +1,74 @@
+# ============================================================
+# Fluxo: SINAIS VITAIS
+# Ecrã: app/(tabs)/health/vitals/index.tsx
+#       app/(tabs)/health/vitals/[type].tsx  (detalhe por tipo)
+#
+# Cobre:
+#   - Navegação para Sinais Vitais
+#   - Validação dos cards de tipos de medição (grid 2 colunas)
+#   - Abertura de um tipo (Temperatura) e validação do gráfico/histórico
+#   - Botão + para nova medição
+#   - Volta ao hub de vitais
+#
+# SUGESTÕES de testID:
+#   vitals/index.tsx — Pressable de cada tipo → testID={`vital-card-${key}`}
+#   vitals/[type].tsx — Pressable "+" nova medição → testID="btn-nova-medicao"
+#   vitals/log.tsx    — TextInput valor → testID="input-vital-valor"
+# ============================================================
+
+appId: com.auraonco.app
+
+---
+
+# Navegação a partir do mapa de Saúde
+- tapOn:
+    text: "Sinais vitais"
+- assertVisible: "Sinais vitais"
+- assertVisible: "Tipos de medição"
+- takeScreenshot: "05_vitais_hub"
+
+# Scroll para ver todos os cards (grid de 2 colunas)
+- scrollUntilVisible:
+    element:
+      text: "Sobre sinais vitais"
+    direction: DOWN
+    timeout: 5000
+
+- assertVisible: "Sobre sinais vitais"
+- takeScreenshot: "05a_vitais_scroll_fundo"
+
+# Scroll de volta ao topo para clicar no primeiro tipo
+- scrollUntilVisible:
+    element:
+      text: "Tipos de medição"
+    direction: UP
+    timeout: 3000
+
+# Abrir tipo "Temperatura"
+- tapOn:
+    text: "Temperatura"
+- assertVisible: "Temperatura"
+- takeScreenshot: "05b_vitais_temperatura"
+
+# Verificar botão de nova medição (o + no header do ecrã de detalhe)
+# SUGESTÃO: adicionar testID="btn-nova-medicao" ao ícone + em vitals/[type].tsx
+- assertVisible: "+"
+- takeScreenshot: "05c_vitais_detalhe"
+
+# Voltar ao hub
+- tapOn:
+    text: "Voltar"
+- assertVisible: "Tipos de medição"
+
+# Abrir tipo "Frequência Cardíaca" (segunda linha do grid)
+- tapOn:
+    text: "Frequência cardíaca"
+- assertVisible: "Frequência cardíaca"
+- takeScreenshot: "05d_vitais_fc"
+- tapOn:
+    text: "Voltar"
+
+# Voltar para Saúde
+- tapOn:
+    text: "Voltar"
+- assertVisible: "Categorias de Saúde"

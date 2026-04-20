@@ -1,0 +1,34 @@
+# ============================================================
+# Fluxo: LOGIN
+# Ecrã: app/login.tsx
+#
+# Cobre:
+#   - Lançamento da app
+#   - Preenchimento de e-mail e senha
+#   - Submissão com o botão "Entrar"
+#   - Validação de chegada ao ecrã Resumo
+#
+# NOTA: O ecrã de login NÃO usa testID nos campos.
+#   Adições recomendadas (ver secção de sugestões em baixo):
+#     <TextInput testID="input-email" ... />
+#     <TextInput testID="input-password" ... />
+#     <Pressable testID="btn-login" ... />
+# ============================================================
+
+appId: com.auraonco.app
+
+---
+
+# --- Inicialização ---
+- launchApp:
+    clearState: false          # manter sessão anterior; mudar para true para arranque limpo
+
+# Aguarda o ecrã de login ou o Resumo (sessão já ativa)
+- runFlow:
+    when:
+      visible: "Entre com e-mail e senha"
+    file: _do_login.yaml
+
+# Valida que chegámos ao ecrã principal após login
+- assertVisible: "Métricas em foco"
+- takeScreenshot: "01_home_apos_login"

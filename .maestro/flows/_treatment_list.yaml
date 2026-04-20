@@ -1,0 +1,26 @@
+# Sub-fluxo: lista de ciclos de tratamento
+appId: com.auraonco.app
+
+---
+- assertVisible: "Histórico de ciclos"
+- takeScreenshot: "07c_trat_lista"
+
+# Scroll para ver todos os ciclos
+- scrollUntilVisible:
+    element:
+      text: "Sobre tratamento"
+    direction: DOWN
+    timeout: 5000
+
+- assertVisible: "Sobre tratamento"
+- takeScreenshot: "07d_trat_scroll_fundo"
+
+# Scroll de volta ao topo
+- scrollUntilVisible:
+    element:
+      text: "Histórico de ciclos"
+    direction: UP
+    timeout: 3000
+
+# Botão de novo ciclo (header)
+- assertVisible: "Novo ciclo"

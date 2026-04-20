@@ -1,0 +1,13 @@
+# Sub-fluxo: interacção com filtros da tab Exames
+appId: com.auraonco.app
+
+---
+- tapOn:
+    text: "Exame"
+- wait: 500
+- takeScreenshot: "08d_exames_filtro_exame"
+
+- tapOn:
+    text: "Todos"
+- wait: 500
+- takeScreenshot: "08e_exames_filtro_todos"

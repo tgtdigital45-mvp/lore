@@ -1,0 +1,41 @@
+# Sub-fluxo: lista de medicamentos existentes
+appId: com.auraonco.app
+
+---
+- assertVisible: "Meus medicamentos"
+- assertVisible: "Registrar"
+- takeScreenshot: "04c_med_lista"
+
+# Scroll para ver todos os medicamentos
+- scrollUntilVisible:
+    element:
+      text: "Sobre medicamentos"
+    direction: DOWN
+    timeout: 5000
+
+- assertVisible: "Sobre medicamentos"
+- takeScreenshot: "04d_med_scroll_fundo"
+
+# Modo edição
+- tapOn:
+    text: "Editar"
+- assertVisible: "Concluir"
+- takeScreenshot: "04e_med_edit_mode"
+- tapOn:
+    text: "Concluir"
+
+# Abrir detalhe do primeiro medicamento (o primeiro item da lista)
+# Como não há testID, tentamos pelo texto genérico de abertura
+- scrollUntilVisible:
+    element:
+      text: "Meus medicamentos"
+    direction: UP
+    timeout: 3000
+
+# Abrir wizard de novo medicamento
+- tapOn:
+    text: "Adicionar medicamento"
+- assertVisible: "Nome do medicamento"
+- takeScreenshot: "04f_med_wizard_novo"
+- tapOn:
+    text: "Voltar"

@@ -1,0 +1,5 @@
+# Placeholder — sub-fluxo sem acções (usado em runFlow condicional)
+appId: com.auraonco.app
+
+---
+- wait: 500

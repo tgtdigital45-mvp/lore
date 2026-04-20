@@ -1,0 +1,68 @@
+# ============================================================
+# Fluxo: SAÚDE — Ecrã de categorias
+# Ecrã: app/(tabs)/health/index.tsx
+#
+# O app usa MaterialTopTabs (swipe) com FloatingPillTabBar.
+# A navegação entre tabs é feita por swipe lateral ou
+# clicando na tab bar no fundo.
+#
+# Cobre:
+#   - Navegação para o tab "Saúde" (swipe ou tap)
+#   - Validação das 7 categorias de saúde
+#   - Tap em cada categoria e volta atrás
+#
+# SUGESTÕES de testID a adicionar em:
+#   FloatingPillTabBar.tsx  → testID="tab-resumo", "tab-saude", "tab-exames"
+#   HealthRow.tsx           → testID={`health-row-${c.key}`}
+# ============================================================
+
+appId: com.auraonco.app
+
+---
+
+# Navegar para o tab Saúde (swipe da esquerda para a direita
+# assumindo que Resumo é a tab à esquerda de Saúde)
+- swipe:
+    direction: LEFT
+    duration: 300
+
+# Aguardar e validar o ecrã de categorias
+- assertVisible: "Categorias de Saúde"
+- assertVisible: "Buscar"
+- takeScreenshot: "03_saude_categorias"
+
+# --- Validar todas as categorias visíveis ---
+- assertVisible: "Tratamento"
+- assertVisible: "Medicamentos"
+- assertVisible: "Sinais vitais"
+- assertVisible: "Nutrição"
+- assertVisible: "Exames"
+- assertVisible: "Sintomas"
+- assertVisible: "Agendamentos"
+
+# --- Tap em Tratamento e voltar ---
+- tapOn:
+    text: "Tratamento"
+- assertVisible: "Tratamento"
+- takeScreenshot: "03a_tratamento_aberto"
+- tapOn:
+    text: "Voltar"         # accessibilityLabel="Voltar" no CircleChromeButton
+
+# --- Tap em Sinais Vitais e voltar ---
+- tapOn:
+    text: "Sinais vitais"
+- assertVisible: "Sinais vitais"
+- takeScreenshot: "03b_vitals_aberto"
+- tapOn:
+    text: "Voltar"
+
+# --- Tap em Sintomas e voltar ---
+- tapOn:
+    text: "Sintomas"
+- assertVisible: "Sintomas"
+- takeScreenshot: "03c_sintomas_aberto"
+- tapOn:
+    text: "Voltar"
+
+# De volta ao mapa de categorias
+- assertVisible: "Categorias de Saúde"

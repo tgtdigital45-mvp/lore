@@ -1,0 +1,63 @@
+# ============================================================
+# Fluxo: SINTOMAS (DIÁRIO)
+# Ecrã: app/(tabs)/health/diary.tsx
+#
+# Cobre:
+#   - Navegação para Sintomas
+#   - Validação do ecrã de registo rápido (SymptomQuickLog)
+#   - Scroll até "Sobre sintomas"
+#   - Registo de um sintoma de Náusea (nível 1 — Leve)
+#   - Screenshot de confirmação
+#
+# SUGESTÕES de testID a adicionar em:
+#   diary.tsx:
+#     ScrollView principal → testID="diary-scroll"
+#   SymptomQuickLog.tsx:
+#     Botão de cada sintoma → testID={`symptom-btn-${categoryKey}`}
+#     Slider/botão de severidade → testID="symptom-severity-1"
+#     Botão "Registrar" → testID="btn-registrar-sintoma"
+# ============================================================
+
+appId: com.auraonco.app
+
+---
+
+- tapOn:
+    text: "Sintomas"
+- assertVisible: "Sintomas"
+- assertVisible: "Registrar"
+- takeScreenshot: "06_sintomas"
+
+# Validar instrução de uso
+- assertVisible: "Atalhos rápidos por sintoma"
+
+# Scroll para ver o bloco "Sobre sintomas"
+- scrollUntilVisible:
+    element:
+      text: "Sobre sintomas"
+    direction: DOWN
+    timeout: 5000
+
+- assertVisible: "Sobre sintomas"
+- takeScreenshot: "06a_sintomas_scroll_fundo"
+
+# Scroll de volta ao topo
+- scrollUntilVisible:
+    element:
+      text: "Registrar"
+    direction: UP
+    timeout: 3000
+
+# Tentar registar Náusea (o SymptomQuickLog renderiza botões por categoria)
+# NOTA: o texto exato depende do SymptomQuickLog — ajuste conforme o label visível
+- runFlow:
+    when:
+      visible: "Náusea"
+    file: _diary_log_nausea.yaml
+
+- takeScreenshot: "06b_sintomas_apos_log"
+
+# Voltar para Saúde
+- tapOn:
+    text: "Voltar para Saúde"    # accessibilityLabel no CircleChromeButton
+- assertVisible: "Categorias de Saúde"

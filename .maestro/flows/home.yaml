@@ -1,0 +1,65 @@
+# ============================================================
+# Fluxo: HOME / RESUMO
+# Ecrã: app/(tabs)/index.tsx
+#
+# Cobre:
+#   - Validação dos principais blocos visíveis no scroll
+#   - Scroll até ao fundo (botões inferiores)
+#   - Abertura de "Métricas em foco" → ajustar widgets
+#   - Navegação rápida para Medicamentos e Nutrição
+#   - Pull-to-refresh
+#
+# SUGESTÕES de testID a adicionar em app/(tabs)/index.tsx:
+#   <ScrollView testID="home-scroll" ...>
+#   Pressable "Ajustar" → testID="btn-ajustar-widgets"
+#   Pressable "GERIR" (medicamentos) → testID="btn-gerir-medicamentos"
+#   Pressable "Nutrição e hábitos" → testID="card-nutricao"
+#   Pressable "Biblioteca de apoio" → testID="card-biblioteca"
+#   Pressable "Relatórios" → testID="card-relatorios"
+# ============================================================
+
+appId: com.auraonco.app
+
+---
+
+# Garantir que estamos no Resumo
+- assertVisible: "Métricas em foco"
+- takeScreenshot: "02_home_resumo"
+
+# --- Validações de conteúdo ---
+- assertVisible: "Próximas doses"
+
+# --- Scroll até ao fundo para revelar botões inferiores ---
+- scrollUntilVisible:
+    element:
+      text: "Nutrição e hábitos"
+    direction: DOWN
+    timeout: 5000
+
+- assertVisible: "Nutrição e hábitos"
+- assertVisible: "Biblioteca de apoio"
+- takeScreenshot: "02b_home_scroll_baixo"
+
+# --- Abrir Nutrição via card do Resumo ---
+- tapOn:
+    text: "Abrir nutrição"
+- assertVisible: "Nutrição"
+- takeScreenshot: "02c_nutricao_aberta"
+
+# Voltar ao Resumo
+- tapOn:
+    text: "Voltar"         # fallback — o botão Voltar usa accessibilityLabel="Voltar"
+
+# Se não existir botão "Voltar", usar o gesto nativo
+# - back
+
+# --- Pull-to-refresh ---
+- scroll:
+    direction: DOWN
+    duration: 300
+- swipe:
+    direction: DOWN
+    duration: 400
+- wait: 2000
+- assertVisible: "Métricas em foco"
+- takeScreenshot: "02d_home_apos_refresh"
