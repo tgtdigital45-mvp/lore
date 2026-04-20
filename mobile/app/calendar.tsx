@@ -38,6 +38,8 @@ type ApptRow = {
   reminder_minutes_before: number;
   notes: string | null;
   pinned: boolean;
+  checked_in_at: string | null;
+  checked_in_source: "patient" | "staff" | null;
 };
 
 function localYmd(iso: string): string {
@@ -69,6 +71,23 @@ function kindLabel(kind: string): string {
   if (kind === "consult") return "Consulta";
   if (kind === "infusion") return "Infusão (agenda hospitalar)";
   return "Outro";
+}
+
+function sameLocalCalendarDay(iso: string, ref: Date): boolean {
+  const d = new Date(iso);
+  return (
+    d.getFullYear() === ref.getFullYear() && d.getMonth() === ref.getMonth() && d.getDate() === ref.getDate()
+  );
+}
+
+/** Check-in no dia do compromisso (calendário local), antes de ter registo. */
+function canPatientCheckIn(row: ApptRow, now: Date): boolean {
+  if (row.checked_in_at) return false;
+  return sameLocalCalendarDay(row.starts_at, now);
+}
+
+function formatCheckInShort(iso: string): string {
+  return new Date(iso).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" });
 }
 
 export default function CalendarScreen() {
@@ -111,12 +130,17 @@ export default function CalendarScreen() {
     const [{ data: a }, { data: c }] = await Promise.all([
       supabase
         .from("patient_appointments")
-        .select("id, title, kind, starts_at, reminder_minutes_before, notes, pinned")
+        .select("id, title, kind, starts_at, reminder_minutes_before, notes, pinned, checked_in_at, checked_in_source")
         .eq("patient_id", patient.id)
         .order("starts_at", { ascending: true }),
       supabase.from("treatment_cycles").select("start_date, end_date, protocol_name").eq("patient_id", patient.id),
     ]);
-    const normalized = ((a ?? []) as ApptRow[]).map((r) => ({ ...r, pinned: Boolean(r.pinned) }));
+    const normalized = ((a ?? []) as ApptRow[]).map((r) => ({
+      ...r,
+      pinned: Boolean(r.pinned),
+      checked_in_at: r.checked_in_at ?? null,
+      checked_in_source: r.checked_in_source ?? null,
+    }));
     setRows(normalized);
     setCycles((c ?? []) as typeof cycles);
     setLoading(false);
@@ -128,6 +152,48 @@ export default function CalendarScreen() {
       const { error } = await supabase.from("patient_appointments").update({ pinned: value }).eq("id", id);
       if (error) {
         Alert.alert("Agenda", error.message);
+        return;
+      }
+      await load();
+      void queryClient.invalidateQueries({ queryKey: homeSummaryQueryKey(patient.id) });
+    },
+    [patient, load, queryClient]
+  );
+
+  const patientCheckIn = useCallback(
+    async (id: string) => {
+      if (!patient) return;
+      const { error } = await supabase
+        .from("patient_appointments")
+        .update({
+          checked_in_at: new Date().toISOString(),
+          checked_in_source: "patient",
+        })
+        .eq("id", id)
+        .eq("patient_id", patient.id);
+      if (error) {
+        Alert.alert("Check-in", error.message);
+        return;
+      }
+      await load();
+      void queryClient.invalidateQueries({ queryKey: homeSummaryQueryKey(patient.id) });
+    },
+    [patient, load, queryClient]
+  );
+
+  const patientClearCheckIn = useCallback(
+    async (id: string) => {
+      if (!patient) return;
+      const { error } = await supabase
+        .from("patient_appointments")
+        .update({
+          checked_in_at: null,
+          checked_in_source: null,
+        })
+        .eq("id", id)
+        .eq("patient_id", patient.id);
+      if (error) {
+        Alert.alert("Check-in", error.message);
         return;
       }
       await load();
@@ -558,6 +624,41 @@ export default function CalendarScreen() {
                     </Text>
                     {r.notes ? (
                       <Text style={{ color: theme.colors.text.tertiary, marginTop: 6, fontSize: 14 }}>{r.notes}</Text>
+                    ) : null}
+                    {r.checked_in_at ? (
+                      <>
+                        <Text
+                          style={{
+                            color: "#059669",
+                            marginTop: theme.spacing.sm,
+                            fontSize: 13,
+                            fontWeight: "600",
+                          }}
+                        >
+                          Check-in · {formatCheckInShort(r.checked_in_at)}
+                          {r.checked_in_source === "staff" ? " (equipa)" : ""}
+                        </Text>
+                        {r.checked_in_source === "patient" ? (
+                          <Pressable onPress={() => void patientClearCheckIn(r.id)} style={{ marginTop: 8, alignSelf: "flex-start" }}>
+                            <Text style={{ color: IOS_HEALTH.blue, fontSize: 14, fontWeight: "600" }}>Anular check-in</Text>
+                          </Pressable>
+                        ) : null}
+                      </>
+                    ) : canPatientCheckIn(r, new Date()) ? (
+                      <Pressable
+                        onPress={() => void patientCheckIn(r.id)}
+                        style={({ pressed }) => ({
+                          marginTop: theme.spacing.md,
+                          alignSelf: "flex-start",
+                          backgroundColor: theme.colors.semantic.vitals,
+                          paddingHorizontal: 16,
+                          paddingVertical: 10,
+                          borderRadius: theme.radius.md,
+                          opacity: pressed ? 0.9 : 1,
+                        })}
+                      >
+                        <Text style={{ color: "#fff", fontWeight: "700", fontSize: 15 }}>Check-in</Text>
+                      </Pressable>
                     ) : null}
                     <View
                       style={{
