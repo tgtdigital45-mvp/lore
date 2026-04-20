@@ -4,6 +4,17 @@
 
 Este repositório está documentado para **onboarding de engenharia**, **revisão de arquitetura** e **contexto de contratação**: abaixo tens visão de produto, stack, fluxos, índice completo de `docs/` e arranque local.
 
+### Sumário da documentação por pasta (handover rápido)
+
+| Pasta | Documento | Conteúdo em uma frase |
+|-------|------------|------------------------|
+| [`backend/`](backend/) | [`backend/README.md`](backend/README.md) | API Express: OCR, IA, R2, WhatsApp **Meta** e **Evolution**, webhooks assinados. |
+| [`supabase/`](supabase/) | [`supabase/README.md`](supabase/README.md) | Migrações Postgres/RLS/Realtime e visão do stack de dados. |
+| [`supabase/functions/`](supabase/functions/) | [`supabase/functions/README.md`](supabase/functions/README.md) | Edge Functions: cron, alertas, relatório de evolução, questionário PRO. |
+| [`hospital-dashboard/`](hospital-dashboard/) | [`hospital-dashboard/README.md`](hospital-dashboard/README.md) | SPA triagem + dossiê + agenda + mensagens; variáveis `VITE_*`. |
+| [`mobile/`](mobile/) | [`mobile/README.md`](mobile/README.md) | App Expo paciente; EAS e variáveis `EXPO_PUBLIC_*`. |
+| [`.maestro/`](.maestro/) | [`.maestro/README.md`](.maestro/README.md) | Suite E2E Maestro (caminho crítico móvel). |
+
 ---
 
 ## Índice
@@ -58,6 +69,7 @@ flowchart TB
     ExpoPush[Expo Push API]
   end
   BE[Backend Express Node]
+  Evo[Evolution API WhatsApp]
   Mobile --> Auth
   Mobile --> PG
   Mobile --> Storage
@@ -72,6 +84,7 @@ flowchart TB
   BE --> OAI
   BE --> R2
   BE --> WA
+  BE --> Evo
   EF --> PG
   EF --> ExpoPush
 ```
@@ -79,8 +92,8 @@ flowchart TB
 A **landing** (`landing-page-onco`) é uma SPA estática de marketing — não aparece ligada a Supabase nem ao Express neste diagrama.
 
 - **Fonte de verdade dos dados:** PostgreSQL no Supabase, com **Row Level Security** por utilizador e por vínculo hospitalar.
-- **Backend Express:** rotas que precisam de segredos de servidor (OCR, LLM, R2, WhatsApp), sempre com **Bearer JWT** do Supabase nas rotas autenticadas.
-- **Edge Functions:** tarefas agendadas / internas (lembretes push, notificação de pedido de vínculo), com **service role** e proteção por **`CRON_SECRET`** — ver [`supabase/functions/README.md`](supabase/functions/README.md).
+- **Backend Express:** rotas que precisam de segredos de servidor (OCR, LLM, R2, WhatsApp **Meta Cloud** e/ou **Evolution API**), sempre com **Bearer JWT** do Supabase nas rotas autenticadas. O fornecedor ativo pode ser selecionado com `MESSAGING_PROVIDER` — ver [`backend/README.md`](backend/README.md) e [`backend/.env.example`](backend/.env.example).
+- **Edge Functions:** tarefas agendadas / internas (lembretes push, notificação de pedido de vínculo), relatório de evolução e disparo de questionário PRO, com **service role** ou JWT conforme a função e proteção por **`CRON_SECRET`** onde aplicável — ver [`supabase/functions/README.md`](supabase/functions/README.md).
 
 ### 2.2 Camadas lógicas
 
@@ -157,9 +170,10 @@ flowchart TB
 | [`mobile/`](mobile/) | App **Expo Router** — paciente | [`mobile/README.md`](mobile/README.md) |
 | [`hospital-dashboard/`](hospital-dashboard/) | **SPA** equipa clínica + Realtime | [`hospital-dashboard/README.md`](hospital-dashboard/README.md) |
 | [`landing-page-onco/`](landing-page-onco/) | Site marketing | [`landing-page-onco/README.md`](landing-page-onco/README.md) |
-| [`backend/`](backend/) | **Express**: agente, OCR, exames, WhatsApp, suporte | Ver secção 7 + [`backend/.env.example`](backend/.env.example) |
-| [`supabase/migrations/`](supabase/migrations/) | Schema evolutivo, RLS, funções | Aplicar em ordem ao projeto Supabase |
-| [`supabase/functions/`](supabase/functions/) | Edge Functions (lembretes, notify) | [`supabase/functions/README.md`](supabase/functions/README.md) |
+| [`backend/`](backend/) | **Express**: agente, OCR, exames, WhatsApp (Meta + Evolution), suporte | [`backend/README.md`](backend/README.md) + [`backend/.env.example`](backend/.env.example) |
+| [`supabase/migrations/`](supabase/migrations/) | Schema evolutivo, RLS, funções | [`supabase/README.md`](supabase/README.md) — aplicar em ordem ao projeto |
+| [`supabase/functions/`](supabase/functions/) | Edge Functions (lembretes, notify, relatórios) | [`supabase/functions/README.md`](supabase/functions/README.md) |
+| [`.maestro/`](.maestro/) | Testes E2E mobile (Maestro) | [`.maestro/README.md`](.maestro/README.md) |
 | [`docs/`](docs/) | Especificações de produto, BD, IA, segurança | Tabela abaixo |
 
 Não existe `package.json` na **raiz**; cada app é um projeto Node independente.
@@ -247,6 +261,8 @@ npm install
 npm run dev
 ```
 
+Rotas principais e módulos (triagem, dossiê, agenda, mensagens): [`hospital-dashboard/README.md`](hospital-dashboard/README.md).
+
 ### 7.5 Landing
 
 ```bash
@@ -261,6 +277,16 @@ npm run dev
 2. Cadastro de paciente / vínculo conforme migrações e UI.
 3. Diário → `symptom_logs`; assistente → backend + Gemini; cenário **nadir + febre** → mensagem de emergência + opcional webhook assinado.
 4. Dashboard → leitura de pacientes autorizados + Realtime (conforme políticas).
+
+### 7.7 Testes E2E (Maestro)
+
+Com app instalada no emulador/dispositivo e [Maestro CLI](https://maestro.mobile.dev/):
+
+```bash
+maestro test .maestro/main.yaml
+```
+
+Detalhes: [`.maestro/README.md`](.maestro/README.md).
 
 ---
 
@@ -289,4 +315,4 @@ Repositório **privado / confidencial** conforme classificação dos documentos 
 
 ---
 
-*README mantido para apresentação técnica coerente com a documentação em `docs/`. Atualizar ao alterar arquitetura ou novos serviços.*
+*README mantido para apresentação técnica coerente com a documentação em `docs/` e com os READMEs por pasta (`backend/`, `supabase/`, `hospital-dashboard/`, `mobile/`, `.maestro/`). Atualizar ao alterar arquitetura ou novos serviços.*

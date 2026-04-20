@@ -1,6 +1,17 @@
 # OncoCare — App mobile (Expo)
 
-Aplicação para **pacientes**: diário de sintomas, medicamentos, tratamento, exames/OCR, calendário, relatórios PDF, vinculação com hospital e consentimentos LGPD.
+**Sumário executivo:** aplicação **paciente-first** para acompanhamento oncológico — diário de sintomas, medicamentos, ciclos de tratamento, exames (incl. OCR via backend), calendário, relatórios PDF, vinculação autorizada com o hospital e fluxos LGPD. Partilha o **mesmo projeto Supabase** e o **oncocare-backend** com o dashboard hospitalar, garantindo uma única fonte de verdade clínica.
+
+## Últimas evoluções (documentação de engenharia)
+
+| Área | Ficheiros / notas |
+|------|-------------------|
+| **Consentimentos e autorizações** | `app/authorizations.tsx` — fluxos de permissão alinhados às políticas de dados. |
+| **Calendário** | `app/calendar.tsx` — marcações e contexto de tratamento no tempo. |
+| **Perfil** | `src/home/ProfileSheet.tsx` — resumo e ações do utilizador na área inicial. |
+| **Configuração de build** | `app.json` — identidade Android/iOS, extras EAS; ver secção EAS abaixo. |
+
+*(Atualizar esta tabela quando novos écrãs cruzarem release notes ou PRDs.)*
 
 ## Stack
 
