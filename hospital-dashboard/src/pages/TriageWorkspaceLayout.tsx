@@ -7,6 +7,7 @@ import { TriagePatientCard } from "@/components/oncocare/TriagePatientCard";
 import { TriagePatientCardSkeleton } from "@/components/oncocare/TriagePatientCardSkeleton";
 import { useBulkVitals } from "@/hooks/useBulkVitals";
 import { clinicalTier } from "@/lib/clinicalTier";
+import { staggerCard, staggerContainer } from "@/lib/motionPresets";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { RiskRow } from "@/types/dashboard";
@@ -120,7 +121,7 @@ export function TriageWorkspaceLayout() {
         )}
       >
         <section
-          className="flex min-h-0 w-full min-w-0 max-w-full flex-col overflow-hidden rounded-3xl bg-surface-app p-4 shadow-card ring-1 ring-slate-200/60 xl:h-full"
+          className="flex min-h-0 w-full min-w-0 max-w-full flex-col overflow-hidden rounded-3xl bg-white/65 p-4 shadow-card ring-1 ring-slate-200/60 backdrop-blur-sm xl:h-full"
           aria-labelledby="triage-queue-heading"
         >
           <div className="shrink-0 flex flex-wrap items-center justify-between gap-4">
@@ -165,9 +166,13 @@ export function TriageWorkspaceLayout() {
             aria-label="Lista de pacientes na fila"
           >
             {busy ? (
-              <div className="space-y-3" aria-busy="true" aria-label="A carregar pacientes">
+              <div
+                className={cn("flex min-h-[480px] flex-col gap-3")}
+                aria-busy="true"
+                aria-label="A carregar pacientes"
+              >
                 <span className="sr-only">A carregar pacientes…</span>
-                {[0, 1, 2, 3].map((i) => (
+                {[0, 1, 2, 3, 4].map((i) => (
                   <TriagePatientCardSkeleton key={i} />
                 ))}
               </div>
@@ -181,14 +186,15 @@ export function TriageWorkspaceLayout() {
               groupedTriage.map((group) => (
                 <div key={group.key}>
                   <p className="mb-3 text-[0.7rem] font-bold uppercase tracking-wider text-slate-400">{group.label}</p>
-                  <div className="space-y-3">
-                    {group.rows.map((r, i) => (
-                      <motion.div
-                        key={r.id}
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: Math.min(i * 0.04, 0.28), duration: 0.3 }}
-                      >
+                  <motion.div
+                    className="space-y-3"
+                    variants={staggerContainer}
+                    initial="hidden"
+                    animate="visible"
+                    key={`${triageMode}-${group.key}-${group.rows.map((r) => r.id).join(",")}`}
+                  >
+                    {group.rows.map((r) => (
+                      <motion.div key={r.id} variants={staggerCard}>
                         <TriagePatientCard
                           row={r}
                           vitals={vitalsByPatient[r.id] ?? []}
@@ -196,7 +202,7 @@ export function TriageWorkspaceLayout() {
                         />
                       </motion.div>
                     ))}
-                  </div>
+                  </motion.div>
                 </div>
               ))
             )}
@@ -205,10 +211,10 @@ export function TriageWorkspaceLayout() {
 
         <section
           className={cn(
-            "relative flex min-h-[min(520px,70vh)] flex-col overflow-hidden rounded-3xl shadow-soft xl:h-full xl:min-h-0 xl:max-h-full",
+            "relative flex min-h-[min(520px,70vh)] flex-col overflow-hidden rounded-3xl shadow-soft ring-1 ring-slate-200/60 backdrop-blur-sm xl:h-full xl:min-h-0 xl:max-h-full",
             selectedPatientId
-              ? "dossier-shell-full border-white/65 xl:border-l-4 xl:border-lime-400 xl:shadow-[inset_12px_0_24px_-12px_rgba(163,230,53,0.15)]"
-              : "border border-slate-100/80 bg-white"
+              ? "border border-white/65 bg-white/65 xl:border-l-4 xl:border-lime-400 xl:shadow-[inset_12px_0_24px_-12px_rgba(163,230,53,0.15)]"
+              : "border border-slate-100/80 bg-white/65"
           )}
           aria-label="Detalhe do paciente"
         >

@@ -1,5 +1,5 @@
 import { Suspense, useEffect, useLayoutEffect, useMemo, useState } from "react";
-import { Outlet, NavLink, useLocation } from "react-router-dom";
+import { Link, Outlet, NavLink, useLocation } from "react-router-dom";
 import {
   Activity,
   Armchair,
@@ -9,10 +9,10 @@ import {
   ChevronRight,
   LayoutDashboard,
   LogOut,
-  MessageSquare,
   Search,
   Settings,
   Users,
+  Users2,
 } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useOncoCare } from "@/context/OncoCareContext";
@@ -49,8 +49,8 @@ function buildNavMain(panelPath: string): NavItem[] {
   return [
     { to: panelPath, label: "Painel", icon: LayoutDashboard, end: false },
     { to: "/pacientes", label: "Pacientes", icon: Users, end: false },
-    { to: "/mensagens", label: "Mensagens", icon: MessageSquare, end: false },
     { to: "/agenda", label: "Agenda", icon: CalendarDays, end: false },
+    { to: "/equipe-clinica", label: "Equipe Clínica", icon: Users2, end: false },
   ];
 }
 
@@ -58,7 +58,7 @@ function isNavActive(pathname: string, to: string, end?: boolean): boolean {
   if (to === "/configuracoes" && pathname.startsWith("/configuracoes")) return true;
   if (to === "/operacao-infusao" && pathname.startsWith("/operacao-infusao")) return true;
   if (to === "/agenda" && pathname.startsWith("/agenda")) return true;
-  if (to === "/mensagens" && pathname.startsWith("/mensagens")) return true;
+  if (to === "/equipe-clinica" && pathname.startsWith("/equipe-clinica")) return true;
   /** Painel: link pode ser `/paciente` ou `/paciente/:id` (último dossiê / demo). */
   if (to === "/paciente" || to.startsWith("/paciente/")) {
     return pathname === "/paciente" || pathname.startsWith("/paciente/");
@@ -234,15 +234,24 @@ export function OncoCareLayout() {
 
   return (
     <TooltipProvider delayDuration={200}>
-      <div className="flex min-h-screen w-full flex-col lg:flex-row" style={{ backgroundColor: settings.appBg }}>
+      <div
+        className="flex min-h-screen w-full flex-col lg:flex-row"
+        style={{
+          background: `
+      radial-gradient(ellipse 100% 85% at 14% 10%, rgba(243,252,203,0.78) 0%, transparent 58%),
+      radial-gradient(ellipse 90% 70% at 96% 94%, rgba(255,236,234,0.55) 0%, transparent 55%),
+      linear-gradient(135deg, #fbfcf7 0%, #f9f8f4 38%, #f8f3f3 72%, #f5f0ee 100%)
+    `,
+        }}
+      >
         {/* Sidebar */}
         <aside
           className={cn(
-            "flex w-full shrink-0 flex-col border-b border-slate-200/80 transition-[width] duration-300 ease-out",
+            "flex w-full shrink-0 flex-col border-b border-slate-200/80 backdrop-blur-sm transition-[width] duration-300 ease-out",
             "lg:sticky lg:top-0 lg:h-screen lg:border-b-0 lg:border-r lg:border-r-slate-200/60",
             sidebarCollapsed ? "lg:w-[76px]" : "lg:w-[272px]"
           )}
-          style={{ backgroundColor: settings.sidebarBg }}
+          style={{ background: "rgba(251, 252, 247, 0.58)" }}
         >
           {/* Cabeçalho: Menu + recolher (estilo Dynamics) */}
           <div
@@ -275,12 +284,14 @@ export function OncoCareLayout() {
             </Button>
           </div>
 
-          {/* Marca */}
-          <div
+          {/* Marca — link para o painel do paciente */}
+          <Link
+            to="/paciente"
             className={cn(
-              "flex border-b border-slate-200/60 px-3 py-4 lg:px-4",
+              "flex border-b border-slate-200/60 px-3 py-4 transition-colors hover:bg-black/[0.04] lg:px-4",
               sidebarCollapsed && isDesktop ? "lg:flex-col lg:items-center lg:gap-2" : "items-center gap-3"
             )}
+            aria-label="Ir para o painel do paciente"
           >
             {settings.logoDataUrl ? (
               <img
@@ -310,7 +321,7 @@ export function OncoCareLayout() {
               <p className="text-[0.65rem] font-semibold uppercase tracking-widest text-slate-500">OncoCare</p>
               <p className="truncate font-bold leading-tight text-slate-900">{settings.hospitalName}</p>
             </div>
-          </div>
+          </Link>
 
           <nav className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-2 py-3 lg:px-3" aria-label="Principal">
             <div>
@@ -389,8 +400,8 @@ export function OncoCareLayout() {
         </aside>
 
         {/* Conteúdo */}
-        <div className="flex min-h-0 min-w-0 flex-1 flex-col self-stretch" style={{ backgroundColor: settings.appBg }}>
-          <header className="sticky top-0 z-40 flex flex-wrap items-center gap-3 border-b border-slate-100 bg-white px-3 py-3 shadow-card sm:px-4 md:px-5 lg:px-6">
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col self-stretch bg-transparent">
+          <header className="sticky top-0 z-40 flex flex-wrap items-center gap-3 border-b border-slate-100 bg-white/60 px-3 py-3 shadow-card backdrop-blur-md sm:px-4 md:px-5 lg:px-6">
             <div className="relative min-w-[200px] flex-1 max-w-2xl">
               <Search className="pointer-events-none absolute left-4 top-1/2 size-5 -translate-y-1/2 text-slate-400" />
               <Input
