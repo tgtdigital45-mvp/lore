@@ -892,3 +892,15 @@ html[data-theme="dark"] {
   --heatmap-high: rgba(249, 115, 22, 0.28);
   --heatmap-severe: rgba(239, 68, 68, 0.35);
 }
+
+/* Entrada suave (fallback sem JS) — ex.: `animation: dash-enter 0.3s var(--ease-out) both` */
+@keyframes dash-enter {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

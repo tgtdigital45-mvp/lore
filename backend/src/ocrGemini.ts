@@ -28,6 +28,8 @@ Campo ui_category (obrigatório): escolha UMA categoria para filtros na aplicaç
 - "atestados": atestados de afastamento, declarações, guias para convênio/OPME, autorizações administrativas (sem resultado de exame).
 - "nutricao": cardápios, planos alimentares, avaliação nutricional, TACO/TACE quando aplicável.
 
+Campo prescription_items_json (obrigatório, string JSON): array serializado. SOMENTE se ui_category for "receitas" e o documento for receituário com medicamentos legíveis, preencha um item por fármaco: name (nome comercial ou princípio ativo), dosage (ex. "500 mg", "1 frasco"), form (ex. "comprimido", "cápsula", "frasco", "solução", "xarope"), posology (texto livre da posologia no documento), frequency_hours (número: 24 = 1x/dia, 12 = 2x/dia, 8 = 3x/dia, 6 = 4x/dia; estime a partir do texto se explícito), duration_days (número de dias de tratamento se constar, senão null), notes (observações ou string vazia). Se não for receita ou não houver itens legíveis, use "[]".
+
 Saída apenas JSON válido conforme o schema.`;
 
 export type OcrMetric = {
@@ -48,6 +50,18 @@ export type ProfessionalRegistry = {
 
 export type DocumentListCategory = "exames" | "laudos" | "receitas" | "atestados" | "nutricao";
 
+/** Itens de receita extraídos para registo em `medications`. */
+export type PrescriptionItem = {
+  name: string;
+  dosage: string;
+  form: string;
+  posology: string;
+  /** 24 = 1x/dia, 12 = 2x/dia, 8 = 3x/dia, etc. */
+  frequency_hours: number;
+  duration_days: number | null;
+  notes: string;
+};
+
 export type OcrStructured = {
   summary_pt_br: string;
   exam_date_iso: string;
@@ -57,6 +71,8 @@ export type OcrStructured = {
   doctor_name: string;
   professional_registries: ProfessionalRegistry[];
   metrics: OcrMetric[];
+  /** Preenchido pela IA para ui_category "receitas" (pode ser []). */
+  prescription_items: PrescriptionItem[];
   ui_category: DocumentListCategory;
 };
 
@@ -109,6 +125,45 @@ function parseDocKind(value: unknown, hint: DocKind | undefined, suitability: Do
   return "blood_test";
 }
 
+function parsePrescriptionItemsJson(rawJson: string | undefined): PrescriptionItem[] {
+  if (!rawJson || typeof rawJson !== "string") return [];
+  try {
+    const parsed = JSON.parse(rawJson) as unknown;
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .map((item) => {
+        if (!item || typeof item !== "object") return null;
+        const o = item as Record<string, unknown>;
+        const name = typeof o.name === "string" ? o.name.trim() : "";
+        if (!name) return null;
+        const dosage = typeof o.dosage === "string" ? o.dosage : String(o.dosage ?? "");
+        const form = typeof o.form === "string" ? o.form : String(o.form ?? "");
+        const posology = typeof o.posology === "string" ? o.posology : String(o.posology ?? "");
+        const notes = typeof o.notes === "string" ? o.notes : String(o.notes ?? "");
+        let frequency_hours = 24;
+        const fh = o.frequency_hours ?? o.frequencyHours;
+        if (typeof fh === "number" && Number.isFinite(fh)) {
+          const n = Math.round(fh);
+          if (n >= 1 && n <= 168) frequency_hours = n;
+        } else if (typeof fh === "string" && /^\d+$/.test(fh.trim())) {
+          const n = Math.round(Number(fh.trim()));
+          if (n >= 1 && n <= 168) frequency_hours = n;
+        }
+        let duration_days: number | null = null;
+        const dd = o.duration_days ?? o.durationDays;
+        if (typeof dd === "number" && Number.isFinite(dd) && dd > 0) {
+          duration_days = Math.min(3650, Math.round(dd));
+        } else if (dd === null || dd === undefined) {
+          duration_days = null;
+        }
+        return { name, dosage, form, posology, frequency_hours, duration_days, notes } satisfies PrescriptionItem;
+      })
+      .filter((x): x is PrescriptionItem => x !== null);
+  } catch {
+    return [];
+  }
+}
+
 function parseProfessionalRegistriesJson(rawJson: string | undefined): ProfessionalRegistry[] {
   if (!rawJson || typeof rawJson !== "string") return [];
   try {
@@ -147,6 +202,7 @@ export function parseOcrModelJsonText(
     doctor_name?: string;
     markers_json: string;
     metrics_json?: string;
+    prescription_items_json?: string;
     professional_registries_json?: string;
     confidence_note: string;
     document_suitability?: string;
@@ -161,6 +217,7 @@ export function parseOcrModelJsonText(
       doctor_name?: string;
       markers_json: string;
       metrics_json?: string;
+      prescription_items_json?: string;
       professional_registries_json?: string;
       confidence_note: string;
       document_suitability?: string;
@@ -217,6 +274,7 @@ export function parseOcrModelJsonText(
   }
   const ui_category = resolveUiCategory(raw.ui_category, document_kind, document_suitability);
   const professional_registries = parseProfessionalRegistriesJson(raw.professional_registries_json);
+  const prescription_items = parsePrescriptionItemsJson(raw.prescription_items_json);
   const structured: OcrStructured = {
     summary_pt_br: raw.summary_pt_br,
     exam_date_iso: typeof raw.exam_date_iso === "string" ? raw.exam_date_iso.trim() : "",
@@ -226,6 +284,7 @@ export function parseOcrModelJsonText(
     doctor_name: typeof raw.doctor_name === "string" ? raw.doctor_name.trim() : "",
     professional_registries,
     metrics,
+    prescription_items,
     ui_category,
   };
   return { structured, document_kind, document_suitability };
@@ -275,6 +334,11 @@ async function runGeminiOcrVisionOnce(
             description:
               'Array JSON serializado em string: objetos {name,value,unit,is_abnormal,reference_range,reference_alert}. reference_range = intervalo do documento; reference_alert só se is_abnormal.',
           },
+          prescription_items_json: {
+            type: SchemaType.STRING,
+            description:
+              'Array JSON em string: objetos {name,dosage,form,posology,frequency_hours,duration_days,notes} para receitas; "[]" se não for receita.',
+          },
           confidence_note: { type: SchemaType.STRING },
           document_suitability: {
             type: SchemaType.STRING,
@@ -300,6 +364,7 @@ async function runGeminiOcrVisionOnce(
           "professional_registries_json",
           "markers_json",
           "metrics_json",
+          "prescription_items_json",
           "confidence_note",
           "document_suitability",
           "document_kind",
@@ -311,8 +376,8 @@ async function runGeminiOcrVisionOnce(
 
   const hint = options?.hintDocumentType;
   const prompt = hint
-    ? `O sistema já indicou o tipo clínico: ${hint}. Se document_suitability for "clinical_exam", o campo document_kind na resposta JSON deve ser exatamente "${hint}". Caso contrário, siga document_suitability. Extraia valores numéricos e unidades quando visíveis. markers_json como objeto JSON em string; metrics_json como array em string; professional_registries_json como array em string (CRM/CRO/COREN/CRF etc. ou []).`
-    : `Defina primeiro document_suitability. Se for "clinical_exam", document_kind deve ser "blood_test" para laboratório/sangue, "biopsy" para anatomopatológico/biópsia/IHQ, "scan" para laudos de imagem (TC, RM, US, etc.). Guias de convênio/autorização sem resultados: "administrative_insurance". Fotos não clínicas: "not_medical". Preencha ui_category conforme as definições do sistema. markers_json como objeto JSON em string; metrics_json como array em string; professional_registries_json como array em string (CRM/CRO/COREN/CRF etc. ou []).`;
+    ? `O sistema já indicou o tipo clínico: ${hint}. Se document_suitability for "clinical_exam", o campo document_kind na resposta JSON deve ser exatamente "${hint}". Caso contrário, siga document_suitability. Extraia valores numéricos e unidades quando visíveis. markers_json como objeto JSON em string; metrics_json como array em string; prescription_items_json como array em string (receitas) ou "[]"; professional_registries_json como array em string (CRM/CRO/COREN/CRF etc. ou []).`
+    : `Defina primeiro document_suitability. Se for "clinical_exam", document_kind deve ser "blood_test" para laboratório/sangue, "biopsy" para anatomopatológico/biópsia/IHQ, "scan" para laudos de imagem (TC, RM, US, etc.). Guias de convênio/autorização sem resultados: "administrative_insurance". Fotos não clínicas: "not_medical". Preencha ui_category conforme as definições do sistema. markers_json como objeto JSON em string; metrics_json como array em string; prescription_items_json como array em string para receituários ou "[]"; professional_registries_json como array em string (CRM/CRO/COREN/CRF etc. ou []).`;
 
   let result;
   try {

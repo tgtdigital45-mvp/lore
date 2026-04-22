@@ -46,6 +46,9 @@ const InfusionOpsDisplayPage = lazy(() =>
 const MensagensWorkspacePage = lazy(() =>
   import("./pages/MensagensWorkspacePage").then((m) => ({ default: m.MensagensWorkspacePage }))
 );
+const EquipeClinicaPage = lazy(() =>
+  import("./pages/EquipeClinicaPage").then((m) => ({ default: m.EquipeClinicaPage }))
+);
 
 /** Evita flash da tela de login no F5: aguarda o primeiro evento de auth. */
 function AuthSessionSplash() {
@@ -339,6 +342,7 @@ export default function App() {
           </Route>
           <Route path="pacientes" element={<OncoCarePatientsPage />} />
           <Route path="agenda" element={<OncoCareAgendaPage />} />
+          <Route path="equipe-clinica" element={<EquipeClinicaPage />} />
           <Route path="mensagens" element={<MensagensWorkspacePage />} />
           <Route path="agenda/recurso/:resourceId" element={<OncoCareResourceDetailPage />} />
           <Route path="configuracoes" element={<HospitalSettingsPage />} />

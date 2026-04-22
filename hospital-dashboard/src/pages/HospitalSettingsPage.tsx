@@ -1,12 +1,15 @@
 import { useCallback, useEffect, useState } from "react";
+import { motion } from "framer-motion";
 import { Building2, Loader2, Save, Webhook } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { sanitizeSupabaseError } from "@/lib/errorMessages";
 import { Card } from "@/components/ui/card";
+import { SkeletonPulse } from "@/components/ui/SkeletonPulse";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useOncoCare } from "@/context/OncoCareContext";
 import { toast } from "sonner";
+import { listContainerVariants, listItemVariants } from "@/lib/motionPresets";
 
 type HospitalRow = {
   id: string;
@@ -154,25 +157,36 @@ export function HospitalSettingsPage() {
     toast.success(active ? "Protocolo ativado." : "Protocolo desativado.");
   }
 
-  if (loading) {
-    return (
-      <div className="flex min-h-[40vh] items-center justify-center gap-2 text-muted-foreground">
-        <Loader2 className="size-6 animate-spin" />
-        A carregar…
-      </div>
-    );
-  }
-
-  if (!h) return <p className="p-8 text-destructive">Hospital não encontrado.</p>;
-
   return (
-    <div className="mx-auto max-w-4xl space-y-8 px-4 py-8">
-      <div>
+    <motion.div
+      variants={listContainerVariants}
+      initial="hidden"
+      animate="visible"
+      className="mx-auto max-w-4xl space-y-8 px-4 py-8"
+    >
+      <motion.div variants={listItemVariants}>
         <h1 className="text-2xl font-black tracking-tight">Configurações da empresa</h1>
         <p className="text-sm text-muted-foreground">White-label, webhooks e triagem — apenas administradores hospitalares podem gravar.</p>
-      </div>
+      </motion.div>
 
-      <form onSubmit={(e) => void saveHospital(e)} className="space-y-6">
+      {loading ? (
+        <div className="space-y-6" aria-busy aria-label="A carregar configurações">
+          <span className="sr-only">A carregar…</span>
+          <SkeletonPulse rounded="3xl" className="h-48 w-full" />
+          <SkeletonPulse rounded="3xl" className="h-36 w-full" />
+          <SkeletonPulse rounded="3xl" className="h-28 w-full" />
+          <SkeletonPulse rounded="3xl" className="h-40 w-full" />
+          <SkeletonPulse rounded="3xl" className="h-44 w-full" />
+        </div>
+      ) : !h ? (
+        <p className="p-8 text-destructive">Hospital não encontrado.</p>
+      ) : (
+        <>
+      <motion.form
+        onSubmit={(e) => void saveHospital(e)}
+        variants={listItemVariants}
+        className="space-y-6"
+      >
         <Card className="rounded-3xl border border-slate-200/80 p-6 shadow-sm">
           <h2 className="mb-4 flex items-center gap-2 text-lg font-bold">
             <Building2 className="size-5 text-teal-600" />
@@ -269,8 +283,9 @@ export function HospitalSettingsPage() {
         ) : (
           <p className="text-sm text-amber-800">Apenas utilizadores com perfil hospital_admin podem alterar estas definições.</p>
         )}
-      </form>
+      </motion.form>
 
+      <motion.div variants={listItemVariants}>
       <Card className="rounded-3xl border border-slate-200/80 p-6 shadow-sm">
         <h2 className="mb-4 text-lg font-bold">Protocolos clínicos no hospital</h2>
         <ul className="space-y-2">
@@ -293,7 +308,9 @@ export function HospitalSettingsPage() {
           ))}
         </ul>
       </Card>
+      </motion.div>
 
+      <motion.div variants={listItemVariants}>
       <Card className="rounded-3xl border border-slate-200/80 p-6 shadow-sm">
         <h2 className="mb-4 text-lg font-bold">Equipa (lotações)</h2>
         <div className="overflow-x-auto">
@@ -318,6 +335,9 @@ export function HospitalSettingsPage() {
           Alteração de papéis sensíveis deve ser feita via políticas de segurança no Supabase (guard existente).
         </p>
       </Card>
-    </div>
+      </motion.div>
+        </>
+      )}
+    </motion.div>
   );
 }

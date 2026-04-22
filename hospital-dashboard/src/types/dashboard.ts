@@ -23,6 +23,10 @@ export type PatientRow = {
   cpf?: string | null;
   occupation?: string | null;
   insurance_plan?: string | null;
+  address_street?: string | null;
+  address_number?: string | null;
+  address_neighborhood?: string | null;
+  address_complement?: string | null;
   address_city?: string | null;
   address_state?: string | null;
   is_pregnant?: boolean | null;

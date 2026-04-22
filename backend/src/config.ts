@@ -47,6 +47,8 @@ const envSchema = z.object({
   PORT: z.coerce.number().default(3001),
   SUPABASE_URL: z.preprocess(trim, z.string().url()),
   SUPABASE_ANON_KEY: z.preprocess(trim, z.string().min(1)),
+  /** JWT Secret do projeto (Dashboard → Settings → API → JWT Secret). Validação local do Bearer no Express. */
+  SUPABASE_JWT_SECRET: z.preprocess(trim, z.string().min(1)),
   GEMINI_API_KEY: z.preprocess(trim, z.string().min(1)),
   /** Modelo Gemini para OCR (regra: Gemini 3 Flash Preview). */
   GEMINI_MODEL: z.preprocess(trim, z.string().min(1).optional()),

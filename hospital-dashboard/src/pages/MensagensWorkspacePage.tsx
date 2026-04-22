@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
 import { MessageSquare, Search } from "lucide-react";
 import { useOncoCare } from "@/context/OncoCareContext";
@@ -10,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
+import { listContainerVariants, listItemVariants } from "@/lib/motionPresets";
 
 export function MensagensWorkspacePage() {
   const { rows } = useOncoCare();
@@ -67,7 +69,12 @@ export function MensagensWorkspacePage() {
         </Button>
       </div>
 
-      <ul className="flex flex-col gap-3">
+      <motion.ul
+        variants={listContainerVariants}
+        initial="hidden"
+        animate="visible"
+        className="flex list-none flex-col gap-3 p-0"
+      >
         {filtered.map((row) => {
           const tier = clinicalTier(row);
           const accent = TIER_ACCENT[tier];
@@ -78,7 +85,7 @@ export function MensagensWorkspacePage() {
           const chatUrl = `${dossier}?tab=mensagens`;
 
           return (
-            <li key={row.id}>
+            <motion.li key={row.id} variants={listItemVariants} className="min-w-0">
               <Card className="overflow-hidden rounded-2xl border-slate-100 shadow-sm">
                 <div className="h-1 w-full shrink-0" style={{ background: accent }} aria-hidden />
                 <div className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
@@ -121,10 +128,10 @@ export function MensagensWorkspacePage() {
                   </div>
                 </div>
               </Card>
-            </li>
+            </motion.li>
           );
         })}
-      </ul>
+      </motion.ul>
 
       {filtered.length === 0 ? (
         <p className="text-center text-sm text-muted-foreground">Nenhum paciente nesta lista com os filtros atuais.</p>

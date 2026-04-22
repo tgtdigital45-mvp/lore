@@ -11,7 +11,12 @@ import { ResourceVisualIcons } from "@/components/oncocare/ResourceVisualIcons";
 import { getResourcePreview, kindLabel, type ResourcePreview } from "@/lib/infusionResourceUi";
 import { useInfusionAgenda, type InfusionResourceRow } from "@/hooks/useInfusionAgenda";
 import { supabase } from "@/lib/supabase";
-import { modalOverlayTransition, modalPanelTransition } from "@/lib/motionPresets";
+import {
+  listContainerVariants,
+  listItemVariants,
+  modalOverlayTransition,
+  modalPanelTransition,
+} from "@/lib/motionPresets";
 import { SkeletonPulse } from "@/components/ui/SkeletonPulse";
 
 const DAY_NAMES = ["domingo", "segunda-feira", "terça-feira", "quarta-feira", "quinta-feira", "sexta-feira", "sábado"];
@@ -301,26 +306,32 @@ export function OncoCareAgendaPage() {
             </p>
           </div>
 
-          <div
-            className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3"
-            aria-busy={loading}
-            aria-label={loading ? "A carregar posições" : "Posições da unidade"}
-          >
-            {loading ? (
-              <>
-                <span className="sr-only">A carregar posições…</span>
-                {[...Array(6)].map((_, i) => (
-                  <SkeletonPulse key={i} rounded="2xl" className="h-44 min-h-[11rem] w-full" />
-                ))}
-              </>
-            ) : (
-              resources.map((c) => {
+          {loading ? (
+            <div
+              className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3"
+              aria-busy
+              aria-label="A carregar posições"
+            >
+              <span className="sr-only">A carregar posições…</span>
+              {[...Array(6)].map((_, i) => (
+                <SkeletonPulse key={i} rounded="2xl" className="h-44 min-h-[11rem] w-full" />
+              ))}
+            </div>
+          ) : (
+            <motion.div
+              variants={listContainerVariants}
+              initial="hidden"
+              animate="visible"
+              className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3"
+              aria-label="Posições da unidade"
+            >
+              {resources.map((c) => {
                 const preview = getResourcePreview(c, bookings, now);
                 const { bar, dot } = toneStyles(preview.tone);
                 const editing = editingId === c.id;
                 return (
+                  <motion.div key={c.id} variants={listItemVariants} className="min-h-0">
                   <div
-                    key={c.id}
                     className={cn(
                       "group flex h-full min-h-[11rem] overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-card transition hover:border-slate-200 hover:shadow-md",
                       "border-l-4",
@@ -409,10 +420,11 @@ export function OncoCareAgendaPage() {
                       </div>
                     ) : null}
                   </div>
+                  </motion.div>
                 );
-              })
-            )}
-          </div>
+              })}
+            </motion.div>
+          )}
         </div>
 
         <aside className="w-full shrink-0 xl:sticky xl:top-24 xl:w-[min(100%,380px)] xl:max-w-[380px]">

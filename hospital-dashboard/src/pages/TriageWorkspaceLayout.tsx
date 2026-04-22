@@ -88,14 +88,7 @@ export function TriageWorkspaceLayout() {
     >
       {selectedPatientId ? (
         <p className="sr-only">Triagem oncológica — fila à esquerda, prontuário à direita.</p>
-      ) : (
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35 }}>
-          <h1 className="text-3xl font-black tracking-tight md:text-4xl">OncoCare · {welcome}</h1>
-          <p className="mt-2 max-w-2xl text-muted-foreground">
-            Triagem oncológica — fila à esquerda, prontuário e detalhe à direita.
-          </p>
-        </motion.div>
-      )}
+      ) : null}
 
       {loadError ? (
         <p
@@ -114,14 +107,17 @@ export function TriageWorkspaceLayout() {
 
       <div
         className={cn(
-          "grid flex-1 min-h-0 grid-cols-1 gap-4 sm:gap-5 max-xl:min-h-[min(88dvh,900px)] lg:min-h-[calc(100dvh-9rem)] xl:min-h-0 xl:grid-cols-[minmax(260px,min(36vw,420px))_minmax(0,1fr)] xl:items-stretch xl:gap-4 2xl:grid-cols-[minmax(300px,400px)_minmax(0,1fr)] 2xl:gap-5",
+          "grid flex-1 min-h-0 gap-4 sm:gap-5 xl:items-stretch xl:gap-4 2xl:gap-5",
           selectedPatientId
-            ? "xl:h-[calc(100dvh-7.5rem)] xl:max-h-[calc(100dvh-7.5rem)]"
-            : "xl:h-[calc(100dvh-12rem)] xl:max-h-[calc(100dvh-12rem)]"
+            ? "grid-cols-1 max-xl:min-h-[min(88dvh,900px)] lg:min-h-[calc(100dvh-9rem)] xl:min-h-0 xl:h-[calc(100dvh-7.5rem)] xl:max-h-[calc(100dvh-7.5rem)] xl:grid-cols-[minmax(260px,min(36vw,420px))_minmax(0,1fr)] 2xl:grid-cols-[minmax(300px,400px)_minmax(0,1fr)]"
+            : "grid-cols-1"
         )}
       >
         <section
-          className="flex min-h-0 w-full min-w-0 max-w-full flex-col overflow-hidden rounded-3xl bg-white/65 p-4 shadow-card ring-1 ring-slate-200/60 backdrop-blur-sm xl:h-full"
+          className={cn(
+            "flex min-h-0 w-full min-w-0 max-w-full flex-col overflow-hidden rounded-3xl bg-white/65 p-4 shadow-card ring-1 ring-slate-200/60 backdrop-blur-sm xl:h-full",
+            !selectedPatientId && "hidden"
+          )}
           aria-labelledby="triage-queue-heading"
         >
           <div className="shrink-0 flex flex-wrap items-center justify-between gap-4">
@@ -162,7 +158,7 @@ export function TriageWorkspaceLayout() {
 
           <div
             id="triage-queue-cards"
-            className="mt-4 min-h-0 flex-1 space-y-6 overflow-y-auto overflow-x-hidden overscroll-contain pr-1 [scrollbar-gutter:stable]"
+            className="mt-4 min-h-0 flex-1 space-y-6 overflow-y-auto overscroll-contain pr-1 [scrollbar-gutter:stable]"
             aria-label="Lista de pacientes na fila"
           >
             {busy ? (
@@ -213,12 +209,14 @@ export function TriageWorkspaceLayout() {
           className={cn(
             "relative flex min-h-[min(520px,70vh)] flex-col overflow-hidden rounded-3xl shadow-soft ring-1 ring-slate-200/60 backdrop-blur-sm xl:h-full xl:min-h-0 xl:max-h-full",
             selectedPatientId
-              ? "border border-white/65 bg-white/65 xl:border-l-4 xl:border-lime-400 xl:shadow-[inset_12px_0_24px_-12px_rgba(163,230,53,0.15)]"
-              : "border border-slate-100/80 bg-white/65"
+              ? "border border-white/65 xl:border-l-4 xl:border-lime-400 xl:shadow-[inset_12px_0_24px_-12px_rgba(163,230,53,0.15)]"
+                + " bg-gradient-to-br from-[rgba(251,252,247,0.72)] via-white/60 to-[rgba(248,240,240,0.60)]"
+              : "border border-slate-100/80"
+                + " bg-gradient-to-br from-[rgba(243,252,203,0.22)] via-[rgba(251,252,247,0.68)] to-[rgba(255,236,234,0.20)]"
           )}
           aria-label="Detalhe do paciente"
         >
-          <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain bg-transparent [scrollbar-gutter:stable]">
+          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain bg-transparent [scrollbar-gutter:stable]">
             <Outlet context={{ workspaceSplit: true } satisfies TriageWorkspaceOutletContext} />
           </div>
         </section>

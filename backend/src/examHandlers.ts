@@ -5,7 +5,7 @@ import type { Env } from "./config.js";
 import { authenticateBearer } from "./authMiddleware.js";
 import { deleteExamObject, extFromMime, getExamObjectBuffer, isR2Configured, presignGetExamObject } from "./r2.js";
 import { createUserSupabase } from "./supabase.js";
-import { logStructured } from "./logger.js";
+import { errorFields, logStructured } from "./logger.js";
 
 const uuidParam = z.string().uuid();
 
@@ -61,10 +61,15 @@ async function getStaffDocument(
   return { doc };
 }
 
-export function mountExamRoutes(app: Express, env: Env, limiter: RateLimitRequestHandler) {
+export function mountExamRoutes(
+  app: Express,
+  env: Env,
+  ipLimiter: RateLimitRequestHandler,
+  userLimiter: RateLimitRequestHandler
+) {
   const auth = authenticateBearer(env);
 
-  app.get("/api/staff/exams/:id/view", limiter, auth, async (req: Request, res: Response) => {
+  app.get("/api/staff/exams/:id/view", ipLimiter, auth, userLimiter, async (req: Request, res: Response) => {
     const parsed = uuidParam.safeParse(req.params.id);
     if (!parsed.success) {
       res.status(400).json({ error: "invalid_id" });
@@ -112,7 +117,7 @@ export function mountExamRoutes(app: Express, env: Env, limiter: RateLimitReques
   });
 
   /** Download com Content-Disposition: attachment (evita abrir PDF noutro domínio em vez de gravar). */
-  app.get("/api/staff/exams/:id/download", limiter, auth, async (req: Request, res: Response) => {
+  app.get("/api/staff/exams/:id/download", ipLimiter, auth, userLimiter, async (req: Request, res: Response) => {
     const parsed = uuidParam.safeParse(req.params.id);
     if (!parsed.success) {
       res.status(400).json({ error: "invalid_id" });
@@ -160,7 +165,7 @@ export function mountExamRoutes(app: Express, env: Env, limiter: RateLimitReques
     }
   });
 
-  app.get("/api/exams/:id/view", limiter, auth, async (req: Request, res: Response) => {
+  app.get("/api/exams/:id/view", ipLimiter, auth, userLimiter, async (req: Request, res: Response) => {
     const parsed = uuidParam.safeParse(req.params.id);
     if (!parsed.success) {
       res.status(400).json({ error: "invalid_id" });
@@ -194,12 +199,12 @@ export function mountExamRoutes(app: Express, env: Env, limiter: RateLimitReques
       const url = await presignGetExamObject(env, doc.storage_path, 15 * 60);
       res.json({ url, mimeType: doc.mime_type ?? "application/octet-stream", expiresInSeconds: 15 * 60 });
     } catch (e) {
-      logStructured("patient_exam_presign_failed", { err: e instanceof Error ? e.message : String(e) });
+      logStructured("patient_exam_presign_failed", { err: errorFields(e) });
       res.status(500).json({ error: "presign_failed" });
     }
   });
 
-  app.get("/api/exams/:id/share", limiter, auth, async (req: Request, res: Response) => {
+  app.get("/api/exams/:id/share", ipLimiter, auth, userLimiter, async (req: Request, res: Response) => {
     const parsed = uuidParam.safeParse(req.params.id);
     if (!parsed.success) {
       res.status(400).json({ error: "invalid_id" });
@@ -234,12 +239,12 @@ export function mountExamRoutes(app: Express, env: Env, limiter: RateLimitReques
       const url = await presignGetExamObject(env, doc.storage_path, sevenDays);
       res.json({ url, mimeType: doc.mime_type ?? "application/octet-stream", expiresInSeconds: sevenDays });
     } catch (e) {
-      logStructured("patient_exam_share_presign_failed", { err: e instanceof Error ? e.message : String(e) });
+      logStructured("patient_exam_share_presign_failed", { err: errorFields(e) });
       res.status(500).json({ error: "presign_failed" });
     }
   });
 
-  app.delete("/api/exams/:id", limiter, auth, async (req: Request, res: Response) => {
+  app.delete("/api/exams/:id", ipLimiter, auth, userLimiter, async (req: Request, res: Response) => {
     const parsed = uuidParam.safeParse(req.params.id);
     if (!parsed.success) {
       res.status(400).json({ error: "invalid_id" });
@@ -270,9 +275,9 @@ export function mountExamRoutes(app: Express, env: Env, limiter: RateLimitReques
         logStructured("exam_r2_delete_failed_after_db", {
           documentId: doc.id,
           storagePath,
-          err: e instanceof Error ? e.message : String(e),
+          err: errorFields(e),
         });
-        logStructured("exam_r2_delete_stderr", { documentId: doc.id, err: e instanceof Error ? e.message : String(e) });
+        logStructured("exam_r2_delete_stderr", { documentId: doc.id, err: errorFields(e) });
       }
     }
 

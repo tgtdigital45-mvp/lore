@@ -1,7 +1,7 @@
-import { useMemo, useRef, useState } from "react";
+import { type ReactNode, useRef, useState } from "react";
 import { Keyboard, Platform, Pressable, ScrollView, Text, TextInput, View } from "react-native";
-import FontAwesome from "@expo/vector-icons/FontAwesome";
 import DateTimePicker from "@react-native-community/datetimepicker";
+import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { ResponsiveScreen } from "@/src/components/ResponsiveScreen";
 import { CircleChromeButton } from "@/src/health/components/MedicationChromeButtons";
@@ -10,6 +10,7 @@ import { KeyboardAccessoryDone, KEYBOARD_ACCESSORY_ID } from "@/src/components/K
 import { useAppTheme } from "@/src/hooks/useAppTheme";
 import { useStackBack } from "@/src/hooks/useStackBack";
 import { TREATMENT_HREF } from "@/src/navigation/treatmentRoutes";
+import type { AppTheme } from "@/src/theme/theme";
 
 function toDateOnly(d: Date): string {
   const y = d.getFullYear();
@@ -19,6 +20,49 @@ function toDateOnly(d: Date): string {
 }
 
 const INTERVAL_PRESETS = [7, 14, 21] as const;
+
+function SectionCard({
+  theme,
+  title,
+  icon,
+  subtitle,
+  children,
+}: {
+  theme: AppTheme;
+  title: string;
+  icon: keyof typeof FontAwesome.glyphMap;
+  subtitle?: string;
+  children: ReactNode;
+}) {
+  return (
+    <View
+      style={{
+        backgroundColor: theme.colors.background.secondary,
+        borderRadius: theme.radius.lg,
+        padding: theme.spacing.md,
+        marginBottom: theme.spacing.md,
+      }}
+    >
+      <View
+        style={{
+          flexDirection: "row",
+          alignItems: "center",
+          gap: theme.spacing.sm,
+          marginBottom: subtitle ? theme.spacing.xs : theme.spacing.md,
+        }}
+      >
+        <FontAwesome name={icon} size={20} color={IOS_HEALTH.blue} />
+        <Text style={[theme.typography.title2, { color: theme.colors.text.primary, flex: 1 }]}>{title}</Text>
+      </View>
+      {subtitle ? (
+        <Text style={[theme.typography.caption1, { color: theme.colors.text.tertiary, marginBottom: theme.spacing.md }]}>
+          {subtitle}
+        </Text>
+      ) : null}
+      {children}
+    </View>
+  );
+}
 
 export default function TreatmentScheduleWizardScreen() {
   const { theme } = useAppTheme();
@@ -39,7 +83,7 @@ export default function TreatmentScheduleWizardScreen() {
   const completedRef = useRef<TextInput>(null);
   const intervalRef = useRef<TextInput>(null);
 
-  const canNext = useMemo(() => {
+  const canNext = (() => {
     const p = planned.trim();
     if (p.length === 0) return false;
     const pn = parseInt(p, 10);
@@ -59,7 +103,7 @@ export default function TreatmentScheduleWizardScreen() {
       if (!Number.isFinite(idn) || idn < 1 || idn > 180) return false;
     }
     return true;
-  }, [planned, completed, intervalDays]);
+  })();
 
   function next() {
     if (!canNext) return;
@@ -102,140 +146,152 @@ export default function TreatmentScheduleWizardScreen() {
         keyboardDismissMode="on-drag"
       >
         <KeyboardAccessoryDone />
-        <Text style={[theme.typography.title2, { color: theme.colors.text.primary, marginBottom: theme.spacing.sm }]}>
-          Início do ciclo
-        </Text>
-        {Platform.OS === "ios" ? (
-          <DateTimePicker value={start} mode="date" display="spinner" onChange={(_, d) => d && setStart(d)} />
-        ) : (
-          <>
-            <Pressable onPress={() => setShowPicker(true)} style={{ marginBottom: theme.spacing.sm }}>
-              <Text style={[theme.typography.body, { color: theme.colors.text.secondary }]}>
-                {start.toLocaleDateString("pt-BR")}
-              </Text>
-            </Pressable>
-            {showPicker ? (
-              <DateTimePicker
-                value={start}
-                mode="date"
-                display="default"
-                onChange={(e, d) => {
-                  setShowPicker(Platform.OS === "ios");
-                  if (d) setStart(d);
+
+        <SectionCard
+          theme={theme}
+          title="Início do ciclo"
+          icon="calendar"
+          subtitle="Data em que o protocolo começa a contar para o planejamento."
+        >
+          {Platform.OS === "ios" ? (
+            <DateTimePicker value={start} mode="date" display="spinner" onChange={(_, d) => d && setStart(d)} />
+          ) : (
+            <>
+              <Pressable onPress={() => setShowPicker(true)} style={{ marginBottom: theme.spacing.sm }}>
+                <Text style={[theme.typography.body, { color: theme.colors.text.primary, fontWeight: "600" }]}>
+                  {start.toLocaleDateString("pt-BR")}
+                </Text>
+              </Pressable>
+              {showPicker ? (
+                <DateTimePicker
+                  value={start}
+                  mode="date"
+                  display="default"
+                  onChange={(e, d) => {
+                    setShowPicker(Platform.OS === "ios");
+                    if (d) setStart(d);
+                  }}
+                />
+              ) : null}
+            </>
+          )}
+        </SectionCard>
+
+        <SectionCard
+          theme={theme}
+          title="Quantidade de sessões"
+          icon="list-ol"
+          subtitle="O app cria um check-in por sessão. Indique pelo menos 1."
+        >
+          <TextInput
+            value={planned}
+            onChangeText={setPlanned}
+            placeholder="Ex.: 4"
+            keyboardType="number-pad"
+            inputAccessoryViewID={Platform.OS === "ios" ? KEYBOARD_ACCESSORY_ID : undefined}
+            returnKeyType="next"
+            blurOnSubmit={false}
+            onSubmitEditing={() => completedRef.current?.focus()}
+            placeholderTextColor={theme.colors.text.tertiary}
+            style={{
+              marginTop: theme.spacing.xs,
+              backgroundColor: theme.colors.background.primary,
+              borderRadius: IOS_HEALTH.pillButtonRadius,
+              paddingVertical: 14,
+              paddingHorizontal: theme.spacing.md,
+              fontSize: 17,
+              color: theme.colors.text.primary,
+            }}
+          />
+        </SectionCard>
+
+        <SectionCard
+          theme={theme}
+          title="Infusões já realizadas"
+          icon="check-circle"
+          subtitle="Número aproximado antes de registrar o histórico detalhado. Opcional."
+        >
+          <TextInput
+            ref={completedRef}
+            value={completed}
+            onChangeText={setCompleted}
+            placeholder="Ex.: 2"
+            keyboardType="number-pad"
+            inputAccessoryViewID={Platform.OS === "ios" ? KEYBOARD_ACCESSORY_ID : undefined}
+            returnKeyType="next"
+            blurOnSubmit={false}
+            onSubmitEditing={() => intervalRef.current?.focus()}
+            placeholderTextColor={theme.colors.text.tertiary}
+            style={{
+              marginTop: theme.spacing.xs,
+              backgroundColor: theme.colors.background.primary,
+              borderRadius: IOS_HEALTH.pillButtonRadius,
+              paddingVertical: 14,
+              paddingHorizontal: theme.spacing.md,
+              fontSize: 17,
+              color: theme.colors.text.primary,
+            }}
+          />
+        </SectionCard>
+
+        <SectionCard
+          theme={theme}
+          title="Dias entre infusões"
+          icon="refresh"
+          subtitle={
+            planned.trim() !== "" && parseInt(planned, 10) > 1
+              ? "Obrigatório com mais de uma sessão — usamos para a data prevista de cada check-in."
+              : "Opcional com uma sessão. Com várias, o intervalo é obrigatório."
+          }
+        >
+          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: theme.spacing.sm, marginTop: theme.spacing.xs }}>
+            {INTERVAL_PRESETS.map((d) => (
+              <Pressable
+                key={d}
+                onPress={() => setIntervalDays(String(d))}
+                style={{
+                  paddingVertical: 8,
+                  paddingHorizontal: 14,
+                  borderRadius: 20,
+                  backgroundColor: intervalDays.trim() === String(d) ? IOS_HEALTH.blue : theme.colors.background.primary,
                 }}
-              />
-            ) : null}
-          </>
-        )}
-
-        <Text style={[theme.typography.title2, { color: theme.colors.text.primary, marginTop: theme.spacing.lg }]}>
-          Quantidade de sessões
-        </Text>
-        <Text style={[theme.typography.body, { color: theme.colors.text.secondary, marginTop: theme.spacing.xs }]}>
-          O app cria um check-in por sessão. Indique pelo menos 1.
-        </Text>
-        <TextInput
-          value={planned}
-          onChangeText={setPlanned}
-          placeholder="Ex.: 4"
-          keyboardType="number-pad"
-          inputAccessoryViewID={Platform.OS === "ios" ? KEYBOARD_ACCESSORY_ID : undefined}
-          returnKeyType="next"
-          blurOnSubmit={false}
-          onSubmitEditing={() => completedRef.current?.focus()}
-          placeholderTextColor={theme.colors.text.tertiary}
-          style={{
-            marginTop: theme.spacing.sm,
-            backgroundColor: theme.colors.background.secondary,
-            borderRadius: IOS_HEALTH.pillButtonRadius,
-            paddingVertical: 14,
-            paddingHorizontal: theme.spacing.md,
-            fontSize: 17,
-            color: theme.colors.text.primary,
-          }}
-        />
-
-        <Text style={[theme.typography.title2, { color: theme.colors.text.primary, marginTop: theme.spacing.lg }]}>
-          Infusões já realizadas (opcional)
-        </Text>
-        <Text style={[theme.typography.body, { color: theme.colors.text.secondary, marginTop: theme.spacing.xs }]}>
-          Número aproximado antes de registrar o histórico detalhado.
-        </Text>
-        <TextInput
-          ref={completedRef}
-          value={completed}
-          onChangeText={setCompleted}
-          placeholder="Ex.: 2"
-          keyboardType="number-pad"
-          inputAccessoryViewID={Platform.OS === "ios" ? KEYBOARD_ACCESSORY_ID : undefined}
-          returnKeyType="next"
-          blurOnSubmit={false}
-          onSubmitEditing={() => intervalRef.current?.focus()}
-          placeholderTextColor={theme.colors.text.tertiary}
-          style={{
-            marginTop: theme.spacing.sm,
-            backgroundColor: theme.colors.background.secondary,
-            borderRadius: IOS_HEALTH.pillButtonRadius,
-            paddingVertical: 14,
-            paddingHorizontal: theme.spacing.md,
-            fontSize: 17,
-            color: theme.colors.text.primary,
-          }}
-        />
-
-        <Text style={[theme.typography.title2, { color: theme.colors.text.primary, marginTop: theme.spacing.lg }]}>
-          Dias entre infusões
-        </Text>
-        <Text style={[theme.typography.body, { color: theme.colors.text.secondary, marginTop: theme.spacing.xs }]}>
-          {planned.trim() !== "" && parseInt(planned, 10) > 1
-            ? "Obrigatório com mais de uma sessão — usamos para marcar a data prevista de cada check-in."
-            : "Opcional com uma sessão. Com várias sessões, o intervalo é obrigatório."}
-        </Text>
-        <View style={{ flexDirection: "row", flexWrap: "wrap", gap: theme.spacing.sm, marginTop: theme.spacing.sm }}>
-          {INTERVAL_PRESETS.map((d) => (
-            <Pressable
-              key={d}
-              onPress={() => setIntervalDays(String(d))}
-              style={{
-                paddingVertical: 8,
-                paddingHorizontal: 14,
-                borderRadius: 20,
-                backgroundColor: intervalDays.trim() === String(d) ? IOS_HEALTH.blue : theme.colors.background.secondary,
-              }}
-            >
-              <Text style={{ color: intervalDays.trim() === String(d) ? "#FFFFFF" : theme.colors.text.primary, fontWeight: "600" }}>
-                {d} d
-              </Text>
-            </Pressable>
-          ))}
-        </View>
-        <TextInput
-          ref={intervalRef}
-          value={intervalDays}
-          onChangeText={setIntervalDays}
-          placeholder="Outro (1–180 dias)"
-          keyboardType="number-pad"
-          inputAccessoryViewID={Platform.OS === "ios" ? KEYBOARD_ACCESSORY_ID : undefined}
-          returnKeyType="done"
-          blurOnSubmit
-          onSubmitEditing={() => Keyboard.dismiss()}
-          placeholderTextColor={theme.colors.text.tertiary}
-          style={{
-            marginTop: theme.spacing.sm,
-            backgroundColor: theme.colors.background.secondary,
-            borderRadius: IOS_HEALTH.pillButtonRadius,
-            paddingVertical: 14,
-            paddingHorizontal: theme.spacing.md,
-            fontSize: 17,
-            color: theme.colors.text.primary,
-          }}
-        />
+              >
+                <Text
+                  style={{ color: intervalDays.trim() === String(d) ? "#FFFFFF" : theme.colors.text.primary, fontWeight: "600" }}
+                >
+                  {d} d
+                </Text>
+              </Pressable>
+            ))}
+          </View>
+          <TextInput
+            ref={intervalRef}
+            value={intervalDays}
+            onChangeText={setIntervalDays}
+            placeholder="Outro (1–180 dias)"
+            keyboardType="number-pad"
+            inputAccessoryViewID={Platform.OS === "ios" ? KEYBOARD_ACCESSORY_ID : undefined}
+            returnKeyType="done"
+            blurOnSubmit
+            onSubmitEditing={() => Keyboard.dismiss()}
+            placeholderTextColor={theme.colors.text.tertiary}
+            style={{
+              marginTop: theme.spacing.sm,
+              backgroundColor: theme.colors.background.primary,
+              borderRadius: IOS_HEALTH.pillButtonRadius,
+              paddingVertical: 14,
+              paddingHorizontal: theme.spacing.md,
+              fontSize: 17,
+              color: theme.colors.text.primary,
+            }}
+          />
+        </SectionCard>
 
         <Pressable
           disabled={!canNext}
           onPress={next}
           style={({ pressed }) => ({
-            marginTop: theme.spacing.xl,
+            marginTop: theme.spacing.sm,
             backgroundColor: canNext ? IOS_HEALTH.blue : theme.colors.background.tertiary,
             paddingVertical: 14,
             borderRadius: IOS_HEALTH.pillButtonRadius,

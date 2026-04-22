@@ -92,7 +92,7 @@ export function usePatientCore(patientId: string | undefined): PatientCoreState 
         supabase
           .from("patients")
           .select(
-            "id, profile_id, cancer_type_id, primary_cancer_type, current_stage, is_in_nadir, patient_code, care_phase, sex, blood_type, cpf, occupation, insurance_plan, address_city, address_state, is_pregnant, uses_continuous_medication, continuous_medication_notes, medical_history, allergies, height_cm, weight_kg, clinical_notes, profiles!patients_profile_id_fkey ( full_name, date_of_birth, avatar_url, phone_e164, email_display )"
+            "id, profile_id, cancer_type_id, primary_cancer_type, current_stage, is_in_nadir, patient_code, care_phase, sex, blood_type, cpf, occupation, insurance_plan, address_street, address_number, address_neighborhood, address_complement, address_city, address_state, is_pregnant, uses_continuous_medication, continuous_medication_notes, medical_history, allergies, height_cm, weight_kg, clinical_notes, profiles!patients_profile_id_fkey ( full_name, date_of_birth, avatar_url, phone_e164, email_display )"
           )
           .eq("id", patientId)
           .maybeSingle(),

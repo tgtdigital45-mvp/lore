@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import { Link } from "react-router-dom";
+import { motion } from "framer-motion";
 import { Sparkles, Tv } from "lucide-react";
 import { useInfusionAgenda, type InfusionBookingRow } from "@/hooks/useInfusionAgenda";
 import { Card } from "@/components/ui/card";
@@ -10,6 +11,7 @@ import { buildOperationalFeed, infusionPatientName, resourceLabelById } from "@/
 import { InfusionOpsKpiStrip } from "@/components/infusionOps/InfusionOpsKpiStrip";
 import { InfusionOpsOperationalFeed } from "@/components/infusionOps/InfusionOpsOperationalFeed";
 import { InfusionOpsResourceCard } from "@/components/infusionOps/InfusionOpsResourceCard";
+import { listContainerVariants, listItemVariants } from "@/lib/motionPresets";
 
 const HORIZON_MS = 6 * 3600 * 1000;
 
@@ -97,15 +99,26 @@ export function InfusionOpsDashboardPage() {
               <p className="mt-1 text-sm text-slate-600">Cada cartão mostra o estado, a sessão em curso e o próximo doente agendado.</p>
             </div>
           </div>
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-            {initialLoading
-              ? [0, 1, 2, 3, 4, 5].map((i) => (
-                  <SkeletonPulse key={i} rounded="3xl" className="min-h-[220px] w-full" />
-                ))
-              : resources.map((c) => (
-                  <InfusionOpsResourceCard key={c.id} chair={c} bookings={bookings} nowMs={now} variant="desk" />
-                ))}
-          </div>
+          {initialLoading ? (
+            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+              {[0, 1, 2, 3, 4, 5].map((i) => (
+                <SkeletonPulse key={i} rounded="3xl" className="min-h-[220px] w-full" />
+              ))}
+            </div>
+          ) : (
+            <motion.div
+              variants={listContainerVariants}
+              initial="hidden"
+              animate="visible"
+              className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3"
+            >
+              {resources.map((c) => (
+                <motion.div key={c.id} variants={listItemVariants} className="min-h-0">
+                  <InfusionOpsResourceCard chair={c} bookings={bookings} nowMs={now} variant="desk" />
+                </motion.div>
+              ))}
+            </motion.div>
+          )}
         </section>
 
         <Card className="overflow-hidden rounded-3xl border border-slate-200/90 bg-white/95 p-6 shadow-[0_12px_40px_rgba(15,23,42,0.06)] ring-1 ring-slate-100/90 sm:p-8">
@@ -124,10 +137,16 @@ export function InfusionOpsDashboardPage() {
           ) : upcoming.length === 0 ? (
             <p className="py-6 text-center text-sm font-medium text-slate-500">Sem marcações nesta janela.</p>
           ) : (
-            <ul className="space-y-2">
+            <motion.ul
+              variants={listContainerVariants}
+              initial="hidden"
+              animate="visible"
+              className="list-none space-y-2 p-0"
+            >
               {upcoming.map((b: InfusionBookingRow) => (
-                <li
+                <motion.li
                   key={b.id}
+                  variants={listItemVariants}
                   className="flex flex-col gap-2 rounded-2xl border border-slate-100 bg-gradient-to-r from-slate-50/95 to-white px-4 py-3.5 sm:flex-row sm:items-center sm:justify-between"
                 >
                   <div className="min-w-0">
@@ -139,9 +158,9 @@ export function InfusionOpsDashboardPage() {
                   <span className="shrink-0 text-sm font-medium text-slate-600">
                     {formatPtDateTime(b.starts_at)} → {formatPtDateTime(b.ends_at)}
                   </span>
-                </li>
+                </motion.li>
               ))}
-            </ul>
+            </motion.ul>
           )}
         </Card>
       </div>

@@ -61,11 +61,14 @@ import { DossierPatientHeader } from "@/components/patient/DossierPatientHeader"
 import { TreatmentJourneyBar } from "@/components/patient/TreatmentJourneyBar";
 import { EditableMetricsPanel } from "@/components/patient/EditableMetricsPanel";
 import { DossierReportModal } from "@/components/patient/DossierReportModal";
+import { PrescriptionMedsConfirmModal } from "@/components/patient/PrescriptionMedsConfirmModal";
 import { FhirExportButton } from "@/components/oncocare/FhirExportButton";
 import { SuspensionFactorsModal } from "@/components/patient/SuspensionFactorsModal";
 import type { DossierReportPayload } from "@/lib/dossierReportHtml";
 import type { TriageWorkspaceOutletContext } from "@/pages/TriageWorkspaceLayout";
 import { rememberPatientVisit } from "@/lib/panelDefaultPath";
+import { AnimatePresence, motion } from "framer-motion";
+import { listContainerVariants, listItemVariants, tabPanelVariants } from "@/lib/motionPresets";
 import { cn } from "@/lib/utils";
 import { useOncoCare } from "@/context/OncoCareContext";
 import { computeNutritionActivityAdherence } from "@/lib/dossierAdherence";
@@ -408,31 +411,36 @@ export function PatientDossierPage() {
             </select>
             <span className="text-xs text-muted-foreground">As abas do dossiê adaptam-se automaticamente.</span>
           </div>
-          <div className="grid w-full grid-cols-2 gap-x-4 gap-y-3 rounded-3xl border border-white/55 bg-white/45 px-4 py-4 shadow-sm backdrop-blur-sm sm:grid-cols-3 lg:grid-cols-5">
-            <div>
+          <motion.div
+            variants={listContainerVariants}
+            initial="hidden"
+            animate="visible"
+            className="grid w-full grid-cols-2 gap-x-4 gap-y-3 rounded-3xl border border-white/55 bg-white/45 px-4 py-4 shadow-sm backdrop-blur-sm sm:grid-cols-3 lg:grid-cols-5"
+          >
+            <motion.div variants={listItemVariants}>
               <p className="text-[0.65rem] font-medium uppercase tracking-wider text-slate-400">Ciclo atual</p>
               <p className="text-2xl font-black text-teal-700">{cycleLabel}</p>
-            </div>
-            <div>
+            </motion.div>
+            <motion.div variants={listItemVariants}>
               <p className="text-[0.65rem] font-medium uppercase tracking-wider text-slate-400">1.ª infusão (ciclo)</p>
               <p className="text-sm font-bold text-slate-800">{firstInfusionLabel}</p>
-            </div>
-            <div>
+            </motion.div>
+            <motion.div variants={listItemVariants}>
               <p className="text-[0.65rem] font-medium uppercase tracking-wider text-slate-400">Última infusão</p>
               <p className="text-sm font-bold text-slate-800">{lastInfusionLabel}</p>
-            </div>
-            <div>
+            </motion.div>
+            <motion.div variants={listItemVariants}>
               <p className="text-[0.65rem] font-medium uppercase tracking-wider text-slate-400">Próxima infusão (estim.)</p>
               <p className="text-sm font-bold text-teal-700">{nadir.predictedNextInfusionLabel}</p>
-            </div>
-            <div className="col-span-2 sm:col-span-1">
+            </motion.div>
+            <motion.div variants={listItemVariants} className="col-span-2 sm:col-span-1">
               <p className="text-[0.65rem] font-medium uppercase tracking-wider text-slate-400">Janela de nadir (7–14 d)</p>
               <p className="flex items-start gap-2 text-sm font-bold leading-snug text-rose-600">
                 <Calendar className="mt-0.5 size-4 shrink-0" />
                 <span>{nadir.estimatedNadirWindowLabel}</span>
               </p>
-            </div>
-          </div>
+            </motion.div>
+          </motion.div>
         </div>
 
       <div
@@ -461,8 +469,16 @@ export function PatientDossierPage() {
       </div>
 
       <div className="border-t border-white/35 px-3 pb-8 pt-4 md:px-5">
+      <AnimatePresence mode="wait">
       {tab === "resumo" ? (
-        <div className="space-y-8">
+        <motion.div
+          key="resumo"
+          variants={tabPanelVariants}
+          initial="hidden"
+          animate="visible"
+          exit="exit"
+          className="space-y-8"
+        >
           <DossierBentoGrid
             patientId={patientId}
             emergencyContacts={emergencyContacts}
@@ -663,10 +679,17 @@ export function PatientDossierPage() {
             </Card>
           </aside>
         </div>
-        </div>
+        </motion.div>
       ) : null}
 
       {tab === "metricas" ? (
+        <motion.div
+          key="metricas"
+          variants={tabPanelVariants}
+          initial="hidden"
+          animate="visible"
+          exit="exit"
+        >
         <Card className="dossier-glass-card rounded-3xl border-0 p-6 shadow-none transition-all duration-200 hover:shadow-lg">
           <EditableMetricsPanel
             staffId={session?.user?.id}
@@ -675,9 +698,11 @@ export function PatientDossierPage() {
             biomarkers={biomarkers}
           />
         </Card>
+        </motion.div>
       ) : null}
 
       {tab === "tratamento" ? (
+        <motion.div key="tratamento" variants={tabPanelVariants} initial="hidden" animate="visible" exit="exit">
         <Card className="dossier-glass-card rounded-3xl border-0 p-6 shadow-none transition-all duration-200 hover:shadow-lg">
           <PatientTratamentoPanel
             loading={loading}
@@ -690,10 +715,11 @@ export function PatientDossierPage() {
             }}
           />
         </Card>
+        </motion.div>
       ) : null}
 
       {tab === "ficha" ? (
-        <div className="space-y-6">
+        <motion.div key="ficha" variants={tabPanelVariants} initial="hidden" animate="visible" exit="exit" className="space-y-6">
           <Card className="dossier-glass-card rounded-3xl border-0 p-6 shadow-none transition-all duration-200 hover:shadow-lg">
             <PatientFichaMedicaPanel
               loading={loading}
@@ -718,16 +744,19 @@ export function PatientDossierPage() {
               onRefresh={() => void refreshParaclinical()}
             />
           </Card>
-        </div>
+        </motion.div>
       ) : null}
 
       {tab === "mensagens" ? (
+        <motion.div key="mensagens" variants={tabPanelVariants} initial="hidden" animate="visible" exit="exit">
         <Card className="dossier-glass-card rounded-3xl border-0 p-6 shadow-none transition-all duration-200 hover:shadow-lg">
           <PatientMensagensDossierPanel session={session} patientId={patientId} />
         </Card>
+        </motion.div>
       ) : null}
 
       {tab === "exames" ? (
+        <motion.div key="exames" variants={tabPanelVariants} initial="hidden" animate="visible" exit="exit">
         <Card className="dossier-glass-card rounded-3xl border-0 p-6 shadow-none transition-all duration-200 hover:shadow-lg">
           <PatientExamesPanel
             patientId={patientId}
@@ -747,42 +776,52 @@ export function PatientDossierPage() {
             Acesso ao prontuário registrado para conformidade (auditoria).
           </p>
         </Card>
+        </motion.div>
       ) : null}
 
       {tab === "medicamentos" ? (
+        <motion.div key="medicamentos" variants={tabPanelVariants} initial="hidden" animate="visible" exit="exit">
         <Card className="dossier-glass-card rounded-3xl border-0 p-6 shadow-none transition-all duration-200 hover:shadow-lg">
           <PatientMedicamentosPanel loading={loading} medications={medications} medicationLogs={medicationLogs} />
           <p className="mt-6 text-center text-xs leading-relaxed text-muted-foreground">
             Dados registrados pelo paciente na app; requer vínculo aprovado para visualização completa.
           </p>
         </Card>
+        </motion.div>
       ) : null}
 
       {tab === "diario" ? (
+        <motion.div key="diario" variants={tabPanelVariants} initial="hidden" animate="visible" exit="exit">
         <Card className="dossier-glass-card rounded-3xl border-0 p-6 shadow-none transition-all duration-200 hover:shadow-lg">
           <PatientDiarioPanel modalLoading={loading} modalSymptoms={symptoms} />
         </Card>
+        </motion.div>
       ) : null}
 
       {tab === "nutricao" ? (
+        <motion.div key="nutricao" variants={tabPanelVariants} initial="hidden" animate="visible" exit="exit">
         <Card className="dossier-glass-card rounded-3xl border-0 p-6 shadow-none transition-all duration-200 hover:shadow-lg">
           <PatientNutricaoPanel modalLoading={loading} nutritionLogs={nutritionLogs} />
           <p className="mt-6 text-center text-xs leading-relaxed text-muted-foreground">
             Dados registados na app Aura e sincronizados com o mesmo paciente no Supabase.
           </p>
         </Card>
+        </motion.div>
       ) : null}
 
       {tab === "atividades" ? (
+        <motion.div key="atividades" variants={tabPanelVariants} initial="hidden" animate="visible" exit="exit">
         <Card className="dossier-glass-card rounded-3xl border-0 p-6 shadow-none transition-all duration-200 hover:shadow-lg">
           <PatientAtividadesPanel modalLoading={loading} wearables={wearables} />
           <p className="mt-6 text-center text-xs leading-relaxed text-muted-foreground">
             Dados registados na app Aura e sincronizados com o mesmo paciente no Supabase.
           </p>
         </Card>
+        </motion.div>
       ) : null}
 
       {tab === "agendamentos" ? (
+        <motion.div key="agendamentos" variants={tabPanelVariants} initial="hidden" animate="visible" exit="exit">
         <Card className="dossier-glass-card rounded-3xl border-0 p-6 shadow-none transition-all duration-200 hover:shadow-lg">
           <PatientAgendamentosPanel
             modalLoading={loading}
@@ -793,17 +832,20 @@ export function PatientDossierPage() {
             Compromissos partilhados com o calendário na app Aura; check-in também pode ser feito pelo paciente no telemóvel.
           </p>
         </Card>
+        </motion.div>
       ) : null}
 
       {tab === "linha_tempo" ? (
+        <motion.div key="linha_tempo" variants={tabPanelVariants} initial="hidden" animate="visible" exit="exit">
         <Card className="dossier-glass-card rounded-3xl border-0 p-6 shadow-none transition-all duration-200 hover:shadow-lg">
           {dossierExt.error ? <p className="text-destructive">{dossierExt.error}</p> : null}
           <PatientTimelinePanel patientId={patientId} events={dossierExt.timeline} onRefresh={() => void dossierExt.reload()} />
         </Card>
+        </motion.div>
       ) : null}
 
       {tab === "toxicidade" ? (
-        <div className="space-y-6">
+        <motion.div key="toxicidade" variants={tabPanelVariants} initial="hidden" animate="visible" exit="exit" className="space-y-6">
           <Card className="dossier-glass-card rounded-3xl border-0 p-6 shadow-none transition-all duration-200 hover:shadow-lg">
             <h2 className="mb-4 text-lg font-bold">Mapa de calor (28 dias)</h2>
             <ToxicityHeatmap symptoms={symptoms} days={28} />
@@ -812,10 +854,11 @@ export function PatientDossierPage() {
             <h2 className="mb-4 text-lg font-bold">Swimmer / matriz de eventos</h2>
             <CtcaeSwimmerPlot rows={(dossierExt.ctcaeMatrix as CtcaeMatrixRow[]) ?? []} />
           </Card>
-        </div>
+        </motion.div>
       ) : null}
 
       {tab === "sinais_vitais" ? (
+        <motion.div key="sinais_vitais" variants={tabPanelVariants} initial="hidden" animate="visible" exit="exit">
         <Card className="dossier-glass-card rounded-3xl border-0 p-6 shadow-none transition-all duration-200 hover:shadow-lg">
           <h2 className="mb-4 flex items-center gap-2 text-lg font-bold">
             <HeartPulse className="size-5 text-teal-700" />
@@ -831,14 +874,18 @@ export function PatientDossierPage() {
             })()}
           </div>
         </Card>
+        </motion.div>
       ) : null}
 
       {tab === "tarefas" ? (
+        <motion.div key="tarefas" variants={tabPanelVariants} initial="hidden" animate="visible" exit="exit">
         <Card className="dossier-glass-card rounded-3xl border-0 p-6 shadow-none transition-all duration-200 hover:shadow-lg">
           <h2 className="mb-4 text-lg font-bold">Tarefas clínicas</h2>
           <PatientTasksPanel tasks={dossierExt.tasks} onRefresh={() => void dossierExt.reload()} />
         </Card>
+        </motion.div>
       ) : null}
+      </AnimatePresence>
       </div>
       </div>
 
@@ -855,6 +902,19 @@ export function PatientDossierPage() {
         onOpenChange={setSuspensionFactorsOpen}
         score={suspension.score}
         factors={suspension.factors}
+      />
+      <PrescriptionMedsConfirmModal
+        open={examesHandlers.pendingPrescriptionItems.length > 0}
+        onOpenChange={(o) => {
+          if (!o) examesHandlers.clearPrescriptionItems();
+        }}
+        items={examesHandlers.pendingPrescriptionItems}
+        patientId={patientId}
+        backendUrl={examesHandlers.backendUrl}
+        onConfirmed={() => {
+          void refreshParaclinical();
+          toast.success("Medicamentos registados a partir da receita.");
+        }}
       />
     </div>
   );

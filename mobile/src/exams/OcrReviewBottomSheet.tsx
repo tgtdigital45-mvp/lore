@@ -33,6 +33,7 @@ export function OcrReviewBottomSheet({
   const [doctor, setDoctor] = useState("");
   const [examDate, setExamDate] = useState("");
   const [saving, setSaving] = useState(false);
+  const [addMedsBusy, setAddMedsBusy] = useState(false);
 
   useEffect(() => {
     if (visible && extracted) {
@@ -75,7 +76,77 @@ export function OcrReviewBottomSheet({
     }
   }, [patientId, documentId, extracted, title, doctor, examDate, onClose, onSaved]);
 
+  const addPrescriptionMedsToTab = useCallback(async () => {
+    if (!patientId || !extracted?.prescription_items?.length) return;
+    setAddMedsBusy(true);
+    try {
+      const { data: maxSortRow } = await supabase
+        .from("medications")
+        .select("sort_order")
+        .eq("patient_id", patientId)
+        .order("sort_order", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      let nextSort = (maxSortRow?.sort_order ?? -1) + 1;
+      const anchor = new Date();
+      anchor.setHours(8, 0, 0, 0);
+      const anchorAt = anchor.toISOString();
+
+      for (const it of extracted.prescription_items) {
+        const name = it.name?.trim();
+        if (!name) continue;
+        let endDate: string | null = null;
+        if (it.duration_days != null && it.duration_days > 0) {
+          const e = new Date(anchor);
+          e.setDate(e.getDate() + it.duration_days);
+          endDate = e.toISOString().slice(0, 10);
+        }
+        const freq = Math.min(168, Math.max(1, Math.round(Number(it.frequency_hours) || 24)));
+        const pos = (it.posology ?? "").trim();
+        const n = (it.notes ?? "").trim();
+        const notes = pos && n ? `${pos}\n\n${n}` : pos || n || null;
+        const dosageText = [it.dosage?.trim(), it.form?.trim()].filter(Boolean).join(" · ") || null;
+
+        const { error } = await supabase.from("medications").insert({
+          patient_id: patientId,
+          name,
+          dosage: dosageText,
+          form: it.form?.trim() || null,
+          frequency_hours: freq,
+          anchor_at: anchorAt,
+          end_date: endDate,
+          active: true,
+          archived: false,
+          sort_order: nextSort,
+          notes,
+          repeat_mode: "interval_hours",
+          schedule_weekdays: null,
+          unit: null,
+          display_name: null,
+          shape: null,
+          color_left: null,
+          color_right: null,
+          color_bg: null,
+        });
+        if (error) {
+          showAppToast("error", "Medicamentos", error.message);
+          return;
+        }
+        nextSort += 1;
+      }
+      showAppToast("success", "Medicamentos", "Medicamentos adicionados à aba.");
+      onSaved();
+      onClose();
+    } finally {
+      setAddMedsBusy(false);
+    }
+  }, [patientId, extracted, onSaved, onClose]);
+
   if (!extracted) return null;
+
+  const rxItems = extracted.prescription_items ?? [];
+  const showRxMeds =
+    extracted.ui_category === "receitas" && rxItems.length > 0;
 
   const registriesDisplay = formatProfessionalRegistriesDisplay(
     parseProfessionalRegistriesFromJson(extracted as unknown as Record<string, unknown>)
@@ -235,6 +306,52 @@ export function OcrReviewBottomSheet({
                 </View>
               ))
             )}
+
+            {showRxMeds ? (
+              <View style={{ marginTop: theme.spacing.lg }}>
+                <Text style={[theme.typography.headline, { color: theme.colors.text.primary }]}>Medicamentos prescritos</Text>
+                {rxItems.map((it, i) => (
+                  <View
+                    key={`${it.name}-${i}`}
+                    style={{
+                      marginTop: theme.spacing.sm,
+                      padding: theme.spacing.md,
+                      borderRadius: theme.radius.md,
+                      backgroundColor: theme.colors.background.secondary,
+                      borderWidth: 1,
+                      borderColor: theme.colors.border.divider,
+                    }}
+                  >
+                    <Text style={{ fontWeight: "800", color: theme.colors.text.primary }}>{it.name}</Text>
+                    <Text style={{ marginTop: 4, color: theme.colors.text.secondary, fontSize: 14 }}>
+                      {[it.dosage, it.form].filter(Boolean).join(" · ") || "—"}
+                    </Text>
+                    {it.posology?.trim() ? (
+                      <Text style={{ marginTop: 6, color: theme.colors.text.primary, fontSize: 15, lineHeight: 22 }}>
+                        {it.posology.trim()}
+                      </Text>
+                    ) : null}
+                  </View>
+                ))}
+                <Pressable
+                  onPress={() => void addPrescriptionMedsToTab()}
+                  disabled={addMedsBusy}
+                  style={{
+                    marginTop: theme.spacing.md,
+                    paddingVertical: 14,
+                    borderRadius: 14,
+                    backgroundColor: addMedsBusy ? "#94A3B8" : "#0F766E",
+                    alignItems: "center",
+                  }}
+                >
+                  {addMedsBusy ? (
+                    <ActivityIndicator color="#FFFFFF" />
+                  ) : (
+                    <Text style={{ fontWeight: "800", color: "#FFFFFF", fontSize: 16 }}>Adicionar à aba Medicamentos</Text>
+                  )}
+                </Pressable>
+              </View>
+            ) : null}
           </ScrollView>
 
           <View

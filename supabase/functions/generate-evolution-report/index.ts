@@ -95,17 +95,20 @@ Deno.serve(async (req) => {
   }
   const admin = createClient(url, serviceKey, { auth: { persistSession: false } });
 
-  const { data: patient, error: pErr } = await admin
+  const { data: patientRaw, error: pErr } = await admin
     .from("patients")
-    .select("id, full_name, hospital_id, care_phase")
+    .select("id, hospital_id, care_phase, profiles!patients_profile_id_fkey ( full_name )")
     .eq("id", patientId)
     .maybeSingle();
-  if (pErr || !patient) {
+  if (pErr || !patientRaw) {
     return new Response(JSON.stringify({ error: "patient_not_found" }), {
       status: 404,
       headers: { ...cors, "Content-Type": "application/json" },
     });
   }
+  const profileData = patientRaw.profiles as { full_name?: string | null } | { full_name?: string | null }[] | null;
+  const profileRow = Array.isArray(profileData) ? profileData[0] : profileData;
+  const patient = { ...patientRaw, full_name: profileRow?.full_name ?? null };
 
   const since = new Date();
   since.setDate(since.getDate() - horizon);

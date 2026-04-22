@@ -40,10 +40,15 @@ async function staffMayAccessPatient(supabase: SupabaseClient, userId: string, p
 }
 
 /** FHIR R4 mínimo para interoperabilidade (export). */
-export function mountFhirRoutes(app: Express, env: Env, limiter: RateLimitRequestHandler) {
+export function mountFhirRoutes(
+  app: Express,
+  env: Env,
+  ipLimiter: RateLimitRequestHandler,
+  userLimiter: RateLimitRequestHandler
+) {
   const requireUser = authenticateBearer(env);
 
-  app.get("/api/fhir/Patient/:patientId", limiter, requireUser, async (req: Request, res: Response) => {
+  app.get("/api/fhir/Patient/:patientId", ipLimiter, requireUser, userLimiter, async (req: Request, res: Response) => {
     const supabase = req.authUser!.supabase;
     const userId = req.authUser!.userId;
     const patientId = req.params.patientId;
@@ -81,7 +86,7 @@ export function mountFhirRoutes(app: Express, env: Env, limiter: RateLimitReques
     res.status(200).json(resource);
   });
 
-  app.get("/api/fhir/Observation", limiter, requireUser, async (req: Request, res: Response) => {
+  app.get("/api/fhir/Observation", ipLimiter, requireUser, userLimiter, async (req: Request, res: Response) => {
     const supabase = req.authUser!.supabase;
     const userId = req.authUser!.userId;
     const patientRef = typeof req.query["patient"] === "string" ? req.query["patient"] : "";

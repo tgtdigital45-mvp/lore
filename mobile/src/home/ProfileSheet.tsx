@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ElementRef } fr
 import {
   ActivityIndicator,
   Alert,
+  Modal,
   Platform,
   Pressable,
   ScrollView,
@@ -11,6 +12,7 @@ import {
   TextInput,
   View,
 } from "react-native";
+import DateTimePicker, { type DateTimePickerEvent } from "@react-native-community/datetimepicker";
 import { Image } from "expo-image";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import {
@@ -36,6 +38,7 @@ import { useInvalidatePatient, usePatient } from "@/src/hooks/usePatient";
 import { labelCancerType } from "@/src/i18n/ui";
 import { supabase } from "@/src/lib/supabase";
 import { alertPermissionToSettings } from "@/src/lib/nativePickerTiming";
+import { parsePhoneToE164 } from "@/src/lib/phoneE164";
 
 type TabKey = "dados" | "ficha" | "notificacoes" | "configuracoes";
 
@@ -85,6 +88,64 @@ function parseOptNum(s: string): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
+type SexKey = "" | "M" | "F" | "I" | "O";
+
+const FICHA_SEX_OPTIONS: { k: SexKey; label: string }[] = [
+  { k: "", label: "Não informar" },
+  { k: "M", label: "Masculino" },
+  { k: "F", label: "Feminino" },
+  { k: "I", label: "Intersexo" },
+  { k: "O", label: "Outro" },
+];
+
+const FICHA_BLOOD_OPTIONS = ["", "A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-", "ND"] as const;
+
+function formatDobPt(iso: string): string {
+  const t = iso.trim();
+  if (!t) return "";
+  try {
+    return new Date(t).toLocaleDateString("pt-BR", { day: "2-digit", month: "short", year: "numeric" });
+  } catch {
+    return "";
+  }
+}
+
+/** Ex.: 1990-05-12 → 12/05/1990 (ordem dia/mês/ano) */
+function formatDobSlashesPt(iso: string): string {
+  const t = iso.trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(t)) return "";
+  const [y, m, d] = t.split("-");
+  return `${d}/${m}/${y}`;
+}
+
+function isoToLocalDate(iso: string): Date {
+  const t = iso.trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(t)) {
+    const [y, m, d] = t.split("-").map(Number);
+    return new Date(y, m - 1, d);
+  }
+  return new Date(1990, 0, 1);
+}
+
+function dateToIsoYmd(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+function ageFromDobIso(iso: string): string {
+  const t = iso.trim();
+  if (!t) return "";
+  const d = new Date(t);
+  if (Number.isNaN(d.getTime())) return "";
+  const today = new Date();
+  let age = today.getFullYear() - d.getFullYear();
+  const m = today.getMonth() - d.getMonth();
+  if (m < 0 || (m === 0 && today.getDate() < d.getDate())) age--;
+  return age >= 0 ? `${age} anos` : "";
+}
+
 type ContactDraft = { id?: string; full_name: string; phone: string; relationship: string };
 
 export function ProfileSheet({
@@ -126,6 +187,21 @@ export function ProfileSheet({
   const [heightStr, setHeightStr] = useState("");
   const [weightStr, setWeightStr] = useState("");
   const [clinicalNotes, setClinicalNotes] = useState("");
+  const [sex, setSex] = useState<SexKey>("");
+  const [bloodType, setBloodType] = useState("");
+  const [cpf, setCpf] = useState("");
+  const [occupation, setOccupation] = useState("");
+  const [insurancePlan, setInsurancePlan] = useState("");
+  const [addressStreet, setAddressStreet] = useState("");
+  const [addressNumber, setAddressNumber] = useState("");
+  const [addressNeighborhood, setAddressNeighborhood] = useState("");
+  const [addressComplement, setAddressComplement] = useState("");
+  const [addressCity, setAddressCity] = useState("");
+  const [addressState, setAddressState] = useState("");
+  const [profileDobStr, setProfileDobStr] = useState("");
+  const [dobPickerOpen, setDobPickerOpen] = useState(false);
+  const [profilePhoneStr, setProfilePhoneStr] = useState("");
+  const [profileEmailStr, setProfileEmailStr] = useState("");
   const [nameDraft, setNameDraft] = useState("");
   const [contactsDraft, setContactsDraft] = useState<ContactDraft[]>([]);
   const [fichaBusy, setFichaBusy] = useState(false);
@@ -152,6 +228,26 @@ export function ProfileSheet({
     setHeightStr(patient.height_cm != null ? String(patient.height_cm) : "");
     setWeightStr(patient.weight_kg != null ? String(patient.weight_kg) : "");
     setClinicalNotes(patient.clinical_notes ?? "");
+    const s = patient.sex;
+    setSex(s === "M" || s === "F" || s === "I" || s === "O" ? s : "");
+    setBloodType(
+      patient.blood_type && (FICHA_BLOOD_OPTIONS as readonly string[]).includes(patient.blood_type)
+        ? patient.blood_type
+        : ""
+    );
+    setCpf(patient.cpf ?? "");
+    setOccupation(patient.occupation ?? "");
+    setInsurancePlan(patient.insurance_plan ?? "");
+    setAddressStreet(patient.address_street ?? "");
+    setAddressNumber(patient.address_number ?? "");
+    setAddressNeighborhood(patient.address_neighborhood ?? "");
+    setAddressComplement(patient.address_complement ?? "");
+    setAddressCity(patient.address_city ?? "");
+    setAddressState(patient.address_state ?? "");
+    const prof = patient.profiles;
+    setProfileDobStr(prof?.date_of_birth ?? "");
+    setProfilePhoneStr(prof?.phone_e164 ?? "");
+    setProfileEmailStr(prof?.email_display ?? "");
   }, [
     patient?.id,
     patient?.primary_cancer_type,
@@ -164,11 +260,27 @@ export function ProfileSheet({
     patient?.height_cm,
     patient?.weight_kg,
     patient?.clinical_notes,
+    patient?.sex,
+    patient?.blood_type,
+    patient?.cpf,
+    patient?.occupation,
+    patient?.insurance_plan,
+    patient?.address_street,
+    patient?.address_number,
+    patient?.address_neighborhood,
+    patient?.address_complement,
+    patient?.address_city,
+    patient?.address_state,
+    patient?.profiles?.date_of_birth,
+    patient?.profiles?.phone_e164,
+    patient?.profiles?.email_display,
   ]);
 
   useEffect(() => {
-    setNameDraft(profileName);
-  }, [profileName, visible]);
+    if (!visible) return;
+    const fromServer = patient?.profiles?.full_name?.trim();
+    setNameDraft(fromServer || profileName);
+  }, [visible, profileName, patient?.id, patient?.profiles?.full_name]);
 
   useEffect(() => {
     if (!emergencyRows) return;
@@ -250,6 +362,16 @@ export function ProfileSheet({
 
   async function saveFicha() {
     if (!patient || !uid) return;
+    const dobTrim = profileDobStr.trim();
+    if (dobTrim && !/^\d{4}-\d{2}-\d{2}$/.test(dobTrim)) {
+      Alert.alert("Data de nascimento", "Use o formato AAAA-MM-DD (ex.: 1990-05-12).");
+      return;
+    }
+    const phoneTrim = profilePhoneStr.trim();
+    if (phoneTrim && parsePhoneToE164(profilePhoneStr) === null) {
+      Alert.alert("Telefone", "Indique um número válido (com DDI ou formato nacional).");
+      return;
+    }
     setFichaBusy(true);
     try {
       const heightCm = parseOptNum(heightStr);
@@ -267,15 +389,36 @@ export function ProfileSheet({
           height_cm: heightCm,
           weight_kg: weightKg,
           clinical_notes: clinicalNotes.trim() || null,
+          sex: sex === "" ? null : sex,
+          blood_type: bloodType.trim() === "" ? null : bloodType,
+          cpf: cpf.trim() || null,
+          occupation: occupation.trim() || null,
+          insurance_plan: insurancePlan.trim() || null,
+          address_street: addressStreet.trim() || null,
+          address_number: addressNumber.trim() || null,
+          address_neighborhood: addressNeighborhood.trim() || null,
+          address_complement: addressComplement.trim() || null,
+          address_city: addressCity.trim() || null,
+          address_state: addressState.trim().toUpperCase().slice(0, 2) || null,
         })
         .eq("id", patient.id);
       if (pErr) throw pErr;
 
       const trimmedName = nameDraft.trim();
-      if (trimmedName) {
-        const { error: nErr } = await supabase.from("profiles").update({ full_name: trimmedName }).eq("id", uid);
-        if (nErr) throw nErr;
-      }
+      const profilePayload: {
+        full_name?: string;
+        date_of_birth: string | null;
+        phone_e164: string | null;
+        email_display: string | null;
+      } = {
+        date_of_birth: dobTrim || null,
+        phone_e164: parsePhoneToE164(profilePhoneStr),
+        email_display: profileEmailStr.trim() || null,
+      };
+      if (trimmedName) profilePayload.full_name = trimmedName;
+      const profileOwnerId = patient.profile_id;
+      const { error: nErr } = await supabase.from("profiles").update(profilePayload).eq("id", profileOwnerId);
+      if (nErr) throw nErr;
 
       await syncEmergencyContacts(patient.id, contactsDraft);
 
@@ -349,7 +492,20 @@ export function ProfileSheet({
     }
   }
 
+  function onDobNativeChange(event: DateTimePickerEvent, date?: Date) {
+    if (Platform.OS === "android") {
+      setDobPickerOpen(false);
+    }
+    if (event.type === "dismissed") {
+      return;
+    }
+    if (date) {
+      setProfileDobStr(dateToIsoYmd(date));
+    }
+  }
+
   return (
+    <>
     <BottomSheetModal
       ref={profileSheetModalRef}
       snapPoints={snapPoints}
@@ -662,67 +818,447 @@ export function ProfileSheet({
                   <Text style={{ color: theme.colors.text.secondary }}>Complete o onboarding para editar a ficha.</Text>
                 ) : (
                   <>
-                    <View style={{ backgroundColor: cardBg, borderRadius: radius, padding: theme.spacing.md }}>
-                      <Text style={{ fontSize: 12, color: theme.colors.text.secondary, marginBottom: theme.spacing.sm }}>Tipo de câncer (resumo)</Text>
-                      <View style={{ flexDirection: "row", flexWrap: "wrap", gap: theme.spacing.sm }}>
-                        {CANCER_TYPES.map((c) => (
-                          <Pressable
-                            key={c}
-                            onPress={() => setCancer(c)}
-                            style={{
-                              paddingHorizontal: theme.spacing.md,
-                              paddingVertical: theme.spacing.sm,
-                              borderRadius: theme.radius.md,
-                              backgroundColor: cancer === c ? theme.colors.semantic.treatment : theme.colors.background.tertiary,
-                            }}
-                          >
-                            <Text style={{ color: cancer === c ? "#FFFFFF" : theme.colors.text.primary, fontSize: 14 }}>
-                              {labelCancerType(c)}
-                            </Text>
-                          </Pressable>
-                        ))}
+                    <View style={{ backgroundColor: cardBg, borderRadius: radius, overflow: "hidden" }}>
+                      <SectionTitle theme={theme} color={theme.colors.semantic.treatment}>
+                        Identificação pessoal
+                      </SectionTitle>
+                      <View style={{ paddingHorizontal: theme.spacing.md, paddingBottom: theme.spacing.sm }}>
+                        <Text style={{ fontSize: 13, color: theme.colors.text.secondary, lineHeight: 18 }}>
+                          Alinhado ao dossiê hospitalar. A foto edita-se no topo deste ecrã.
+                        </Text>
+                      </View>
+                      <View style={{ paddingHorizontal: theme.spacing.md, paddingBottom: theme.spacing.md }}>
+                        <Text style={{ fontSize: 12, color: theme.colors.text.secondary, marginBottom: 6 }}>Nome completo</Text>
+                        <TextInput
+                          value={nameDraft}
+                          onChangeText={setNameDraft}
+                          placeholder="Nome e apelidos"
+                          placeholderTextColor={theme.colors.text.tertiary}
+                          style={{
+                            borderRadius: theme.radius.md,
+                            padding: theme.spacing.md,
+                            backgroundColor: theme.colors.background.tertiary,
+                            color: theme.colors.text.primary,
+                            fontSize: 17,
+                          }}
+                        />
+                      </View>
+                      <View style={{ paddingHorizontal: theme.spacing.md, paddingBottom: theme.spacing.md }}>
+                        <Text style={{ fontSize: 12, color: theme.colors.text.secondary, marginBottom: 6 }}>Código Aura</Text>
+                        <Text selectable style={{ fontSize: 17, fontWeight: "700", color: theme.colors.text.primary }}>
+                          {patient.patient_code ?? "—"}
+                        </Text>
+                      </View>
+                      <View style={{ paddingHorizontal: theme.spacing.md, paddingBottom: theme.spacing.md }}>
+                        <Text style={{ fontSize: 12, color: theme.colors.text.secondary, marginBottom: 6 }}>
+                          Data de nascimento
+                        </Text>
+                        <Pressable
+                          onPress={() => setDobPickerOpen(true)}
+                          style={{
+                            borderRadius: theme.radius.md,
+                            padding: theme.spacing.md,
+                            backgroundColor: theme.colors.background.tertiary,
+                          }}
+                        >
+                          <Text style={{ fontSize: 17, color: profileDobStr.trim() ? theme.colors.text.primary : theme.colors.text.tertiary }}>
+                            {profileDobStr.trim() ? formatDobSlashesPt(profileDobStr) : "Toque para abrir o calendário"}
+                          </Text>
+                        </Pressable>
+                        {profileDobStr.trim() ? (
+                          <Text style={{ fontSize: 12, color: theme.colors.text.secondary, marginTop: 6 }}>
+                            {formatDobPt(profileDobStr)}
+                            {ageFromDobIso(profileDobStr) ? ` · ${ageFromDobIso(profileDobStr)}` : ""}
+                          </Text>
+                        ) : null}
+                      </View>
+                      <View style={{ paddingHorizontal: theme.spacing.md, paddingBottom: theme.spacing.md }}>
+                        <Text style={{ fontSize: 12, color: theme.colors.text.secondary, marginBottom: 6 }}>Telefone (perfil)</Text>
+                        <TextInput
+                          value={profilePhoneStr}
+                          onChangeText={setProfilePhoneStr}
+                          placeholder="+5511999990000"
+                          placeholderTextColor={theme.colors.text.tertiary}
+                          keyboardType="phone-pad"
+                          style={{
+                            borderRadius: theme.radius.md,
+                            padding: theme.spacing.md,
+                            backgroundColor: theme.colors.background.tertiary,
+                            color: theme.colors.text.primary,
+                            fontSize: 17,
+                          }}
+                        />
+                      </View>
+                      <View style={{ paddingHorizontal: theme.spacing.md, paddingBottom: theme.spacing.md }}>
+                        <Text style={{ fontSize: 12, color: theme.colors.text.secondary, marginBottom: 6 }}>E-mail (perfil)</Text>
+                        <TextInput
+                          value={profileEmailStr}
+                          onChangeText={setProfileEmailStr}
+                          placeholder={session?.user?.email ?? "email@exemplo.com"}
+                          placeholderTextColor={theme.colors.text.tertiary}
+                          keyboardType="email-address"
+                          autoCapitalize="none"
+                          autoCorrect={false}
+                          style={{
+                            borderRadius: theme.radius.md,
+                            padding: theme.spacing.md,
+                            backgroundColor: theme.colors.background.tertiary,
+                            color: theme.colors.text.primary,
+                            fontSize: 17,
+                          }}
+                        />
+                        {session?.user?.email ? (
+                          <Text style={{ fontSize: 11, color: theme.colors.text.tertiary, marginTop: 6 }}>
+                            E-mail de login: {session.user.email}
+                          </Text>
+                        ) : null}
                       </View>
                     </View>
-                    <View style={{ backgroundColor: cardBg, borderRadius: radius, padding: theme.spacing.md }}>
-                      <Text style={{ fontSize: 12, color: theme.colors.text.secondary, marginBottom: 6 }}>Estágio (opcional)</Text>
-                      <TextInput
-                        value={stage}
-                        onChangeText={setStage}
-                        placeholder="Ex.: estádio III"
-                        placeholderTextColor={theme.colors.text.tertiary}
-                        style={{
-                          borderRadius: theme.radius.md,
-                          padding: theme.spacing.md,
-                          backgroundColor: theme.colors.background.tertiary,
-                          color: theme.colors.text.primary,
-                          fontSize: 17,
-                        }}
-                      />
-                    </View>
 
-                    <View style={{ backgroundColor: cardBg, borderRadius: radius, padding: theme.spacing.md }}>
-                      <Text style={{ fontSize: 12, color: theme.colors.text.secondary, marginBottom: theme.spacing.sm }}>Gravidez</Text>
-                      <View style={{ flexDirection: "row", flexWrap: "wrap", gap: theme.spacing.sm }}>
-                        {(
-                          [
-                            { k: "unset" as const, label: "Não informar" },
-                            { k: "no" as const, label: "Não" },
-                            { k: "yes" as const, label: "Sim" },
-                          ] as const
-                        ).map(({ k, label }) => (
+                    <View style={{ backgroundColor: cardBg, borderRadius: radius, overflow: "hidden" }}>
+                      <SectionTitle theme={theme} color={theme.colors.semantic.treatment}>
+                        Dados clínicos
+                      </SectionTitle>
+                      <View style={{ paddingHorizontal: theme.spacing.md, paddingBottom: theme.spacing.md }}>
+                        <Text style={{ fontSize: 12, color: theme.colors.text.secondary, marginBottom: theme.spacing.sm }}>Sexo biológico</Text>
+                        <View style={{ flexDirection: "row", flexWrap: "wrap", gap: theme.spacing.sm }}>
+                          {FICHA_SEX_OPTIONS.map(({ k, label }) => (
+                            <Pressable
+                              key={k || "unset"}
+                              onPress={() => setSex(k)}
+                              style={{
+                                paddingHorizontal: theme.spacing.md,
+                                paddingVertical: theme.spacing.sm,
+                                borderRadius: theme.radius.md,
+                                backgroundColor: sex === k ? theme.colors.semantic.treatment : theme.colors.background.tertiary,
+                              }}
+                            >
+                              <Text style={{ color: sex === k ? "#FFFFFF" : theme.colors.text.primary, fontSize: 13 }}>{label}</Text>
+                            </Pressable>
+                          ))}
+                        </View>
+                      </View>
+                      <View style={{ paddingHorizontal: theme.spacing.md, paddingBottom: theme.spacing.md }}>
+                        <Text style={{ fontSize: 12, color: theme.colors.text.secondary, marginBottom: theme.spacing.sm }}>Tipo sanguíneo</Text>
+                        <View style={{ flexDirection: "row", flexWrap: "wrap", gap: theme.spacing.sm }}>
                           <Pressable
-                            key={k}
-                            onPress={() => setPregnancy(k)}
+                            onPress={() => setBloodType("")}
                             style={{
                               paddingHorizontal: theme.spacing.md,
                               paddingVertical: theme.spacing.sm,
                               borderRadius: theme.radius.md,
-                              backgroundColor: pregnancy === k ? theme.colors.semantic.treatment : theme.colors.background.tertiary,
+                              backgroundColor: bloodType === "" ? theme.colors.semantic.treatment : theme.colors.background.tertiary,
                             }}
                           >
-                            <Text style={{ color: pregnancy === k ? "#FFFFFF" : theme.colors.text.primary, fontSize: 14 }}>{label}</Text>
+                            <Text style={{ color: bloodType === "" ? "#FFFFFF" : theme.colors.text.primary, fontSize: 13 }}>
+                              Não informar
+                            </Text>
                           </Pressable>
-                        ))}
+                          {FICHA_BLOOD_OPTIONS.filter((b) => b !== "").map((b) => (
+                            <Pressable
+                              key={b}
+                              onPress={() => setBloodType(b)}
+                              style={{
+                                paddingHorizontal: theme.spacing.md,
+                                paddingVertical: theme.spacing.sm,
+                                borderRadius: theme.radius.md,
+                                backgroundColor: bloodType === b ? theme.colors.semantic.treatment : theme.colors.background.tertiary,
+                              }}
+                            >
+                              <Text style={{ color: bloodType === b ? "#FFFFFF" : theme.colors.text.primary, fontSize: 14 }}>
+                                {b === "ND" ? "Não determinado" : b}
+                              </Text>
+                            </Pressable>
+                          ))}
+                        </View>
+                      </View>
+                      <View style={{ flexDirection: "row", gap: theme.spacing.sm, paddingHorizontal: theme.spacing.md, paddingBottom: theme.spacing.md }}>
+                        <View style={{ flex: 1 }}>
+                          <Text style={{ fontSize: 12, color: theme.colors.text.secondary, marginBottom: 6 }}>Altura (cm)</Text>
+                          <TextInput
+                            value={heightStr}
+                            onChangeText={setHeightStr}
+                            keyboardType="decimal-pad"
+                            placeholder="—"
+                            placeholderTextColor={theme.colors.text.tertiary}
+                            style={{
+                              borderRadius: theme.radius.md,
+                              padding: theme.spacing.md,
+                              backgroundColor: theme.colors.background.tertiary,
+                              color: theme.colors.text.primary,
+                              fontSize: 17,
+                            }}
+                          />
+                        </View>
+                        <View style={{ flex: 1 }}>
+                          <Text style={{ fontSize: 12, color: theme.colors.text.secondary, marginBottom: 6 }}>Peso (kg)</Text>
+                          <TextInput
+                            value={weightStr}
+                            onChangeText={setWeightStr}
+                            keyboardType="decimal-pad"
+                            placeholder="—"
+                            placeholderTextColor={theme.colors.text.tertiary}
+                            style={{
+                              borderRadius: theme.radius.md,
+                              padding: theme.spacing.md,
+                              backgroundColor: theme.colors.background.tertiary,
+                              color: theme.colors.text.primary,
+                              fontSize: 17,
+                            }}
+                          />
+                        </View>
+                      </View>
+                    </View>
+
+                    <View style={{ backgroundColor: cardBg, borderRadius: radius, overflow: "hidden" }}>
+                      <SectionTitle theme={theme} color={theme.colors.semantic.treatment}>
+                        Dados administrativos
+                      </SectionTitle>
+                      <View style={{ paddingHorizontal: theme.spacing.md, paddingBottom: theme.spacing.md }}>
+                        <Text style={{ fontSize: 12, color: theme.colors.text.secondary, marginBottom: 6 }}>CPF</Text>
+                        <TextInput
+                          value={cpf}
+                          onChangeText={setCpf}
+                          placeholder="000.000.000-00"
+                          placeholderTextColor={theme.colors.text.tertiary}
+                          style={{
+                            borderRadius: theme.radius.md,
+                            padding: theme.spacing.md,
+                            backgroundColor: theme.colors.background.tertiary,
+                            color: theme.colors.text.primary,
+                            fontSize: 17,
+                          }}
+                        />
+                      </View>
+                      <View style={{ paddingHorizontal: theme.spacing.md, paddingBottom: theme.spacing.md }}>
+                        <Text style={{ fontSize: 12, color: theme.colors.text.secondary, marginBottom: 6 }}>Profissão</Text>
+                        <TextInput
+                          value={occupation}
+                          onChangeText={setOccupation}
+                          placeholder="Ocupação"
+                          placeholderTextColor={theme.colors.text.tertiary}
+                          style={{
+                            borderRadius: theme.radius.md,
+                            padding: theme.spacing.md,
+                            backgroundColor: theme.colors.background.tertiary,
+                            color: theme.colors.text.primary,
+                            fontSize: 17,
+                          }}
+                        />
+                      </View>
+                      <View style={{ paddingHorizontal: theme.spacing.md, paddingBottom: theme.spacing.md }}>
+                        <Text style={{ fontSize: 12, color: theme.colors.text.secondary, marginBottom: 6 }}>Convênio / plano de saúde</Text>
+                        <TextInput
+                          value={insurancePlan}
+                          onChangeText={setInsurancePlan}
+                          placeholder="Nome do plano"
+                          placeholderTextColor={theme.colors.text.tertiary}
+                          style={{
+                            borderRadius: theme.radius.md,
+                            padding: theme.spacing.md,
+                            backgroundColor: theme.colors.background.tertiary,
+                            color: theme.colors.text.primary,
+                            fontSize: 17,
+                          }}
+                        />
+                      </View>
+                      <View style={{ paddingHorizontal: theme.spacing.md, paddingBottom: theme.spacing.md }}>
+                        <Text style={{ fontSize: 12, color: theme.colors.text.secondary, marginBottom: 6 }}>Rua / logradouro</Text>
+                        <TextInput
+                          value={addressStreet}
+                          onChangeText={setAddressStreet}
+                          placeholder="Rua, avenida…"
+                          placeholderTextColor={theme.colors.text.tertiary}
+                          style={{
+                            borderRadius: theme.radius.md,
+                            padding: theme.spacing.md,
+                            backgroundColor: theme.colors.background.tertiary,
+                            color: theme.colors.text.primary,
+                            fontSize: 17,
+                          }}
+                        />
+                      </View>
+                      <View style={{ flexDirection: "row", gap: theme.spacing.sm, paddingHorizontal: theme.spacing.md, paddingBottom: theme.spacing.md }}>
+                        <View style={{ flex: 1 }}>
+                          <Text style={{ fontSize: 12, color: theme.colors.text.secondary, marginBottom: 6 }}>Número</Text>
+                          <TextInput
+                            value={addressNumber}
+                            onChangeText={setAddressNumber}
+                            placeholder="Nº"
+                            placeholderTextColor={theme.colors.text.tertiary}
+                            style={{
+                              borderRadius: theme.radius.md,
+                              padding: theme.spacing.md,
+                              backgroundColor: theme.colors.background.tertiary,
+                              color: theme.colors.text.primary,
+                              fontSize: 17,
+                            }}
+                          />
+                        </View>
+                        <View style={{ flex: 1 }}>
+                          <Text style={{ fontSize: 12, color: theme.colors.text.secondary, marginBottom: 6 }}>Bairro</Text>
+                          <TextInput
+                            value={addressNeighborhood}
+                            onChangeText={setAddressNeighborhood}
+                            placeholder="Bairro"
+                            placeholderTextColor={theme.colors.text.tertiary}
+                            style={{
+                              borderRadius: theme.radius.md,
+                              padding: theme.spacing.md,
+                              backgroundColor: theme.colors.background.tertiary,
+                              color: theme.colors.text.primary,
+                              fontSize: 17,
+                            }}
+                          />
+                        </View>
+                      </View>
+                      <View style={{ paddingHorizontal: theme.spacing.md, paddingBottom: theme.spacing.md }}>
+                        <Text style={{ fontSize: 12, color: theme.colors.text.secondary, marginBottom: 6 }}>Complemento</Text>
+                        <TextInput
+                          value={addressComplement}
+                          onChangeText={setAddressComplement}
+                          placeholder="Apto, bloco…"
+                          placeholderTextColor={theme.colors.text.tertiary}
+                          style={{
+                            borderRadius: theme.radius.md,
+                            padding: theme.spacing.md,
+                            backgroundColor: theme.colors.background.tertiary,
+                            color: theme.colors.text.primary,
+                            fontSize: 17,
+                          }}
+                        />
+                      </View>
+                      <View style={{ flexDirection: "row", gap: theme.spacing.sm, paddingHorizontal: theme.spacing.md, paddingBottom: theme.spacing.md }}>
+                        <View style={{ flex: 1 }}>
+                          <Text style={{ fontSize: 12, color: theme.colors.text.secondary, marginBottom: 6 }}>Cidade</Text>
+                          <TextInput
+                            value={addressCity}
+                            onChangeText={setAddressCity}
+                            placeholder="Cidade"
+                            placeholderTextColor={theme.colors.text.tertiary}
+                            style={{
+                              borderRadius: theme.radius.md,
+                              padding: theme.spacing.md,
+                              backgroundColor: theme.colors.background.tertiary,
+                              color: theme.colors.text.primary,
+                              fontSize: 17,
+                            }}
+                          />
+                        </View>
+                        <View style={{ flex: 1 }}>
+                          <Text style={{ fontSize: 12, color: theme.colors.text.secondary, marginBottom: 6 }}>UF</Text>
+                          <TextInput
+                            value={addressState}
+                            onChangeText={(t) => setAddressState(t.toUpperCase().slice(0, 2))}
+                            placeholder="SP"
+                            placeholderTextColor={theme.colors.text.tertiary}
+                            maxLength={2}
+                            autoCapitalize="characters"
+                            style={{
+                              borderRadius: theme.radius.md,
+                              padding: theme.spacing.md,
+                              backgroundColor: theme.colors.background.tertiary,
+                              color: theme.colors.text.primary,
+                              fontSize: 17,
+                            }}
+                          />
+                        </View>
+                      </View>
+                    </View>
+
+                    <View style={{ backgroundColor: cardBg, borderRadius: radius, overflow: "hidden" }}>
+                      <SectionTitle theme={theme} color={theme.colors.semantic.treatment}>
+                        Resumo oncológico
+                      </SectionTitle>
+                      <View style={{ paddingHorizontal: theme.spacing.md, paddingBottom: theme.spacing.md }}>
+                        <Text style={{ fontSize: 12, color: theme.colors.text.secondary, marginBottom: theme.spacing.sm }}>Tipo de câncer (resumo)</Text>
+                        <View style={{ flexDirection: "row", flexWrap: "wrap", gap: theme.spacing.sm }}>
+                          {CANCER_TYPES.map((c) => (
+                            <Pressable
+                              key={c}
+                              onPress={() => setCancer(c)}
+                              style={{
+                                paddingHorizontal: theme.spacing.md,
+                                paddingVertical: theme.spacing.sm,
+                                borderRadius: theme.radius.md,
+                                backgroundColor: cancer === c ? theme.colors.semantic.treatment : theme.colors.background.tertiary,
+                              }}
+                            >
+                              <Text style={{ color: cancer === c ? "#FFFFFF" : theme.colors.text.primary, fontSize: 14 }}>
+                                {labelCancerType(c)}
+                              </Text>
+                            </Pressable>
+                          ))}
+                        </View>
+                      </View>
+                      <View style={{ paddingHorizontal: theme.spacing.md, paddingBottom: theme.spacing.md }}>
+                        <Text style={{ fontSize: 12, color: theme.colors.text.secondary, marginBottom: 6 }}>Estágio (opcional)</Text>
+                        <TextInput
+                          value={stage}
+                          onChangeText={setStage}
+                          placeholder="Ex.: estádio III"
+                          placeholderTextColor={theme.colors.text.tertiary}
+                          style={{
+                            borderRadius: theme.radius.md,
+                            padding: theme.spacing.md,
+                            backgroundColor: theme.colors.background.tertiary,
+                            color: theme.colors.text.primary,
+                            fontSize: 17,
+                          }}
+                        />
+                      </View>
+                      <View style={{ paddingHorizontal: theme.spacing.md, paddingBottom: theme.spacing.md }}>
+                        <Text style={{ fontSize: 12, color: theme.colors.text.secondary, marginBottom: theme.spacing.sm }}>Gravidez</Text>
+                        <View style={{ flexDirection: "row", flexWrap: "wrap", gap: theme.spacing.sm }}>
+                          {(
+                            [
+                              { k: "unset" as const, label: "Não informar" },
+                              { k: "no" as const, label: "Não" },
+                              { k: "yes" as const, label: "Sim" },
+                            ] as const
+                          ).map(({ k, label }) => (
+                            <Pressable
+                              key={k}
+                              onPress={() => setPregnancy(k)}
+                              style={{
+                                paddingHorizontal: theme.spacing.md,
+                                paddingVertical: theme.spacing.sm,
+                                borderRadius: theme.radius.md,
+                                backgroundColor: pregnancy === k ? theme.colors.semantic.treatment : theme.colors.background.tertiary,
+                              }}
+                            >
+                              <Text style={{ color: pregnancy === k ? "#FFFFFF" : theme.colors.text.primary, fontSize: 14 }}>{label}</Text>
+                            </Pressable>
+                          ))}
+                        </View>
+                      </View>
+                      <View
+                        style={{
+                          marginHorizontal: theme.spacing.md,
+                          marginBottom: theme.spacing.md,
+                          padding: theme.spacing.md,
+                          borderRadius: radius,
+                          borderLeftWidth: 3,
+                          borderLeftColor: theme.colors.semantic.treatment,
+                          backgroundColor: theme.colors.background.tertiary,
+                        }}
+                      >
+                        <Text style={{ fontSize: 11, fontWeight: "700", color: theme.colors.text.secondary, letterSpacing: 0.3 }}>
+                          INDICADOR AUTOMÁTICO — NADIR
+                        </Text>
+                        <Text style={{ fontSize: 13, color: theme.colors.text.secondary, marginTop: 6, lineHeight: 18 }}>
+                          Calculado no servidor com base nas datas de infusão (janela habitual 7–14 dias após a última sessão).
+                        </Text>
+                        <Text
+                          style={{
+                            fontSize: 14,
+                            color: theme.colors.text.primary,
+                            marginTop: theme.spacing.sm,
+                            fontWeight: "600",
+                          }}
+                        >
+                          Estado: {patient.is_in_nadir ? "na janela de nadir — vigilância febril" : "fora da janela"}
+                        </Text>
                       </View>
                     </View>
 
@@ -801,45 +1337,8 @@ export function ProfileSheet({
                       />
                     </View>
 
-                    <View style={{ flexDirection: "row", gap: theme.spacing.sm }}>
-                      <View style={{ flex: 1, backgroundColor: cardBg, borderRadius: radius, padding: theme.spacing.md }}>
-                        <Text style={{ fontSize: 12, color: theme.colors.text.secondary, marginBottom: 6 }}>Altura (cm)</Text>
-                        <TextInput
-                          value={heightStr}
-                          onChangeText={setHeightStr}
-                          keyboardType="decimal-pad"
-                          placeholder="—"
-                          placeholderTextColor={theme.colors.text.tertiary}
-                          style={{
-                            borderRadius: theme.radius.md,
-                            padding: theme.spacing.md,
-                            backgroundColor: theme.colors.background.tertiary,
-                            color: theme.colors.text.primary,
-                            fontSize: 17,
-                          }}
-                        />
-                      </View>
-                      <View style={{ flex: 1, backgroundColor: cardBg, borderRadius: radius, padding: theme.spacing.md }}>
-                        <Text style={{ fontSize: 12, color: theme.colors.text.secondary, marginBottom: 6 }}>Peso (kg)</Text>
-                        <TextInput
-                          value={weightStr}
-                          onChangeText={setWeightStr}
-                          keyboardType="decimal-pad"
-                          placeholder="—"
-                          placeholderTextColor={theme.colors.text.tertiary}
-                          style={{
-                            borderRadius: theme.radius.md,
-                            padding: theme.spacing.md,
-                            backgroundColor: theme.colors.background.tertiary,
-                            color: theme.colors.text.primary,
-                            fontSize: 17,
-                          }}
-                        />
-                      </View>
-                    </View>
-
                     <View style={{ backgroundColor: cardBg, borderRadius: radius, padding: theme.spacing.md }}>
-                      <Text style={{ fontSize: 12, color: theme.colors.text.secondary, marginBottom: 6 }}>Notas</Text>
+                      <Text style={{ fontSize: 12, color: theme.colors.text.secondary, marginBottom: 6 }}>Notas clínicas</Text>
                       <TextInput
                         value={clinicalNotes}
                         onChangeText={setClinicalNotes}
@@ -945,34 +1444,6 @@ export function ProfileSheet({
                         <FontAwesome name="plus" size={16} color={theme.colors.semantic.treatment} />
                         <Text style={{ fontWeight: "700", color: theme.colors.semantic.treatment }}>Adicionar contacto</Text>
                       </Pressable>
-                    </View>
-
-                    <View
-                      style={{
-                        padding: theme.spacing.md,
-                        borderRadius: radius,
-                        borderLeftWidth: 3,
-                        borderLeftColor: theme.colors.semantic.treatment,
-                        backgroundColor: theme.colors.background.tertiary,
-                      }}
-                    >
-                      <Text style={{ fontSize: 11, fontWeight: "700", color: theme.colors.text.secondary, letterSpacing: 0.3 }}>
-                        INDICADOR AUTOMÁTICO — NADIR
-                      </Text>
-                      <Text style={{ fontSize: 13, color: theme.colors.text.secondary, marginTop: 6, lineHeight: 18 }}>
-                        Não tem interruptor: é calculado no servidor com base nas datas de infusão (janela habitual 7–14 dias após a última
-                        sessão). Reforça regras de alerta de febre quando aplicável.
-                      </Text>
-                      <Text
-                        style={{
-                          fontSize: 14,
-                          color: theme.colors.text.primary,
-                          marginTop: theme.spacing.sm,
-                          fontWeight: "600",
-                        }}
-                      >
-                        Estado: {patient.is_in_nadir ? "na janela de nadir — vigilância febril" : "fora da janela"}
-                      </Text>
                     </View>
 
                     <Pressable
@@ -1183,6 +1654,69 @@ export function ProfileSheet({
           </View>
       </BottomSheetScrollView>
     </BottomSheetModal>
+
+    {Platform.OS === "ios" ? (
+      <Modal
+        visible={dobPickerOpen}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setDobPickerOpen(false)}
+      >
+        <View style={{ flex: 1, justifyContent: "flex-end", backgroundColor: "rgba(0,0,0,0.45)" }}>
+          <View
+            style={{
+              backgroundColor: theme.colors.background.primary,
+              borderTopLeftRadius: theme.radius.xl,
+              borderTopRightRadius: theme.radius.xl,
+              paddingBottom: Math.max(insets.bottom, theme.spacing.md),
+            }}
+          >
+            <View
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                justifyContent: "space-between",
+                paddingHorizontal: theme.spacing.md,
+                paddingTop: theme.spacing.md,
+                paddingBottom: theme.spacing.sm,
+                borderBottomWidth: 1,
+                borderBottomColor: theme.colors.border.divider,
+              }}
+            >
+              <Pressable onPress={() => setDobPickerOpen(false)} hitSlop={8}>
+                <Text style={{ fontSize: 17, color: theme.colors.semantic.treatment }}>Cancelar</Text>
+              </Pressable>
+              <Text style={{ fontSize: 17, fontWeight: "700", color: theme.colors.text.primary }}>Data de nascimento</Text>
+              <Pressable onPress={() => setDobPickerOpen(false)} hitSlop={8}>
+                <Text style={{ fontSize: 17, fontWeight: "700", color: theme.colors.semantic.treatment }}>OK</Text>
+              </Pressable>
+            </View>
+            <DateTimePicker
+              value={isoToLocalDate(profileDobStr)}
+              mode="date"
+              display="spinner"
+              onChange={(_, d) => {
+                if (d) setProfileDobStr(dateToIsoYmd(d));
+              }}
+              maximumDate={new Date()}
+              minimumDate={new Date(1900, 0, 1)}
+            />
+          </View>
+        </View>
+      </Modal>
+    ) : (
+      dobPickerOpen && (
+        <DateTimePicker
+          value={isoToLocalDate(profileDobStr)}
+          mode="date"
+          display="default"
+          onChange={onDobNativeChange}
+          maximumDate={new Date()}
+          minimumDate={new Date(1900, 0, 1)}
+        />
+      )
+    )}
+    </>
   );
 }
 

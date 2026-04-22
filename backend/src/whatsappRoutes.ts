@@ -1,11 +1,11 @@
-import type { Express, Request, Response } from "express";
+import express, { type Express, type Request, type Response } from "express";
 import type { RateLimitRequestHandler } from "express-rate-limit";
 import { z } from "zod";
 import type { Env } from "./config.js";
 import { resolveMessagingProvider } from "./messagingProvider.js";
 import { authenticateBearer } from "./authMiddleware.js";
 import { idempotencyMiddleware } from "./idempotencyMiddleware.js";
-import { logStructured } from "./logger.js";
+import { errorFields, logStructured } from "./logger.js";
 import { verifyMetaXHubSignature256 } from "./metaWebhookSignature.js";
 import { createServiceSupabase } from "./supabase.js";
 
@@ -90,6 +90,70 @@ function mapMetaStatus(s: string): "sent" | "delivered" | "read" | "failed" {
   return "sent";
 }
 
+/**
+ * Registar GET/POST `/api/whatsapp/webhook` antes de `express.json()` para preservar raw body (assinatura Meta).
+ */
+export function mountWhatsappWebhookEarly(app: Express, env: Env) {
+  app.get("/api/whatsapp/webhook", (req: Request, res: Response) => {
+    if (!env.WHATSAPP_VERIFY_TOKEN) {
+      res.status(503).json({ error: "whatsapp_webhook_not_configured" });
+      return;
+    }
+    const mode = req.query["hub.mode"];
+    const token = req.query["hub.verify_token"];
+    const challenge = req.query["hub.challenge"];
+    if (mode === "subscribe" && token === env.WHATSAPP_VERIFY_TOKEN && typeof challenge === "string") {
+      res.status(200).send(challenge);
+      return;
+    }
+    res.status(403).send("Forbidden");
+  });
+
+  app.post(
+    "/api/whatsapp/webhook",
+    express.raw({ type: "application/json", limit: "25mb" }),
+    (req: Request, res: Response, next) => {
+      const buf = req.body;
+      if (!Buffer.isBuffer(buf) || buf.length === 0) {
+        logStructured("whatsapp_webhook_reject", { reason: "missing_raw_body" });
+        res.status(400).json({ error: "missing_body" });
+        return;
+      }
+      req.rawBody = Buffer.from(buf);
+      try {
+        req.body = JSON.parse(buf.toString("utf8"));
+      } catch {
+        res.status(400).json({ error: "invalid_json" });
+        return;
+      }
+      next();
+    },
+    (req: Request, res: Response) => {
+      if (!env.WHATSAPP_APP_SECRET) {
+        logStructured("whatsapp_webhook_reject", { reason: "missing_whatsapp_app_secret" });
+        res.status(503).json({ error: "whatsapp_signature_not_configured" });
+        return;
+      }
+      const raw = req.rawBody;
+      if (!raw || raw.length === 0) {
+        logStructured("whatsapp_webhook_reject", { reason: "missing_raw_body" });
+        res.status(400).json({ error: "missing_body" });
+        return;
+      }
+      const sig = req.headers["x-hub-signature-256"];
+      if (!verifyMetaXHubSignature256(raw, sig, env.WHATSAPP_APP_SECRET)) {
+        logStructured("whatsapp_webhook_reject", { reason: "invalid_signature" });
+        res.status(403).json({ error: "invalid_signature" });
+        return;
+      }
+      res.status(200).json({ received: true });
+      void processWebhookPayload(env, req.body).catch((e) => {
+        logStructured("whatsapp_webhook_process_error", { err: errorFields(e) });
+      });
+    }
+  );
+}
+
 async function processWebhookPayload(env: Env, body: unknown) {
   const admin = createServiceSupabase(env);
   if (!admin) return;
@@ -112,49 +176,21 @@ async function processWebhookPayload(env: Env, body: unknown) {
   }
 }
 
-export function mountWhatsappRoutes(app: Express, env: Env, limiter: RateLimitRequestHandler) {
+export function mountWhatsappRoutes(
+  app: Express,
+  env: Env,
+  ipLimiter: RateLimitRequestHandler,
+  userLimiter: RateLimitRequestHandler
+) {
   const requireUser = authenticateBearer(env);
 
-  app.get("/api/whatsapp/webhook", (req: Request, res: Response) => {
-    if (!env.WHATSAPP_VERIFY_TOKEN) {
-      res.status(503).json({ error: "whatsapp_webhook_not_configured" });
-      return;
-    }
-    const mode = req.query["hub.mode"];
-    const token = req.query["hub.verify_token"];
-    const challenge = req.query["hub.challenge"];
-    if (mode === "subscribe" && token === env.WHATSAPP_VERIFY_TOKEN && typeof challenge === "string") {
-      res.status(200).send(challenge);
-      return;
-    }
-    res.status(403).send("Forbidden");
-  });
-
-  app.post("/api/whatsapp/webhook", (req: Request, res: Response) => {
-    if (!env.WHATSAPP_APP_SECRET) {
-      logStructured("whatsapp_webhook_reject", { reason: "missing_whatsapp_app_secret" });
-      res.status(503).json({ error: "whatsapp_signature_not_configured" });
-      return;
-    }
-    const raw = req.rawBody;
-    if (!raw || raw.length === 0) {
-      logStructured("whatsapp_webhook_reject", { reason: "missing_raw_body" });
-      res.status(400).json({ error: "missing_body" });
-      return;
-    }
-    const sig = req.headers["x-hub-signature-256"];
-    if (!verifyMetaXHubSignature256(raw, sig, env.WHATSAPP_APP_SECRET)) {
-      logStructured("whatsapp_webhook_reject", { reason: "invalid_signature" });
-      res.status(403).json({ error: "invalid_signature" });
-      return;
-    }
-    res.status(200).json({ received: true });
-    void processWebhookPayload(env, req.body).catch((e) => {
-      logStructured("whatsapp_webhook_process_error", { message: e instanceof Error ? e.message : String(e) });
-    });
-  });
-
-  app.post("/api/whatsapp/send", limiter, idempotencyMiddleware(), requireUser, async (req: Request, res: Response) => {
+  app.post(
+    "/api/whatsapp/send",
+    ipLimiter,
+    idempotencyMiddleware(),
+    requireUser,
+    userLimiter,
+    async (req: Request, res: Response) => {
     const parsed = sendBody.safeParse(req.body);
     if (!parsed.success) {
       logStructured("validation_error", { route: "whatsapp_send", details: parsed.error.flatten() });

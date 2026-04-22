@@ -30,7 +30,13 @@ export function useTriageData(session: Session | null) {
   const [pendingLinkRequests, setPendingLinkRequests] = useState<PendingStaffLinkRequest[]>([]);
   const [triageRules, setTriageRules] = useState<MergedAlertRules>({ fever_celsius_min: 37.8, alert_window_hours: 72 });
   const [busy, setBusy] = useState(false);
-  const [staffProfile, setStaffProfile] = useState<{ full_name: string; role: string; avatar_url: string | null } | null>(null);
+  const [staffProfile, setStaffProfile] = useState<{
+    full_name: string;
+    role: string;
+    avatar_url: string | null;
+    professional_license: string | null;
+    specialty: string | null;
+  } | null>(null);
   /** Bumps when staff profile is reloaded so repeated public avatar URLs still refresh in the browser. */
   const [staffAvatarBust, setStaffAvatarBust] = useState(0);
   const [hospitalNames, setHospitalNames] = useState<string[]>([]);
@@ -56,12 +62,18 @@ export function useTriageData(session: Session | null) {
       return;
     }
     await ensureStaffIfPending();
-    const { data, error } = await supabase.from("profiles").select("full_name, role, avatar_url").eq("id", uid).single();
+    const { data, error } = await supabase
+      .from("profiles")
+      .select("full_name, role, avatar_url, professional_license, specialty")
+      .eq("id", uid)
+      .single();
     if (!error && data) {
       setStaffProfile({
         full_name: data.full_name ?? "",
         role: data.role ?? "",
         avatar_url: typeof data.avatar_url === "string" ? data.avatar_url : null,
+        professional_license: typeof data.professional_license === "string" ? data.professional_license : null,
+        specialty: typeof data.specialty === "string" ? data.specialty : null,
       });
       setStaffAvatarBust((n) => n + 1);
     }

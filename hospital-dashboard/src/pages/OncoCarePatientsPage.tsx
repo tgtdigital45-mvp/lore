@@ -21,6 +21,7 @@ import { formatPatientCodeDisplay } from "@/lib/patientCode";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { SkeletonPulse } from "@/components/ui/SkeletonPulse";
+import { listContainerVariants, listItemVariants } from "@/lib/motionPresets";
 import { cn } from "@/lib/utils";
 import type { RiskRow } from "@/types/dashboard";
 
@@ -394,9 +395,18 @@ export function OncoCarePatientsPage() {
           </>
         ) : (
           <>
-            {sortedList.map((r) => (
-              <PatientRow key={r.id} row={r} />
-            ))}
+            <motion.ul
+              variants={listContainerVariants}
+              initial="hidden"
+              animate="visible"
+              className="flex list-none flex-col gap-2 p-0"
+            >
+              {sortedList.map((r) => (
+                <motion.li key={r.id} variants={listItemVariants} className="min-w-0">
+                  <PatientRow row={r} />
+                </motion.li>
+              ))}
+            </motion.ul>
 
             {list.length === 0 ? (
               <div className="flex flex-col items-center gap-4 rounded-2xl border border-dashed border-slate-200 bg-white px-8 py-14 text-center shadow-card">

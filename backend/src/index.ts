@@ -1,20 +1,22 @@
 import cors from "cors";
-import express, { type Request } from "express";
+import express from "express";
 import rateLimit from "express-rate-limit";
 import helmet from "helmet";
 import { z } from "zod";
 import { loadEnv } from "./config.js";
-import { logStructured } from "./logger.js";
+import { errorFields, logStructured } from "./logger.js";
 import { processAgentMessage } from "./agentService.js";
 import { handleOcrAnalyze, handleStaffOcrForPatient, OcrRejectedNotMedical } from "./ocrService.js";
 import { runOpenAiSupport } from "./supportOpenAi.js";
 import { mountExamRoutes } from "./examHandlers.js";
+import { mountPrescriptionRoutes } from "./prescriptionHandlers.js";
 import { isR2Configured } from "./r2.js";
-import { mountWhatsappRoutes } from "./whatsappRoutes.js";
+import { mountWhatsappRoutes, mountWhatsappWebhookEarly } from "./whatsappRoutes.js";
 import { mountEvolutionWebhook } from "./evolutionWebhook.js";
 import { mountFhirRoutes } from "./fhirRoutes.js";
 import { authenticateBearer } from "./authMiddleware.js";
 import { idempotencyMiddleware } from "./idempotencyMiddleware.js";
+import { getPostHogClient, shutdownPostHog } from "./posthog.js";
 
 const env = loadEnv();
 const requireUser = authenticateBearer(env);
@@ -50,28 +52,26 @@ if (isProd && (!corsOrigins || corsOrigins.length === 0)) {
   process.exit(1);
 }
 
-app.use(
-  express.json({
-    limit: "25mb",
-    verify: (req, _res, buf) => {
-      const r = req as Request;
-      const pathOnly = (r.originalUrl || r.url || "").split("?")[0];
-      if (req.method === "POST" && pathOnly === "/api/whatsapp/webhook") {
-        r.rawBody = Buffer.from(buf);
-      }
-    },
-  })
-);
+mountWhatsappWebhookEarly(app, env);
 
-const agentLimiter = rateLimit({
+app.use(express.json({ limit: "25mb" }));
+
+const ipAgentLimiter = rateLimit({
+  windowMs: 60_000,
+  max: 60,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req) => req.ip ?? "anon",
+});
+
+const userAgentLimiter = rateLimit({
   windowMs: 60_000,
   max: 30,
   standardHeaders: true,
   legacyHeaders: false,
   keyGenerator: (req) => {
-    const auth = req.headers.authorization ?? "";
-    const m = auth.match(/Bearer\s+(.+)/i);
-    return m ? m[1].slice(0, 64) : req.ip ?? "anon";
+    const uid = (req as express.Request & { authUser?: { userId: string } }).authUser?.userId;
+    return uid ?? "unauthenticated";
   },
 });
 
@@ -87,7 +87,13 @@ app.get("/api/health", (_req, res) => {
   res.json({ ok: true, service: "onco-backend" });
 });
 
-app.post("/api/support/chat", agentLimiter, idempotencyMiddleware(), requireUser, async (req, res) => {
+app.post(
+  "/api/support/chat",
+  ipAgentLimiter,
+  idempotencyMiddleware(),
+  requireUser,
+  userAgentLimiter,
+  async (req, res) => {
   const parsed = processBody.safeParse(req.body);
   if (!parsed.success) {
     logValidationError("support_chat", parsed.error);
@@ -110,15 +116,22 @@ app.post("/api/support/chat", agentLimiter, idempotencyMiddleware(), requireUser
     const reply = await runOpenAiSupport(env, parsed.data.message);
     res.json({ reply });
   } catch (e) {
-    logStructured("support_chat_failed", { err: e instanceof Error ? e.message : String(e) });
+    logStructured("support_chat_failed", { err: errorFields(e) });
     res.status(500).json({
       error: "support_failed",
       reply: "Não foi possível obter resposta do suporte agora. Tente novamente em instantes.",
     });
   }
-});
+  }
+);
 
-app.post("/api/agent/process", agentLimiter, idempotencyMiddleware(), requireUser, async (req, res) => {
+app.post(
+  "/api/agent/process",
+  ipAgentLimiter,
+  idempotencyMiddleware(),
+  requireUser,
+  userAgentLimiter,
+  async (req, res) => {
   const parsed = processBody.safeParse(req.body);
   if (!parsed.success) {
     logValidationError("agent_process", parsed.error);
@@ -135,14 +148,15 @@ app.post("/api/agent/process", agentLimiter, idempotencyMiddleware(), requireUse
     const result = await processAgentMessage(env, au.supabase, au.userId, parsed.data.message);
     res.json(result);
   } catch (e) {
-    logStructured("agent_process_failed", { err: e instanceof Error ? e.message : String(e) });
+    logStructured("agent_process_failed", { err: errorFields(e) });
     res.status(500).json({
       error: "agent_process_failed",
       reply:
         "Sistema temporariamente indisponível. Se precisar de ajuda clínica urgente, ligue para sua clínica ou procure o pronto-socorro.",
     });
   }
-});
+  }
+);
 
 function normalizeOcrRequestBody(body: unknown): unknown {
   if (!body || typeof body !== "object") return body;
@@ -166,7 +180,13 @@ const staffOcrBody = ocrBody.extend({
   patient_id: z.string().uuid(),
 });
 
-app.post("/api/ocr/analyze", agentLimiter, idempotencyMiddleware(), requireUser, async (req, res) => {
+app.post(
+  "/api/ocr/analyze",
+  ipAgentLimiter,
+  idempotencyMiddleware(),
+  requireUser,
+  userAgentLimiter,
+  async (req, res) => {
   const parsed = ocrBody.safeParse(normalizeOcrRequestBody(req.body));
   if (!parsed.success) {
     logValidationError("ocr_analyze", parsed.error);
@@ -198,15 +218,22 @@ app.post("/api/ocr/analyze", agentLimiter, idempotencyMiddleware(), requireUser,
       });
       return;
     }
-    logStructured("ocr_analyze_failed", { err: e instanceof Error ? e.message : String(e) });
+    logStructured("ocr_analyze_failed", { err: errorFields(e) });
     res.status(500).json({
       error: "ocr_failed",
       message: "Não foi possível ler o exame agora. Tente foto mais nítida ou insira os valores manualmente.",
     });
   }
-});
+  }
+);
 
-app.post("/api/staff/ocr/analyze", agentLimiter, idempotencyMiddleware(), requireUser, async (req, res) => {
+app.post(
+  "/api/staff/ocr/analyze",
+  ipAgentLimiter,
+  idempotencyMiddleware(),
+  requireUser,
+  userAgentLimiter,
+  async (req, res) => {
   const parsed = staffOcrBody.safeParse(normalizeOcrRequestBody(req.body));
   if (!parsed.success) {
     logValidationError("staff_ocr_analyze", parsed.error);
@@ -250,27 +277,36 @@ app.post("/api/staff/ocr/analyze", agentLimiter, idempotencyMiddleware(), requir
       return;
     }
     const code = typeof e === "object" && e !== null && "code" in e ? String((e as { code?: string }).code) : "";
-    logStructured("staff_ocr_failed", { code: code || "error", err: e instanceof Error ? e.message : String(e) });
+    logStructured("staff_ocr_failed", { code: code || "error", err: errorFields(e) });
     res.status(500).json({
       error: "ocr_failed",
       message: "Não foi possível processar o exame. Tente outra imagem ou PDF.",
     });
   }
-});
+  }
+);
 
 /** Compat: redireciona clientes antigos para o endpoint de OCR da Fase 2. */
-mountExamRoutes(app, env, agentLimiter);
+mountExamRoutes(app, env, ipAgentLimiter, userAgentLimiter);
+mountPrescriptionRoutes(app, env, ipAgentLimiter, userAgentLimiter);
 
-mountWhatsappRoutes(app, env, agentLimiter);
+mountWhatsappRoutes(app, env, ipAgentLimiter, userAgentLimiter);
 mountEvolutionWebhook(app, env);
-mountFhirRoutes(app, env, agentLimiter);
+mountFhirRoutes(app, env, ipAgentLimiter, userAgentLimiter);
 
-app.post("/api/agent/vision-delegate", agentLimiter, idempotencyMiddleware(), requireUser, async (_req, res) => {
+app.post(
+  "/api/agent/vision-delegate",
+  ipAgentLimiter,
+  idempotencyMiddleware(),
+  requireUser,
+  userAgentLimiter,
+  async (_req, res) => {
   res.status(410).json({
     error: "use_ocr_endpoint",
     message: "Use POST /api/ocr/analyze com imageBase64 e mimeType (documentType opcional — a IA classifica se omitido).",
   });
-});
+  }
+);
 
 const listenHost = process.env.LISTEN_HOST ?? "0.0.0.0";
 app.listen(env.PORT, listenHost, () => {
@@ -282,4 +318,13 @@ app.listen(env.PORT, listenHost, () => {
       ? "[storage] Cloudflare R2 ativo (ficheiros de exames em R2)."
       : "[storage] Cloudflare R2 desativado — defina R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY e R2_BUCKET ou R2_BUCKET_NAME no .env. OCR grava só metadados (inline-ocr/…)."
   );
+  getPostHogClient()?.capture({ distinctId: "server", event: "server started", properties: { port: env.PORT } });
 });
+
+async function gracefulShutdown() {
+  await shutdownPostHog();
+  process.exit(0);
+}
+
+process.on("SIGTERM", gracefulShutdown);
+process.on("SIGINT", gracefulShutdown);
