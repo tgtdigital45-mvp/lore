@@ -1,5 +1,7 @@
+"use client";
+
 import { useMemo } from "react";
-import { Link } from "react-router-dom";
+import Link from "next/link";
 import { CalendarClock, ChevronRight, User } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import type { InfusionBookingRow, InfusionResourceRow } from "@/hooks/useInfusionAgenda";
@@ -69,7 +71,7 @@ export function AgendaDailyListCard({ bookings, resources }: Props) {
             return (
               <li key={b.id} className="py-3 first:pt-0">
                 <Link
-                  to={`/agenda/recurso/${b.resource_id}`}
+                  href={`/agenda/recurso/${b.resource_id}`}
                   className="group flex gap-3 rounded-2xl p-2 transition hover:bg-[#F5F3FF]/80"
                 >
                   <div className="w-14 shrink-0 text-center">

@@ -1,7 +1,7 @@
 export const BACKEND_URL_STORAGE_KEY = "aura_hospital_backend_url";
 
 export function readEnvBackendUrl(): string {
-  return (import.meta.env.VITE_BACKEND_URL as string | undefined)?.replace(/\/$/, "").trim() ?? "";
+  return (process.env.NEXT_PUBLIC_BACKEND_URL as string | undefined)?.replace(/\/$/, "").trim() ?? "";
 }
 
 export function readSessionBackendUrl(): string | null {
@@ -26,7 +26,7 @@ export function persistSessionBackendUrl(url: string | null): void {
 function allowedBackendOrigins(): string[] {
   const env = readEnvBackendUrl();
   const extra = [
-    import.meta.env.VITE_BACKEND_URL as string | undefined,
+    process.env.NEXT_PUBLIC_BACKEND_URL as string | undefined,
     "http://localhost:3001",
     "http://localhost:3000",
     "http://127.0.0.1:3001",
@@ -52,7 +52,7 @@ export function resolveBackendUrl(allowOverride: boolean, sessionUrl: string | n
     const allowed = allowedBackendOrigins();
     const ok = allowed.some((o) => o === url.origin);
     if (!ok) {
-      if (import.meta.env.DEV) {
+      if (process.env.NODE_ENV === "development") {
         console.warn("[security] Backend URL override rejected:", url.origin);
       }
       return env;
@@ -65,7 +65,7 @@ export function resolveBackendUrl(allowOverride: boolean, sessionUrl: string | n
 
 /** Explicit backend URL or dev fallback: same-origin `/api` via Vite proxy. */
 export function hasStaffBackendForFetch(backendUrl: string): boolean {
-  return Boolean(backendUrl.trim()) || Boolean(import.meta.env.DEV);
+  return Boolean(backendUrl.trim()) || process.env.NODE_ENV === "development";
 }
 
 /** `path` must start with `/api/` (e.g. `/api/staff/ocr/analyze`). */

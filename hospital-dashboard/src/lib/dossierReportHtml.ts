@@ -499,7 +499,7 @@ export function buildDossierReportHtml(
   parts.push(`<div class="document-container">`);
 
   parts.push(`<div class="confidential-banner" role="note">
-        ${esc("⚠ DOCUMENTO CONFIDENCIAL — USO INTERNO EXCLUSIVO DA EQUIPA CLÍNICA")}
+        ${esc("⚠ DOCUMENTO CONFIDENCIAL — USO INTERNO EXCLUSIVO DA EQUIPE CLÍNICA")}
     </div>`);
 
   parts.push(`<header class="report-header">

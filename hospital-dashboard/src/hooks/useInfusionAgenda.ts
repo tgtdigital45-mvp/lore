@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { refreshSupabaseSessionIfStale } from "@/lib/authSession";
 import { ensureStaffIfPending } from "@/staffLink";
 import { supabase } from "@/lib/supabase";
@@ -38,111 +39,129 @@ export type UseInfusionAgendaOptions = {
   pollIntervalMs?: number;
 };
 
+async function fetchInfusionAgendaBundle(hospitalId: string): Promise<{
+  resources: InfusionResourceRow[];
+  bookings: InfusionBookingRow[];
+}> {
+  const fromIso = new Date(Date.now() - BOOKING_WINDOW_PAST_MS).toISOString();
+  const toIso = new Date(Date.now() + BOOKING_WINDOW_FUTURE_MS).toISOString();
+
+  const [resR, bookR] = await Promise.all([
+    supabase.from("infusion_resources").select("*").eq("hospital_id", hospitalId).order("sort_order", { ascending: true }),
+    supabase
+      .from("infusion_resource_bookings")
+      .select(
+        "id, resource_id, patient_id, starts_at, ends_at, medication_notes, patients ( profiles!patients_profile_id_fkey ( full_name ) )"
+      )
+      .eq("hospital_id", hospitalId)
+      .gte("ends_at", fromIso)
+      .lte("starts_at", toIso)
+      .order("starts_at", { ascending: true }),
+  ]);
+
+  if (resR.error) throw new Error(sanitizeSupabaseError(resR.error));
+  if (bookR.error) throw new Error(sanitizeSupabaseError(bookR.error));
+
+  const resources = (resR.data ?? []).map((r) => ({
+    ...(r as InfusionResourceRow),
+    paxman_cryotherapy: Boolean((r as { paxman_cryotherapy?: boolean }).paxman_cryotherapy),
+  }));
+  const bookings = (bookR.data ?? []) as unknown as InfusionBookingRow[];
+  return { resources, bookings };
+}
+
 export function useInfusionAgenda(options?: UseInfusionAgendaOptions) {
+  const queryClient = useQueryClient();
   const [authUserId, setAuthUserId] = useState<string | null | undefined>(undefined);
   const [hospitalId, setHospitalId] = useState<string | null>(null);
-  const [resources, setResources] = useState<InfusionResourceRow[]>([]);
-  const [bookings, setBookings] = useState<InfusionBookingRow[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [linkError, setLinkError] = useState<string | null>(null);
+  const [bootstrapping, setBootstrapping] = useState(true);
   const [dataUpdatedAt, setDataUpdatedAt] = useState<number | null>(null);
-  const loadVersion = useRef(0);
 
   useEffect(() => {
-    void supabase.auth.getSession().then(({ data }) => {
-      setAuthUserId(data.session?.user?.id ?? null);
-    }).catch(() => {
-      setAuthUserId(null);
-    });
+    void supabase.auth
+      .getSession()
+      .then(({ data }) => {
+        setAuthUserId(data.session?.user?.id ?? null);
+      })
+      .catch(() => {
+        setAuthUserId(null);
+      });
     const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
       setAuthUserId(session?.user?.id ?? null);
     });
     return () => sub.subscription.unsubscribe();
   }, []);
 
-  const loadData = useCallback(async () => {
-    const version = ++loadVersion.current;
-    try {
-      const { data: auth } = await supabase.auth.getSession();
-      const fresh = await refreshSupabaseSessionIfStale(auth.session);
-      if (!fresh?.user) {
-        if (version === loadVersion.current) setLoading(false);
-        return;
-      }
-      await ensureStaffIfPending();
-      const { data: sa } = await supabase.from("staff_assignments").select("hospital_id").eq("staff_id", fresh.user.id).limit(1).maybeSingle();
-      const hid = sa?.hospital_id;
-      if (!hid) {
-        if (version === loadVersion.current) {
-          setError("Sem vínculo hospitalar.");
-          setResources([]);
-          setBookings([]);
-          setLoading(false);
-        }
-        return;
-      }
-      if (version === loadVersion.current) setHospitalId(hid);
-
-      const fromIso = new Date(Date.now() - BOOKING_WINDOW_PAST_MS).toISOString();
-      const toIso = new Date(Date.now() + BOOKING_WINDOW_FUTURE_MS).toISOString();
-
-      const [resR, bookR] = await Promise.all([
-        supabase.from("infusion_resources").select("*").eq("hospital_id", hid).order("sort_order", { ascending: true }),
-        supabase
-          .from("infusion_resource_bookings")
-          .select(
-            "id, resource_id, patient_id, starts_at, ends_at, medication_notes, patients ( profiles!patients_profile_id_fkey ( full_name ) )"
-          )
-          .eq("hospital_id", hid)
-          .gte("ends_at", fromIso)
-          .lte("starts_at", toIso)
-          .order("starts_at", { ascending: true }),
-      ]);
-
-      if (version !== loadVersion.current) return;
-
-      if (resR.error) setError(sanitizeSupabaseError(resR.error));
-      else if (bookR.error) setError(sanitizeSupabaseError(bookR.error));
-      else setError(null);
-
-      setResources(
-        (resR.data ?? []).map((r) => ({
-          ...(r as InfusionResourceRow),
-          paxman_cryotherapy: Boolean((r as { paxman_cryotherapy?: boolean }).paxman_cryotherapy),
-        }))
-      );
-      setBookings((bookR.data ?? []) as unknown as InfusionBookingRow[]);
-      if (version === loadVersion.current && !resR.error && !bookR.error) {
-        setDataUpdatedAt(Date.now());
-      }
-    } catch (err) {
-      if (version === loadVersion.current) {
-        setError(err instanceof Error ? sanitizeSupabaseError(err) : "Erro ao carregar agenda de infusão.");
-      }
-    } finally {
-      if (version === loadVersion.current) setLoading(false);
-    }
-  }, []);
-
   useEffect(() => {
     if (authUserId === undefined) return;
     if (!authUserId) {
       setHospitalId(null);
-      setResources([]);
-      setBookings([]);
-      setLoading(false);
+      setLinkError(null);
+      setBootstrapping(false);
       return;
     }
-    setLoading(true);
-    void loadData();
-  }, [authUserId, loadData]);
+
+    let cancelled = false;
+    setBootstrapping(true);
+    void (async () => {
+      try {
+        const { data: auth } = await supabase.auth.getSession();
+        const fresh = await refreshSupabaseSessionIfStale(auth.session);
+        if (!fresh?.user) {
+          if (!cancelled) {
+            setHospitalId(null);
+            setLinkError(null);
+            setBootstrapping(false);
+          }
+          return;
+        }
+        await ensureStaffIfPending();
+        const { data: sa } = await supabase.from("staff_assignments").select("hospital_id").eq("staff_id", fresh.user.id).limit(1).maybeSingle();
+        const hid = sa?.hospital_id ?? null;
+        if (cancelled) return;
+        if (!hid) {
+          setLinkError("Sem vínculo hospitalar.");
+          setHospitalId(null);
+        } else {
+          setLinkError(null);
+          setHospitalId(hid);
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setLinkError(err instanceof Error ? sanitizeSupabaseError(err) : "Erro ao resolver hospital.");
+          setHospitalId(null);
+        }
+      } finally {
+        if (!cancelled) setBootstrapping(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [authUserId]);
+
+  const infusionQuery = useQuery({
+    queryKey: ["infusion-agenda", hospitalId],
+    queryFn: () => fetchInfusionAgendaBundle(hospitalId!),
+    enabled: Boolean(authUserId && hospitalId),
+  });
+
+  useEffect(() => {
+    if (infusionQuery.isSuccess && infusionQuery.data) {
+      setDataUpdatedAt(Date.now());
+    }
+  }, [infusionQuery.isSuccess, infusionQuery.data, infusionQuery.dataUpdatedAt]);
+
+  const invalidateAgenda = useCallback(() => {
+    if (!hospitalId) return;
+    void queryClient.invalidateQueries({ queryKey: ["infusion-agenda", hospitalId] });
+  }, [hospitalId, queryClient]);
 
   useEffect(() => {
     if (!hospitalId || authUserId === undefined || !authUserId) return;
 
-    // Unique topic per subscription lifecycle. Supabase dedupes `channel(name)`; reusing a name
-    // after subscribe() and before removeChannel completes can make `.on()` run on an already-
-    // subscribed channel (React Strict Mode / fast remounts) and throw.
     const scope = crypto.randomUUID();
 
     const chResources = supabase
@@ -150,7 +169,7 @@ export function useInfusionAgenda(options?: UseInfusionAgendaOptions) {
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "infusion_resources", filter: `hospital_id=eq.${hospitalId}` },
-        () => void loadData()
+        invalidateAgenda
       )
       .subscribe();
 
@@ -159,7 +178,7 @@ export function useInfusionAgenda(options?: UseInfusionAgendaOptions) {
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "infusion_resource_bookings", filter: `hospital_id=eq.${hospitalId}` },
-        () => void loadData()
+        invalidateAgenda
       )
       .subscribe();
 
@@ -167,26 +186,48 @@ export function useInfusionAgenda(options?: UseInfusionAgendaOptions) {
       void supabase.removeChannel(chResources);
       void supabase.removeChannel(chBookings);
     };
-  }, [hospitalId, authUserId, loadData]);
+  }, [hospitalId, authUserId, invalidateAgenda]);
 
   useEffect(() => {
     const ms = options?.pollIntervalMs;
     if (!ms || ms < 5000 || !authUserId || !hospitalId) return;
-    const id = window.setInterval(() => void loadData(), ms);
+    const id = window.setInterval(invalidateAgenda, ms);
     return () => window.clearInterval(id);
-  }, [options?.pollIntervalMs, authUserId, hospitalId, loadData]);
+  }, [options?.pollIntervalMs, authUserId, hospitalId, invalidateAgenda]);
+
+  const bundle = infusionQuery.data;
+  const resources = bundle?.resources ?? [];
+  const bookings = bundle?.bookings ?? [];
+
+  const loading =
+    authUserId === undefined || bootstrapping || (Boolean(hospitalId) && infusionQuery.isPending);
+
+  const error =
+    linkError ??
+    (infusionQuery.error instanceof Error
+      ? sanitizeSupabaseError(infusionQuery.error)
+      : infusionQuery.error
+        ? String(infusionQuery.error)
+        : null);
+
+  const reload = useCallback(() => {
+    if (!hospitalId) return Promise.resolve();
+    return queryClient.invalidateQueries({ queryKey: ["infusion-agenda", hospitalId] });
+  }, [hospitalId, queryClient]);
 
   const kpis = useMemo(() => {
+    const res = bundle?.resources ?? [];
+    const book = bundle?.bookings ?? [];
     const now = Date.now();
     let maintenance = 0;
     let occupied = 0;
     let available = 0;
-    for (const r of resources) {
+    for (const r of res) {
       if (r.operational_status === "maintenance") {
         maintenance += 1;
         continue;
       }
-      const occ = bookings.some((b) => {
+      const occ = book.some((b) => {
         if (b.resource_id !== r.id) return false;
         const s = Date.parse(b.starts_at);
         const e = Date.parse(b.ends_at);
@@ -195,8 +236,8 @@ export function useInfusionAgenda(options?: UseInfusionAgendaOptions) {
       if (occ) occupied += 1;
       else available += 1;
     }
-    return { maintenance, occupied, available, total: resources.length };
-  }, [resources, bookings]);
+    return { maintenance, occupied, available, total: res.length };
+  }, [bundle]);
 
   return {
     hospitalId,
@@ -204,7 +245,7 @@ export function useInfusionAgenda(options?: UseInfusionAgendaOptions) {
     bookings,
     loading,
     error,
-    reload: loadData,
+    reload,
     kpis,
     dataUpdatedAt,
   };

@@ -86,5 +86,5 @@ export function cancerContextHint(primaryCancerType: string): string {
   if (t.includes("breast") || t.includes("mama")) return "Ênfase: linfedema, pele, dor local.";
   if (t.includes("lung") || t.includes("pulm")) return "Ênfase: SpO₂, dispneia, tosse.";
   if (t.includes("colo") || t.includes("cervix")) return "Ênfase: sangramento, dor pélvica.";
-  return "Monitorizar toxicidade e sinais de alerta gerais.";
+  return "Monitorar toxicidade e sinais de alerta gerais.";
 }

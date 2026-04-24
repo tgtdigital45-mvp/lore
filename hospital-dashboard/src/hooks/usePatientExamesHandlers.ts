@@ -8,13 +8,24 @@ import {
   staffApiRequestUrl,
 } from "@/lib/backendUrl";
 import { sanitizeHttpApiMessage, userFacingApiError } from "@/lib/errorMessages";
+import { supabase } from "@/lib/supabase";
+import { refreshSupabaseSessionIfStale } from "@/lib/authSession";
+import type { PrescriptionOcrItem } from "@/types/prescriptionOcr";
+
+/** Obtém sempre o access_token mais recente do cliente Supabase, evitando tokens
+ *  expirados que ficam na state do componente enquanto o cliente os renova em background. */
+async function getFreshToken(): Promise<string | null> {
+  const { data } = await supabase.auth.getSession();
+  const fresh = await refreshSupabaseSessionIfStale(data.session);
+  return fresh?.access_token ?? null;
+}
 
 export function usePatientExamesHandlers(
   session: Session | null,
   patientId: string | undefined,
   refreshExames: () => Promise<void>
 ) {
-  const allowOverride = import.meta.env.DEV;
+  const allowOverride = process.env.NODE_ENV === "development";
   const envBackendUrl = readEnvBackendUrl();
   const backendUrl = useMemo(
     () => resolveBackendUrl(allowOverride, allowOverride ? readSessionBackendUrl() : null, envBackendUrl),
@@ -25,11 +36,12 @@ export function usePatientExamesHandlers(
   const [docOpenError, setDocOpenError] = useState<string | null>(null);
   const [staffUploadBusy, setStaffUploadBusy] = useState(false);
   const [staffUploadMsg, setStaffUploadMsg] = useState<string | null>(null);
+  const [pendingPrescriptionItems, setPendingPrescriptionItems] = useState<PrescriptionOcrItem[]>([]);
 
   const staffUploadExam = useCallback(
     async (file: File) => {
       if (!session || !patientId || !hasStaffBackendForFetch(backendUrl)) {
-        setStaffUploadMsg("Indique o URL do onco-backend (variável VITE_BACKEND_URL) e selecione um paciente.");
+        setStaffUploadMsg("Indique o URL do onco-backend (variável NEXT_PUBLIC_BACKEND_URL) e selecione um paciente.");
         return;
       }
       const rawMime = file.type;
@@ -41,6 +53,7 @@ export function usePatientExamesHandlers(
       }
       setStaffUploadBusy(true);
       setStaffUploadMsg(null);
+      setPendingPrescriptionItems([]);
       try {
         const imageBase64 = await new Promise<string>((resolve, reject) => {
           const reader = new FileReader();
@@ -52,11 +65,16 @@ export function usePatientExamesHandlers(
           reader.onerror = () => reject(reader.error);
           reader.readAsDataURL(file);
         });
+        const token = await getFreshToken();
+        if (!token) {
+          setStaffUploadMsg("Sessão expirada. Faça login novamente.");
+          return;
+        }
         const r = await fetch(staffApiRequestUrl(backendUrl, "/api/staff/ocr/analyze"), {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${session.access_token}`,
+            Authorization: `Bearer ${token}`,
           },
           body: JSON.stringify({
             patient_id: patientId,
@@ -64,10 +82,20 @@ export function usePatientExamesHandlers(
             mimeType: mime,
           }),
         });
-        const j = (await r.json()) as { error?: string; message?: string };
+        const j = (await r.json()) as {
+          error?: string;
+          message?: string;
+          extracted?: {
+            ui_category?: string;
+            prescription_items?: PrescriptionOcrItem[];
+          };
+        };
         if (!r.ok) {
           setStaffUploadMsg(sanitizeHttpApiMessage((j.message as string | undefined) ?? j.error, `Erro ${r.status}`));
           return;
+        }
+        if (j.extracted?.ui_category === "receitas" && (j.extracted.prescription_items?.length ?? 0) > 0) {
+          setPendingPrescriptionItems(j.extracted.prescription_items ?? []);
         }
         setStaffUploadMsg("Exame processado e registrado no prontuário.");
         await refreshExames();
@@ -80,17 +108,26 @@ export function usePatientExamesHandlers(
     [session, patientId, backendUrl, refreshExames]
   );
 
+  const clearPrescriptionItems = useCallback(() => {
+    setPendingPrescriptionItems([]);
+  }, []);
+
   const openStaffExamView = useCallback(
     async (documentId: string, mode: "open" | "download" = "open") => {
       if (!session || !hasStaffBackendForFetch(backendUrl)) {
-        setDocOpenError("Indique o URL do onco-backend (VITE_BACKEND_URL no .env).");
+        setDocOpenError("Indique o URL do onco-backend (NEXT_PUBLIC_BACKEND_URL no .env).");
         return;
       }
       setDocOpenError(null);
+      const token = await getFreshToken();
+      if (!token) {
+        setDocOpenError("Sessão expirada. Faça login novamente.");
+        return;
+      }
       try {
         if (mode === "download") {
           const r = await fetch(staffApiRequestUrl(backendUrl, `/api/staff/exams/${documentId}/download`), {
-            headers: { Authorization: `Bearer ${session.access_token}` },
+            headers: { Authorization: `Bearer ${token}` },
           });
           if (!r.ok) {
             let msg = `Erro ${r.status}`;
@@ -130,7 +167,7 @@ export function usePatientExamesHandlers(
         }
 
         const r = await fetch(staffApiRequestUrl(backendUrl, `/api/staff/exams/${documentId}/view`), {
-          headers: { Authorization: `Bearer ${session.access_token}` },
+          headers: { Authorization: `Bearer ${token}` },
         });
         const j = (await r.json()) as { url?: string; error?: string; message?: string };
         if (!r.ok) {
@@ -155,5 +192,7 @@ export function usePatientExamesHandlers(
     staffUploadMsg,
     staffUploadExam,
     openStaffExamView,
+    pendingPrescriptionItems,
+    clearPrescriptionItems,
   };
 }

@@ -22,13 +22,12 @@ export default function MedicationTypeScreen() {
   const displayName = draft.name.trim() || "Medicamento";
 
   const [selected, setSelected] = useState<string | null>(draft.form);
-  const canNext = selected !== null;
 
-  const finish = useCallback(() => {
-    if (!selected) return;
-    setDraft({ form: selected });
+  const selectAndNext = useCallback((form: string) => {
+    setSelected(form);
+    setDraft({ form });
     router.push("/(tabs)/health/medications/dosage" as Href);
-  }, [router, selected, setDraft]);
+  }, [router, setDraft]);
 
   return (
     <ResponsiveScreen variant="tabGradient">
@@ -56,7 +55,7 @@ export default function MedicationTypeScreen() {
             {displayName}
           </Text>
         </View>
-        <CircleChromeButton accessibilityLabel="Fechar" onPress={() => router.replace("/(tabs)/health/medications" as Href)}>
+        <CircleChromeButton accessibilityLabel="Fechar" onPress={() => router.dismissAll()}>
           <FontAwesome name="times" size={20} color={theme.colors.text.primary} />
         </CircleChromeButton>
       </View>
@@ -93,7 +92,7 @@ export default function MedicationTypeScreen() {
           {FORMAS_COMUNS.map((label, i) => (
             <Pressable
               key={label}
-              onPress={() => setSelected(label)}
+              onPress={() => selectAndNext(label)}
               style={({ pressed }) => ({
                 flexDirection: "row",
                 alignItems: "center",
@@ -133,7 +132,7 @@ export default function MedicationTypeScreen() {
           {MAIS_FORMAS.map((label, i) => (
             <Pressable
               key={label}
-              onPress={() => setSelected(label)}
+              onPress={() => selectAndNext(label)}
               style={({ pressed }) => ({
                 flexDirection: "row",
                 alignItems: "center",
@@ -154,22 +153,6 @@ export default function MedicationTypeScreen() {
           ))}
         </View>
 
-        <Pressable
-          disabled={!canNext}
-          onPress={finish}
-          style={({ pressed }) => ({
-            marginTop: theme.spacing.xl,
-            backgroundColor: canNext ? IOS_HEALTH.blue : theme.colors.background.tertiary,
-            paddingVertical: 14,
-            borderRadius: IOS_HEALTH.pillButtonRadius,
-            alignItems: "center",
-            opacity: pressed && canNext ? 0.88 : 1,
-          })}
-        >
-          <Text style={[theme.typography.headline, { color: canNext ? "#FFFFFF" : theme.colors.text.tertiary }]}>
-            Seguinte
-          </Text>
-        </Pressable>
       </ScrollView>
     </ResponsiveScreen>
   );

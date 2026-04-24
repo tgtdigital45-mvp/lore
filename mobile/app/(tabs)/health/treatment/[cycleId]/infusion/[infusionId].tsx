@@ -24,6 +24,7 @@ import { useStackBack } from "@/src/hooks/useStackBack";
 import { TREATMENT_HREF, treatmentCycleHref } from "@/src/navigation/treatmentRoutes";
 import { usePatient } from "@/src/hooks/usePatient";
 import { supabase } from "@/src/lib/supabase";
+import { reschedulePendingSessionAtsAfterCheckIn } from "@/src/lib/treatmentInfusionSchedule";
 import type { InfusionSessionStatus, TreatmentInfusionRow } from "@/src/types/treatment";
 
 const STATUSES: InfusionSessionStatus[] = ["completed", "scheduled", "cancelled"];
@@ -100,12 +101,61 @@ export default function EditInfusionScreen() {
       })
       .eq("id", infusionId)
       .eq("patient_id", patient.id);
-    setBusy(false);
     if (error) {
+      setBusy(false);
       Alert.alert("Erro", error.message);
       return;
     }
-    router.replace(treatmentCycleHref(cycleId));
+
+    const { data: cycleRow } = await supabase
+      .from("treatment_cycles")
+      .select("infusion_interval_days")
+      .eq("id", cycleId)
+      .eq("patient_id", patient.id)
+      .maybeSingle();
+    const intervalDays = cycleRow?.infusion_interval_days;
+    if (intervalDays != null && intervalDays >= 1) {
+      const { data: lastCompleted, error: lastErr } = await supabase
+        .from("treatment_infusions")
+        .select("session_at")
+        .eq("cycle_id", cycleId)
+        .eq("patient_id", patient.id)
+        .eq("status", "completed")
+        .order("session_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (!lastErr && lastCompleted?.session_at) {
+        const { data: pendingRows, error: pendErr } = await supabase
+          .from("treatment_infusions")
+          .select("id")
+          .eq("cycle_id", cycleId)
+          .eq("patient_id", patient.id)
+          .eq("status", "scheduled")
+          .order("session_at", { ascending: true });
+        if (!pendErr && pendingRows?.length) {
+          const updates = reschedulePendingSessionAtsAfterCheckIn(
+            lastCompleted.session_at,
+            intervalDays,
+            pendingRows as { id: string }[]
+          );
+          const results = await Promise.all(
+            updates.map((u) =>
+              supabase.from("treatment_infusions").update({ session_at: u.session_at }).eq("id", u.id).eq("patient_id", patient.id)
+            )
+          );
+          const batchErr = results.find((r) => r.error)?.error;
+          if (batchErr) {
+            setBusy(false);
+            Alert.alert("Aviso", batchErr.message ?? "Não foi possível reagendar todas as sessões pendentes.");
+            router.back();
+            return;
+          }
+        }
+      }
+    }
+
+    setBusy(false);
+    router.back();
   }
 
   function confirmDelete() {
@@ -121,7 +171,7 @@ export default function EditInfusionScreen() {
             Alert.alert("Erro", error.message);
             return;
           }
-          router.replace(treatmentCycleHref(cycleId));
+          router.back();
         },
       },
     ]);

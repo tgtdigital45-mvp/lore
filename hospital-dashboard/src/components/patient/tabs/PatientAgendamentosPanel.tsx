@@ -1,10 +1,11 @@
-import { useState } from "react";
+﻿import { useState } from "react";
 import { toast } from "sonner";
 import type { PatientAppointmentRow } from "@/types/dashboard";
 import { formatPtDateTime } from "@/lib/dashboardFormat";
 import { supabase } from "@/lib/supabase";
 import { sanitizeSupabaseError } from "@/lib/errorMessages";
 import { Button } from "@/components/ui/button";
+import { LoadingInline } from "@/components/ui/LoadingInline";
 
 type Props = {
   modalLoading: boolean;
@@ -41,7 +42,7 @@ export default function PatientAgendamentosPanel({ modalLoading, appointments, o
         toast.error(sanitizeSupabaseError(error));
         return;
       }
-      toast.success(checkedIn ? "Presença registada." : "Check-in removido.");
+      toast.success(checkedIn ? "Presença registrada." : "Check-in removido.");
       onRefresh();
     } finally {
       setBusyId(null);
@@ -52,12 +53,14 @@ export default function PatientAgendamentosPanel({ modalLoading, appointments, o
     <div className="patient-modal__tab-panel space-y-4">
       <p className="muted text-sm">
         Mesmos compromissos do calendário na app Aura (incluindo infusões sincronizadas pela unidade). Check-in pode ser
-        feito pelo paciente no telemóvel ou pela equipa aqui.
+        feito pelo paciente no celular ou pela equipe aqui.
       </p>
       {modalLoading ? (
-        <p className="muted patient-modal__loading">A carregar…</p>
+        <div className="py-4">
+          <LoadingInline />
+        </div>
       ) : appointments.length === 0 ? (
-        <p className="muted">Sem agendamentos registados.</p>
+        <p className="muted">Sem agendamentos registrados.</p>
       ) : (
         <ul className="space-y-3">
           {appointments.map((a) => {
@@ -81,13 +84,13 @@ export default function PatientAgendamentosPanel({ modalLoading, appointments, o
                       <span className="text-xs font-medium text-emerald-800">
                         Check-in: {formatPtDateTime(a.checked_in_at)}
                         {a.checked_in_source === "staff"
-                          ? " (equipa)"
+                          ? " (equipe)"
                           : a.checked_in_source === "patient"
                             ? " (paciente)"
                             : ""}
                       </span>
                     ) : past ? (
-                      <span className="text-xs font-medium text-amber-800">Sem registo de presença</span>
+                      <span className="text-xs font-medium text-amber-800">Sem registro de presença</span>
                     ) : (
                       <span className="text-xs text-muted-foreground">Agendado</span>
                     )}
@@ -125,3 +128,4 @@ export default function PatientAgendamentosPanel({ modalLoading, appointments, o
     </div>
   );
 }
+

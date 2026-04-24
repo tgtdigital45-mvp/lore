@@ -13,6 +13,7 @@ import { usePatient } from "@/src/hooks/usePatient";
 import { predictedSessionAtIso } from "@/src/lib/treatmentInfusionSchedule";
 import { supabase } from "@/src/lib/supabase";
 import { labelTreatmentKind } from "@/src/i18n/treatment";
+import type { AppTheme } from "@/src/theme/theme";
 import type { TreatmentKind } from "@/src/types/treatment";
 
 function parseRequiredPositiveInt(s: string): number | null {
@@ -36,6 +37,66 @@ function parseInfusionIntervalDays(s: string): number | null | -1 {
   const n = parseInt(t, 10);
   if (!Number.isFinite(n) || n < 1 || n > 180) return -1;
   return n;
+}
+
+function SummaryCard({
+  theme,
+  kindLabel,
+  startDateYmd,
+  planned,
+  completed,
+  intervalLabel,
+}: {
+  theme: AppTheme;
+  kindLabel: string;
+  startDateYmd: string;
+  planned: number;
+  completed: number | null;
+  intervalLabel: string | null;
+}) {
+  const d = new Date(startDateYmd + "T12:00:00");
+  const dateStr = Number.isNaN(d.getTime()) ? startDateYmd : d.toLocaleDateString("pt-BR", { day: "2-digit", month: "short", year: "numeric" });
+  return (
+    <View
+      style={{
+        backgroundColor: theme.colors.background.secondary,
+        borderRadius: theme.radius.lg,
+        padding: theme.spacing.md,
+        marginBottom: theme.spacing.lg,
+      }}
+    >
+      <View style={{ flexDirection: "row", alignItems: "center", gap: theme.spacing.sm, marginBottom: theme.spacing.md }}>
+        <FontAwesome name="clipboard" size={20} color={IOS_HEALTH.blue} />
+        <Text style={[theme.typography.title2, { color: theme.colors.text.primary, flex: 1 }]}>Resumo do ciclo</Text>
+      </View>
+      <View style={{ gap: theme.spacing.sm }}>
+        <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
+          <Text style={[theme.typography.caption1, { color: theme.colors.text.tertiary }]}>Tipo</Text>
+          <Text style={[theme.typography.body, { color: theme.colors.text.primary, fontWeight: "600" }]}>{kindLabel}</Text>
+        </View>
+        <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
+          <Text style={[theme.typography.caption1, { color: theme.colors.text.tertiary }]}>Início</Text>
+          <Text style={[theme.typography.body, { color: theme.colors.text.primary, fontWeight: "600" }]}>{dateStr}</Text>
+        </View>
+        <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
+          <Text style={[theme.typography.caption1, { color: theme.colors.text.tertiary }]}>Sessões planejadas</Text>
+          <Text style={[theme.typography.body, { color: theme.colors.text.primary, fontWeight: "600" }]}>{planned}</Text>
+        </View>
+        {completed != null ? (
+          <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
+            <Text style={[theme.typography.caption1, { color: theme.colors.text.tertiary }]}>Já realizadas (aprox.)</Text>
+            <Text style={[theme.typography.body, { color: theme.colors.text.primary, fontWeight: "600" }]}>{completed}</Text>
+          </View>
+        ) : null}
+        {intervalLabel != null && intervalLabel.length > 0 ? (
+          <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
+            <Text style={[theme.typography.caption1, { color: theme.colors.text.tertiary }]}>Intervalo</Text>
+            <Text style={[theme.typography.body, { color: theme.colors.text.primary, fontWeight: "600" }]}>{intervalLabel}</Text>
+          </View>
+        ) : null}
+      </View>
+    </View>
+  );
 }
 
 export default function TreatmentDetailsWizardScreen() {
@@ -64,6 +125,14 @@ export default function TreatmentDetailsWizardScreen() {
     );
   }, [patient, params]);
 
+  const kindLabel = useMemo(() => labelTreatmentKind((params.kind ?? "other") as TreatmentKind), [params.kind]);
+
+  const summaryPlanned = parseRequiredPositiveInt(String(params.planned ?? "")) ?? 0;
+  const summaryCompleted = parseOptionalInt(String(params.completed ?? ""));
+  const intervalParsedForLabel = parseInfusionIntervalDays(String(params.infusionIntervalDays ?? ""));
+  const intervalLabel =
+    intervalParsedForLabel != null && intervalParsedForLabel !== -1 ? `${intervalParsedForLabel} dia(s)` : null;
+
   async function save() {
     if (!patient || !canSave) return;
     Keyboard.dismiss();
@@ -85,8 +154,7 @@ export default function TreatmentDetailsWizardScreen() {
       Alert.alert("Validação", "Intervalo entre infusões: indique um número entre 1 e 180 dias ou deixe em branco (apenas com 1 sessão).");
       return;
     }
-    const completedCount =
-      completedRaw != null ? Math.min(completedRaw, planned) : 0;
+    const completedCount = completedRaw != null ? Math.min(completedRaw, planned) : 0;
 
     const infusionRows: {
       patient_id: string;
@@ -154,7 +222,7 @@ export default function TreatmentDetailsWizardScreen() {
     setBusy(false);
 
     Alert.alert("Tratamento", "Ciclo criado com check-ins.", [
-      { text: "Concluir", onPress: () => router.replace(treatmentCycleHref(cycleId)) },
+      { text: "Concluir", onPress: () => router.dismissAll() },
     ]);
   }
 
@@ -184,7 +252,18 @@ export default function TreatmentDetailsWizardScreen() {
         keyboardDismissMode="on-drag"
       >
         <KeyboardAccessoryDone />
-        <Text style={[theme.typography.body, { color: theme.colors.text.secondary }]}>
+        {typeof params.startDate === "string" && params.startDate.length >= 8 && summaryPlanned >= 1 ? (
+          <SummaryCard
+            theme={theme}
+            kindLabel={kindLabel}
+            startDateYmd={params.startDate}
+            planned={summaryPlanned}
+            completed={summaryCompleted}
+            intervalLabel={intervalLabel}
+          />
+        ) : null}
+
+        <Text style={[theme.typography.body, { color: theme.colors.text.secondary, marginBottom: theme.spacing.sm }]}>
           Detalhes ou notas para lembrar mais tarde (medicamentos do protocolo, reações, etc.).
         </Text>
         <TextInput
@@ -198,7 +277,6 @@ export default function TreatmentDetailsWizardScreen() {
           returnKeyType="default"
           blurOnSubmit={false}
           style={{
-            marginTop: theme.spacing.md,
             minHeight: 120,
             textAlignVertical: "top",
             backgroundColor: theme.colors.background.secondary,

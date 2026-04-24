@@ -12,6 +12,8 @@ import { labelCancerType } from "@/src/i18n/ui";
 import { usePatient } from "@/src/hooks/usePatient";
 import { onboardingPatientInsertSchema } from "@/src/validation/onboardingPatient";
 import { ZodError } from "zod";
+import { useStackBack } from "@/src/hooks/useStackBack";
+import type { Href } from "expo-router";
 
 const CANCER_TYPES = ["breast", "lung", "prostate", "leukemia", "colorectal", "other"] as const;
 
@@ -22,6 +24,7 @@ export default function OnboardingScreen() {
   const queryClient = useQueryClient();
   const { theme } = useAppTheme();
   const router = useRouter();
+  const goBack = useStackBack("/(tabs)" as Href);
   const { patient, loading: patientLoading } = usePatient();
 
   const [step, setStep] = useState<Step>("loading");
@@ -123,7 +126,7 @@ export default function OnboardingScreen() {
       <ResponsiveScreen>
         <ScrollView contentContainerStyle={{ paddingVertical: theme.spacing.lg, paddingBottom: theme.spacing.xl }}>
           <Pressable
-            onPress={() => router.back()}
+            onPress={goBack}
             style={{ flexDirection: "row", alignItems: "center", marginBottom: theme.spacing.md }}
             accessibilityRole="button"
             accessibilityLabel="Voltar"

@@ -3,6 +3,7 @@ import type { SymptomLogDetail } from "../../../types/dashboard";
 import { formatPtDateTime } from "../../../lib/dashboardFormat";
 import { symptomCategoryLabel, symptomSeverityLabel, symptomSeverityPillClass } from "../../../lib/patientModalHelpers";
 import { ClinicalEmptyState } from "@/components/patient/ClinicalEmptyState";
+import { LoadingInline } from "@/components/ui/LoadingInline";
 
 type Props = {
   modalLoading: boolean;
@@ -15,7 +16,7 @@ export default function PatientDiarioPanel({ modalLoading, modalSymptoms }: Prop
       <section className="patient-modal__section" style={{ borderTop: "none", paddingTop: 0 }}>
         <h3 className="patient-modal__section-title">Histórico de sintomas</h3>
         {modalLoading ? (
-          <p className="muted patient-modal__loading">Carregando…</p>
+          <div className="py-4"><LoadingInline /></div>
         ) : modalSymptoms.length === 0 ? (
           <ClinicalEmptyState
             icon={BookHeart}

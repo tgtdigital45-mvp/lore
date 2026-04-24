@@ -23,6 +23,10 @@ export type PatientRow = {
   cpf?: string | null;
   occupation?: string | null;
   insurance_plan?: string | null;
+  address_street?: string | null;
+  address_number?: string | null;
+  address_neighborhood?: string | null;
+  address_complement?: string | null;
   address_city?: string | null;
   address_state?: string | null;
   is_pregnant?: boolean | null;
@@ -360,6 +364,7 @@ export type PatientAlertRule = {
   severity: string;
   action_note: string | null;
   enabled: boolean;
+  rule_type: string;
   created_at: string;
   channels?: { push?: boolean; whatsapp?: boolean; sms?: boolean } | null;
   active_from?: string | null;

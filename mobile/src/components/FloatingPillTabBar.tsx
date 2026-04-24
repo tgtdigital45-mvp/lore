@@ -4,6 +4,7 @@ import FontAwesome from "@expo/vector-icons/FontAwesome";
 import * as Haptics from "expo-haptics";
 import { Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { usePathname } from "expo-router";
 import { IOS_HEALTH } from "@/src/health/iosHealthTokens";
 import { FLOATING_TAB_BAR_SURFACE_TRANSPARENT } from "@/src/navigation/TabBarInsetContext";
 
@@ -20,6 +21,14 @@ export function FloatingPillTabBar({ state, navigation }: MaterialTopTabBarProps
   const resumoActive = routeName === "index";
   const examesActive = routeName === "exams";
   const buscaContext = routeName === "health";
+
+  // Hide the tab bar when deep inside the medication creation wizard
+  const pathname = usePathname();
+  const isMedicationWizard = pathname.match(/\/medications\/(name|type|shape|color|dosage|schedule|review)$/);
+
+  if (isMedicationWizard) {
+    return null;
+  }
 
   return (
     <View

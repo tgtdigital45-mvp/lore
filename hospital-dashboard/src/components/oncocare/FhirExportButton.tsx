@@ -12,7 +12,11 @@ type Props = {
 
 export function FhirExportButton({ patientId }: Props) {
   const [msg, setMsg] = useState<string | null>(null);
-  const base = resolveBackendUrl(import.meta.env.DEV, readSessionBackendUrl(), readEnvBackendUrl()).replace(/\/$/, "");
+  const base = resolveBackendUrl(
+    process.env.NODE_ENV === "development",
+    readSessionBackendUrl(),
+    readEnvBackendUrl()
+  ).replace(/\/$/, "");
 
   async function open(kind: "patient" | "obs") {
     setMsg(null);
@@ -20,7 +24,7 @@ export function FhirExportButton({ patientId }: Props) {
     const session = await refreshSupabaseSessionIfStale(auth.session);
     const token = session?.access_token;
     if (!token || !base) {
-      const t = "Defina VITE_BACKEND_URL e inicie sessão.";
+      const t = "Defina NEXT_PUBLIC_BACKEND_URL e inicie sessão.";
       setMsg(t);
       toast.error(t);
       return;

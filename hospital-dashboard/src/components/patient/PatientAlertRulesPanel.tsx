@@ -128,6 +128,7 @@ export function PatientAlertRulesPanel({ patientId, medications, rules, onRefres
         severity,
         action_note: actionNote.trim() || null,
         enabled: true,
+        rule_type: "patient",
         channels: { push: formPush, whatsapp: formWa, sms: formSms },
         active_from: activeFrom || null,
         active_until: activeUntil || null,
@@ -334,7 +335,7 @@ export function PatientAlertRulesPanel({ patientId, medications, rules, onRefres
               value={actionNote}
               onChange={(e) => setActionNote(e.target.value)}
               className="rounded-xl"
-              placeholder="Ex.: Contactar equipa se persistir"
+              placeholder="Ex.: Contactar equipe se persistir"
             />
           </div>
 

@@ -73,6 +73,10 @@ export default function PatientFichaMedicaPanel({ loading, riskRow, emergencyCon
   const [cpf, setCpf] = useState("");
   const [occupation, setOccupation] = useState("");
   const [insurancePlan, setInsurancePlan] = useState("");
+  const [addressStreet, setAddressStreet] = useState("");
+  const [addressNumber, setAddressNumber] = useState("");
+  const [addressNeighborhood, setAddressNeighborhood] = useState("");
+  const [addressComplement, setAddressComplement] = useState("");
   const [addressCity, setAddressCity] = useState("");
   const [addressState, setAddressState] = useState("");
   const [contacts, setContacts] = useState<ContactDraft[]>([]);
@@ -103,6 +107,10 @@ export default function PatientFichaMedicaPanel({ loading, riskRow, emergencyCon
     setCpf(riskRow.cpf ?? "");
     setOccupation(riskRow.occupation ?? "");
     setInsurancePlan(riskRow.insurance_plan ?? "");
+    setAddressStreet(riskRow.address_street ?? "");
+    setAddressNumber(riskRow.address_number ?? "");
+    setAddressNeighborhood(riskRow.address_neighborhood ?? "");
+    setAddressComplement(riskRow.address_complement ?? "");
     setAddressCity(riskRow.address_city ?? "");
     setAddressState(riskRow.address_state ?? "");
   }, [
@@ -120,6 +128,10 @@ export default function PatientFichaMedicaPanel({ loading, riskRow, emergencyCon
     riskRow.cpf,
     riskRow.occupation,
     riskRow.insurance_plan,
+    riskRow.address_street,
+    riskRow.address_number,
+    riskRow.address_neighborhood,
+    riskRow.address_complement,
     riskRow.address_city,
     riskRow.address_state,
   ]);
@@ -157,8 +169,12 @@ export default function PatientFichaMedicaPanel({ loading, riskRow, emergencyCon
           cpf: cpf.trim() || null,
           occupation: occupation.trim() || null,
           insurance_plan: insurancePlan.trim() || null,
+          address_street: addressStreet.trim() || null,
+          address_number: addressNumber.trim() || null,
+          address_neighborhood: addressNeighborhood.trim() || null,
+          address_complement: addressComplement.trim() || null,
           address_city: addressCity.trim() || null,
-          address_state: addressState.trim() || null,
+          address_state: addressState.trim() ? addressState.trim().toUpperCase().slice(0, 2) : null,
         })
         .eq("id", riskRow.id);
       if (error) throw error;
@@ -294,6 +310,33 @@ export default function PatientFichaMedicaPanel({ loading, riskRow, emergencyCon
                   value={insurancePlan}
                   onChange={(e) => setInsurancePlan(e.target.value)}
                   placeholder="Nome do plano"
+                  className="rounded-xl"
+                />
+              </FieldBlock>
+              <FieldBlock label="Rua / logradouro" className="sm:col-span-2">
+                <Input
+                  value={addressStreet}
+                  onChange={(e) => setAddressStreet(e.target.value)}
+                  placeholder="Rua, avenida…"
+                  className="rounded-xl"
+                />
+              </FieldBlock>
+              <FieldBlock label="Número">
+                <Input value={addressNumber} onChange={(e) => setAddressNumber(e.target.value)} placeholder="Nº" className="rounded-xl" />
+              </FieldBlock>
+              <FieldBlock label="Bairro">
+                <Input
+                  value={addressNeighborhood}
+                  onChange={(e) => setAddressNeighborhood(e.target.value)}
+                  placeholder="Bairro"
+                  className="rounded-xl"
+                />
+              </FieldBlock>
+              <FieldBlock label="Complemento" className="sm:col-span-2">
+                <Input
+                  value={addressComplement}
+                  onChange={(e) => setAddressComplement(e.target.value)}
+                  placeholder="Apto, bloco, sala…"
                   className="rounded-xl"
                 />
               </FieldBlock>

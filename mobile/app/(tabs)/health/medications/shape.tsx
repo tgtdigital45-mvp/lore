@@ -79,7 +79,7 @@ export default function MedicationShapeScreen() {
             </Text>
           ) : null}
         </View>
-        <CircleChromeButton accessibilityLabel="Fechar" onPress={() => router.replace("/(tabs)/health/medications" as Href)}>
+        <CircleChromeButton accessibilityLabel="Fechar" onPress={() => router.dismissAll()}>
           <FontAwesome name="times" size={20} color={theme.colors.text.primary} />
         </CircleChromeButton>
       </View>
@@ -90,7 +90,7 @@ export default function MedicationShapeScreen() {
       >
         <MedicationWizardStepBadge step={4} theme={theme} />
         <View style={{ alignItems: "center", marginTop: theme.spacing.sm }}>
-          <PillPreview colorLeft={preview.left} colorRight={preview.right} colorBg={preview.bg} size={100} />
+          <PillPreview shapeId={selectedId} colorLeft={preview.left} colorRight={preview.right} colorBg={preview.bg} size={100} />
         </View>
 
         <View style={{ marginTop: theme.spacing.lg }}>

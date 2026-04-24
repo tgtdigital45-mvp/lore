@@ -100,6 +100,7 @@ async function runOcrPipelineForPatientId(
     professional_registries: extracted.professional_registries,
     markers: extracted.markers,
     metrics: extracted.metrics,
+    prescription_items: extracted.prescription_items,
     document_suitability,
     ui_category: extracted.ui_category,
   };
@@ -136,7 +137,7 @@ async function runOcrPipelineForPatientId(
     }));
     const { error: bioErr } = await supabase.from("biomarker_logs").insert(rows);
     if (bioErr) {
-      console.error("[ocr] biomarker_logs insert:", bioErr.message, bioErr);
+      throw bioErr;
     }
   }
 

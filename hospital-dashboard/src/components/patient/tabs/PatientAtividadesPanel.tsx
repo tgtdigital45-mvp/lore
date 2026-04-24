@@ -1,5 +1,6 @@
 import type { WearableSampleRow } from "@/types/dashboard";
 import { formatPtDateTime } from "@/lib/dashboardFormat";
+import { LoadingInline } from "@/components/ui/LoadingInline";
 
 type Props = {
   modalLoading: boolean;
@@ -30,10 +31,10 @@ export default function PatientAtividadesPanel({ modalLoading, wearables }: Prop
       <section className="patient-modal__section" style={{ borderTop: "none", paddingTop: 0 }}>
         <h3 className="patient-modal__section-title">Atividade e Apple Health</h3>
         <p className="muted mb-4 text-sm">
-          Amostras enviadas pelo telemóvel (ex.: passos, frequência cardíaca, VFC) quando o paciente autoriza a sincronização.
+          Amostras enviadas pelo celular (ex.: passos, frequência cardíaca, VFC) quando o paciente autoriza a sincronização.
         </p>
         {modalLoading ? (
-          <p className="muted patient-modal__loading">A carregar…</p>
+          <div className="py-4"><LoadingInline /></div>
         ) : wearables.length === 0 ? (
           <p className="muted">Sem dados de atividade ou wearables no período recente.</p>
         ) : (

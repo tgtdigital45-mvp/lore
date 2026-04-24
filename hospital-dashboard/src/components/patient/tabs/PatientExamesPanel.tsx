@@ -28,6 +28,7 @@ import { examDisplayDateIso } from "@/lib/examDisplayDate";
 import { useBiomarkerHistoryContext } from "@/hooks/useBiomarkerHistoryContext";
 import { hasStaffBackendForFetch } from "@/lib/backendUrl";
 import { cn } from "@/lib/utils";
+import { SkeletonPulse } from "@/components/ui/SkeletonPulse";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -68,8 +69,9 @@ function MetricTrendChart({
   abnormal: boolean;
   unit: string | null;
 }) {
-  const stroke = abnormal ? "#EA580C" : "#4F46E5";
-  const fill = abnormal ? "#EA580C" : "#6366F1";
+  /* Alinhado a `clinical.*` no Tailwind: indigo + laranja para anómalo */
+  const stroke = abnormal ? "rgb(234 88 12)" : "rgb(79 70 229)";
+  const fill = abnormal ? "rgb(234 88 12)" : "rgb(99 102 241)";
   const u = unit?.trim() ?? "";
 
   const chartData = useMemo((): ChartPoint[] => {
@@ -90,16 +92,22 @@ function MetricTrendChart({
 
   if (model.kind === "non_numeric") {
     return (
-      <div className="rounded-xl bg-[#F8FAFC] px-4 py-3 text-center text-xs text-muted-foreground">
+      <div className="rounded-xl bg-surface-muted px-4 py-3 text-center text-xs text-muted-foreground">
         Valor não numérico neste e nos outros registros — gráfico indisponível.
       </div>
     );
   }
   if (model.kind === "empty") {
     return (
-      <div className="rounded-xl bg-[#F8FAFC] px-4 py-3 text-center text-xs text-muted-foreground">{model.hint}</div>
+      <div className="rounded-xl bg-surface-muted px-4 py-3 text-center text-xs text-muted-foreground">{model.hint}</div>
     );
   }
+
+  const singlePointIllustrative =
+    model.kind === "chart" &&
+    model.data.length === 2 &&
+    model.data[0]?.label === model.data[1]?.label &&
+    model.data[0]?.value === model.data[1]?.value;
 
   return (
     <div className="space-y-2">
@@ -108,10 +116,15 @@ function MetricTrendChart({
           ? `Evolução com ${model.otherExams} outro(s) exame(s) do mesmo tipo (datas por exame).`
           : "Evolução no tempo (mesmo tipo de exame). Adicione exames anteriores para ver tendência."}
       </p>
+      {singlePointIllustrative ? (
+        <p className="rounded-lg border border-dashed border-border bg-muted/40 px-3 py-2 text-center text-xs text-muted-foreground">
+          Só existe um ponto no histórico; a linha é ilustrativa até haver mais exames do mesmo tipo.
+        </p>
+      ) : null}
       <div className="w-full min-w-0">
         <ResponsiveContainer width="100%" height={170} minWidth={0}>
           <AreaChart data={chartData} margin={{ top: 8, right: 10, left: 4, bottom: 4 }}>
-            <CartesianGrid strokeDasharray="3 3" className="stroke-[#E8EAED]" />
+            <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
             <XAxis
               dataKey="label"
               tick={(props) => {
@@ -148,7 +161,7 @@ function MetricTrendChart({
               labelFormatter={(lbl) => `Data ${lbl}`}
               contentStyle={{
                 borderRadius: "12px",
-                border: "1px solid #e8eaed",
+                border: "1px solid hsl(var(--border))",
                 fontSize: "12px",
               }}
             />
@@ -208,8 +221,8 @@ function BiomarkerResultValue({
   const refText = biomarkerReferenceTooltipBody(b);
   const valueClass =
     variant === "card"
-      ? cn("text-lg font-bold tabular-nums", b.is_abnormal ? "text-[#C2410C]" : "text-[#4F46E5]")
-      : cn("font-medium tabular-nums", b.is_abnormal ? "text-[#C2410C]" : "text-foreground");
+      ? cn("text-lg font-bold tabular-nums", b.is_abnormal ? "text-orange-700" : "text-clinical-indigo")
+      : cn("font-medium tabular-nums", b.is_abnormal ? "text-orange-700" : "text-foreground");
   const unitClass =
     variant === "card" ? "ml-1 text-sm font-medium text-muted-foreground" : "ml-1 text-xs text-muted-foreground";
 
@@ -228,13 +241,13 @@ function BiomarkerResultValue({
     variant === "card"
       ? cn(
           "-m-1 rounded-lg p-1 text-left sm:text-right outline-none",
-          "cursor-help border border-transparent hover:border-[#E2E8F0] hover:bg-[#F8FAFC]",
-          "focus-visible:ring-2 focus-visible:ring-[#6366F1] focus-visible:ring-offset-2"
+          "cursor-help border border-transparent hover:border-border hover:bg-surface-muted",
+          "focus-visible:ring-2 focus-visible:ring-clinical-indigo focus-visible:ring-offset-2"
         )
       : cn(
           "cursor-help rounded-md border border-transparent px-0.5 outline-none",
-          "hover:border-[#E2E8F0] hover:bg-[#F8FAFC]",
-          "focus-visible:ring-2 focus-visible:ring-[#6366F1] focus-visible:ring-offset-1"
+          "hover:border-border hover:bg-surface-muted",
+          "focus-visible:ring-2 focus-visible:ring-clinical-indigo focus-visible:ring-offset-1"
         );
 
   const wrap = (
@@ -387,18 +400,18 @@ export default function PatientExamesPanel({
             arquivo no armazenamento.
           </p>
         </div>
-        <div className="grid gap-2 rounded-2xl border border-[#E8EAED] bg-[#FAFBFC] p-3 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-2 rounded-2xl border border-border bg-surface-muted p-3 sm:grid-cols-2 lg:grid-cols-4">
           <Input
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Pesquisar exame, médico, biomarcador..."
-            className="rounded-xl border-[#DDE3EA] bg-white sm:col-span-2"
+            className="rounded-xl border-input bg-white sm:col-span-2"
             aria-label="Pesquisar exames por termos ou palavras parecidas"
           />
           <select
             value={docTypeFilter}
             onChange={(e) => setDocTypeFilter(e.target.value)}
-            className="h-10 rounded-xl border border-[#DDE3EA] bg-white px-3 text-sm"
+            className="h-10 rounded-xl border border-input bg-white px-3 text-sm"
             aria-label="Filtrar por tipo de exame"
           >
             <option value="all">Todos os tipos</option>
@@ -411,7 +424,7 @@ export default function PatientExamesPanel({
           <select
             value={periodFilter}
             onChange={(e) => setPeriodFilter(e.target.value as "all" | "30d" | "90d" | "1y")}
-            className="h-10 rounded-xl border border-[#DDE3EA] bg-white px-3 text-sm"
+            className="h-10 rounded-xl border border-input bg-white px-3 text-sm"
             aria-label="Filtrar exames por período"
           >
             <option value="all">Qualquer período</option>
@@ -423,7 +436,7 @@ export default function PatientExamesPanel({
 
         {docOpenError ? (
           <div
-            className="flex items-start gap-3 rounded-2xl border border-[#FECACA] bg-[#FEF2F2] px-4 py-3 text-sm text-[#991B1B]"
+            className="flex items-start gap-3 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-900"
             role="alert"
           >
             <AlertCircle className="mt-0.5 size-5 shrink-0" aria-hidden />
@@ -433,11 +446,11 @@ export default function PatientExamesPanel({
 
         {modalLoading ? (
           <div className="space-y-3" aria-busy="true" aria-label="Carregando exames">
-            <div className="h-[4.5rem] animate-pulse rounded-2xl bg-[#F1F5F9]" />
-            <div className="h-[4.5rem] animate-pulse rounded-2xl bg-[#F1F5F9]" />
+            <div className="h-[4.5rem] animate-pulse rounded-2xl bg-muted" />
+            <div className="h-[4.5rem] animate-pulse rounded-2xl bg-muted" />
           </div>
         ) : filteredDocs.length === 0 && filteredOrphans.length === 0 ? (
-          <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-[#E2E8F0] bg-[#FAFBFC] px-6 py-12 text-center">
+          <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border bg-surface-muted px-6 py-12 text-center">
             <FileText className="mb-3 size-10 text-muted-foreground/50" strokeWidth={1.25} />
             <p className="text-sm font-medium text-foreground">Nenhum exame ou marcador registrado</p>
             <p className="mt-1 max-w-sm text-xs text-muted-foreground">
@@ -465,15 +478,18 @@ export default function PatientExamesPanel({
                   <div
                     className={cn(
                       "overflow-hidden rounded-2xl border bg-white transition-all",
-                      expanded ? "border-[#CBD5E1] shadow-sm" : "border-[#E8EAED] hover:border-[#CBD5E1] hover:shadow-sm"
+                      expanded ? "border-slate-300 shadow-sm" : "border-border hover:border-slate-300 hover:shadow-sm"
                     )}
                   >
                     <div className="flex flex-col sm:flex-row sm:items-stretch">
                       <button
                         type="button"
-                        className="flex flex-1 items-start gap-3 p-4 text-left transition-colors hover:bg-[#FAFBFC]"
+                        className="flex flex-1 items-start gap-3 p-4 text-left transition-colors hover:bg-surface-muted"
                         onClick={() => onExpandedExamDocId(expanded ? null : d.id)}
                         aria-expanded={expanded}
+                        aria-label={
+                          expanded ? `Recolher exame: ${docTitle}` : `Expandir exame: ${docTitle}`
+                        }
                       >
                         <ChevronDown
                           className={cn(
@@ -505,7 +521,7 @@ export default function PatientExamesPanel({
                             </p>
                           ) : null}
                           <p className="mt-0.5 text-[0.7rem] text-muted-foreground/90">
-                            Registado na app: {formatPtDateTime(d.uploaded_at)}
+                            Registrado na app: {formatPtDateTime(d.uploaded_at)}
                           </p>
                           {uploadFallback ? (
                             <p className="mt-1 text-[0.65rem] leading-snug text-muted-foreground/90">
@@ -515,7 +531,7 @@ export default function PatientExamesPanel({
                         </div>
                       </button>
 
-                      <div className="flex shrink-0 items-center justify-end gap-1 border-t border-[#F1F5F9] px-3 py-2 sm:border-l sm:border-t-0 sm:px-4">
+                      <div className="flex shrink-0 items-center justify-end gap-1 border-t border-border px-3 py-2 sm:border-l sm:border-t-0 sm:px-4">
                         {!hasStaffBackendForFetch(backendUrl) ? (
                           <span className="px-2 text-xs text-muted-foreground">Configure o backend</span>
                         ) : inlineOnly ? (
@@ -528,7 +544,7 @@ export default function PatientExamesPanel({
                               type="button"
                               variant="ghost"
                               size="sm"
-                              className="rounded-xl font-semibold text-[#4F46E5] hover:bg-[#EEF2FF] hover:text-[#4338CA]"
+                              className="rounded-xl font-semibold text-clinical-indigo hover:bg-indigo-50 hover:text-indigo-800"
                               onClick={(e) => {
                                 e.stopPropagation();
                                 void onOpenExam(d.id, "open");
@@ -556,38 +572,38 @@ export default function PatientExamesPanel({
                     </div>
 
                     {expanded ? (
-                      <div className="border-t border-[#F1F5F9] bg-[#F8FAFC]/80 px-4 py-4">
+                      <div className="border-t border-border bg-surface-muted/80 px-4 py-4">
                         {abnormalAlerts.length > 0 ? (
                           <div
-                            className="mb-4 rounded-2xl border border-[#FECACA] bg-[#FEF2F2]/95 px-4 py-3 text-sm"
+                            className="mb-4 rounded-2xl border border-red-200 bg-red-50/95 px-4 py-3 text-sm"
                             role="region"
                             aria-label="Alerta clínico"
                           >
                             <div className="flex gap-3">
-                              <AlertTriangle className="mt-0.5 size-5 shrink-0 text-[#DC2626]" aria-hidden />
+                              <AlertTriangle className="mt-0.5 size-5 shrink-0 text-red-600" aria-hidden />
                               <div className="min-w-0">
-                                <p className="font-bold text-[#991B1B]">Alerta clínico</p>
-                                <p className="mt-1 text-xs leading-relaxed text-[#7F1D1D]">
+                                <p className="font-bold text-red-900">Alerta clínico</p>
+                                <p className="mt-1 text-xs leading-relaxed text-red-950">
                                   Valores fora do intervalo de referência indicado no próprio documento (não substitui avaliação médica).
                                 </p>
                                 <ul className="mt-3 space-y-3">
                                   {abnormalAlerts.map((m) => (
                                     <li
                                       key={m.id}
-                                      className="border-b border-[#FECACA]/80 pb-3 last:border-0 last:pb-0"
+                                      className="border-b border-red-200/80 pb-3 last:border-0 last:pb-0"
                                     >
-                                      <p className="font-bold text-[#7F1D1D]">{m.name}</p>
-                                      <p className="mt-1 text-[#991B1B]">
+                                      <p className="font-bold text-red-950">{m.name}</p>
+                                      <p className="mt-1 text-red-900">
                                         Valor: {formatBiomarkerValue(m)}
                                         {m.unit ? ` ${m.unit}` : ""}
                                       </p>
                                       {m.reference_range?.trim() ? (
-                                        <p className="mt-1 text-sm text-[#7F1D1D]">
+                                        <p className="mt-1 text-sm text-red-950">
                                           Referência no documento: {m.reference_range.trim()}
                                         </p>
                                       ) : null}
                                       {m.reference_alert?.trim() ? (
-                                        <p className="mt-2 text-sm leading-relaxed text-[#7F1D1D]">{m.reference_alert.trim()}</p>
+                                        <p className="mt-2 text-sm leading-relaxed text-red-950">{m.reference_alert.trim()}</p>
                                       ) : null}
                                     </li>
                                   ))}
@@ -597,16 +613,16 @@ export default function PatientExamesPanel({
                           </div>
                         ) : null}
 
-                        <div className="mb-4 rounded-2xl border border-[#E2E8F0] bg-white px-4 py-3 shadow-sm">
+                        <div className="mb-4 rounded-2xl border border-border bg-white px-4 py-3 shadow-sm">
                           <div className="flex items-center gap-2">
-                            <Sparkles className="size-5 shrink-0 text-[#4F46E5]" aria-hidden />
-                            <p className="text-[0.7rem] font-bold uppercase tracking-wide text-[#4F46E5]">Análise da IA</p>
+                            <Sparkles className="size-5 shrink-0 text-clinical-indigo" aria-hidden />
+                            <p className="text-[0.7rem] font-bold uppercase tracking-wide text-clinical-indigo">Análise da IA</p>
                           </div>
                           <p className="mt-2 text-sm leading-relaxed text-foreground">
                             {aiSummary || "Sem resumo disponível."}
                           </p>
                           {aiNote ? (
-                            <div className="mt-3 border-t border-[#F1F5F9] pt-3">
+                            <div className="mt-3 border-t border-border pt-3">
                               <p className="text-xs font-bold text-muted-foreground">Nota da IA (leitura automática)</p>
                               <p className="mt-1 text-sm leading-relaxed text-muted-foreground">{aiNote}</p>
                             </div>
@@ -616,9 +632,11 @@ export default function PatientExamesPanel({
                         {markers.length === 0 ? (
                           <p className="text-sm text-muted-foreground">Sem biomarcadores associados a este exame (ou ainda não extraídos).</p>
                         ) : !historyReady ? (
-                          <p className="text-sm text-muted-foreground" aria-busy="true">
-                            Carregando histórico para gráficos…
-                          </p>
+                          <div className="space-y-3 py-2" role="status" aria-busy="true" aria-live="polite">
+                            <SkeletonPulse className="h-32 w-full" rounded="2xl" />
+                            <SkeletonPulse className="h-28 w-full" rounded="2xl" />
+                            <span className="sr-only">Carregando histórico para gráficos</span>
+                          </div>
                         ) : (
                           <ul className="space-y-4">
                             {markers.map((b) => {
@@ -635,7 +653,7 @@ export default function PatientExamesPanel({
                                   key={b.id}
                                   className={cn(
                                     "overflow-hidden rounded-2xl border bg-white p-4 shadow-sm",
-                                    b.is_abnormal ? "border-amber-200/90 bg-[#FFFBEB]/40" : "border-[#E8EAED]"
+                                    b.is_abnormal ? "border-amber-200/90 bg-amber-50/40" : "border-border"
                                   )}
                                 >
                                   <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
@@ -652,7 +670,7 @@ export default function PatientExamesPanel({
                                     </div>
                                     <BiomarkerResultValue b={b} variant="card" />
                                   </div>
-                                  <div className="mt-4 border-t border-[#F1F5F9] pt-4">
+                                  <div className="mt-4 border-t border-border pt-4">
                                     <MetricTrendChart model={trend} abnormal={b.is_abnormal} unit={b.unit} />
                                   </div>
                                 </li>
@@ -670,13 +688,13 @@ export default function PatientExamesPanel({
         )}
 
         {!modalLoading && filteredOrphans.length > 0 ? (
-          <div className="rounded-2xl border border-[#E8EAED] bg-[#FFFBEB]/40 p-5">
+          <div className="rounded-2xl border border-border bg-amber-50/40 p-5">
             <h4 className="text-sm font-bold text-foreground">Marcadores sem exame associado</h4>
             <p className="mt-1 text-xs text-muted-foreground">Entradas antigas ou manuais sem documento de origem</p>
-            <div className="mt-4 overflow-x-auto rounded-xl border border-[#E8EAED] bg-white">
+            <div className="mt-4 overflow-x-auto rounded-xl border border-border bg-white">
               <table className="w-full min-w-[480px] text-sm">
                 <thead>
-                  <tr className="border-b border-[#F1F5F9] bg-[#F8FAFC] text-left text-xs font-bold uppercase tracking-wide text-muted-foreground">
+                  <tr className="border-b border-border bg-surface-muted text-left text-xs font-bold uppercase tracking-wide text-muted-foreground">
                     <th className="px-4 py-3">Data</th>
                     <th className="px-4 py-3">Marcador</th>
                     <th className="px-4 py-3">Valor</th>
@@ -685,7 +703,7 @@ export default function PatientExamesPanel({
                 </thead>
                 <tbody>
                   {filteredOrphans.map((b) => (
-                    <tr key={b.id} className="border-b border-[#F1F5F9] last:border-0">
+                    <tr key={b.id} className="border-b border-border last:border-0">
                       <td className="whitespace-nowrap px-4 py-2.5 text-muted-foreground">{formatPtDateTime(b.logged_at)}</td>
                       <td className="px-4 py-2.5 font-medium">
                         {b.name}
@@ -718,7 +736,7 @@ export default function PatientExamesPanel({
 
         {!hasStaffBackendForFetch(backendUrl) ? (
           <div className="rounded-2xl border border-amber-200 bg-amber-50/80 px-4 py-3 text-sm text-amber-950">
-            Indique o URL do onco-backend em <code className="rounded bg-white/80 px-1.5 py-0.5 font-mono text-xs">VITE_BACKEND_URL</code>{" "}
+            Indique o URL do onco-backend em <code className="rounded bg-white/80 px-1.5 py-0.5 font-mono text-xs">NEXT_PUBLIC_BACKEND_URL</code>{" "}
             (produção). Em desenvolvimento, com o backend na porta 3001, o Vite encaminha <code className="rounded bg-white/80 px-1.5 py-0.5 font-mono text-xs">/api</code>{" "}
             automaticamente.
           </div>
@@ -730,7 +748,7 @@ export default function PatientExamesPanel({
                   "rounded-2xl border px-4 py-3 text-sm",
                   staffUploadMsg.includes("registrado")
                     ? "border-emerald-200 bg-emerald-50 text-emerald-950"
-                    : "border-[#FECACA] bg-[#FEF2F2] text-[#991B1B]"
+                    : "border-red-200 bg-red-50 text-red-900"
                 )}
                 role="status"
               >
@@ -740,11 +758,11 @@ export default function PatientExamesPanel({
 
             <div
               className={cn(
-                "relative flex cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed px-6 py-12 text-center transition-colors outline-none focus-visible:ring-2 focus-visible:ring-[#6366F1] focus-visible:ring-offset-2",
+                "relative flex cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed px-6 py-12 text-center transition-colors outline-none focus-visible:ring-2 focus-visible:ring-clinical-indigo focus-visible:ring-offset-2",
                 staffUploadBusy && "pointer-events-none opacity-80",
                 dragActive
-                  ? "border-[#6366F1] bg-[#EEF2FF]/60"
-                  : "border-[#E2E8F0] bg-[#FAFBFC] hover:border-[#CBD5E1] hover:bg-[#F8FAFC]"
+                  ? "border-clinical-indigo bg-indigo-50/60"
+                  : "border-border bg-surface-muted hover:border-slate-300 hover:bg-surface-muted"
               )}
               onDragEnter={onDrag}
               onDragLeave={onDrag}
@@ -774,7 +792,7 @@ export default function PatientExamesPanel({
                 }}
               />
               {staffUploadBusy ? (
-                <Loader2 className="mb-3 size-10 animate-spin text-[#6366F1]" aria-hidden />
+                <Loader2 className="mb-3 size-10 animate-spin text-clinical-indigo" aria-hidden />
               ) : (
                 <Upload className="mb-3 size-10 text-muted-foreground/70" strokeWidth={1.25} aria-hidden />
               )}

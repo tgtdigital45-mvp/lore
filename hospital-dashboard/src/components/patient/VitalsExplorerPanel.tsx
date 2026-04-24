@@ -268,7 +268,7 @@ export function VitalsExplorerPanel({ vitals, className }: Props) {
         <div className="mt-4 min-h-[280px] w-full min-w-0 rounded-xl bg-white p-2 shadow-inner ring-1 ring-slate-100/90">
           {!hasData ? (
             <div className="flex h-[280px] items-center justify-center px-4 text-center text-sm text-muted-foreground">
-              Sem registos deste tipo no intervalo seleccionado.
+              Sem registos deste tipo no intervalo selecionado.
             </div>
           ) : kind === "blood_pressure" ? (
             <ResponsiveContainer width="100%" height={280}>
@@ -448,3 +448,4 @@ export function VitalsExplorerPanel({ vitals, className }: Props) {
     </div>
   );
 }
+

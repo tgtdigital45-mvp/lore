@@ -1,3 +1,5 @@
+"use client";
+
 import { motion } from "framer-motion";
 import { Loader2 } from "lucide-react";
 
@@ -27,7 +29,7 @@ export function PageSkeleton() {
         <Loader2 className="relative size-7 text-slate-500" aria-hidden />
       </div>
       <div className="flex flex-col items-center gap-2">
-        <p className="text-sm font-medium text-slate-600">A carregar…</p>
+        <p className="text-sm font-medium text-slate-600">Carregando…</p>
         <div className="flex gap-1.5" aria-hidden>
           {[0, 1, 2].map((i) => (
             <motion.span
@@ -44,7 +46,7 @@ export function PageSkeleton() {
           ))}
         </div>
       </div>
-      <span className="sr-only">A carregar conteúdo</span>
+      <span className="sr-only">Carregando conteúdo</span>
     </motion.div>
   );
 }

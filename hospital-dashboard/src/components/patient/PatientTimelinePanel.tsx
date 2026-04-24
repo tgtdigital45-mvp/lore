@@ -18,7 +18,7 @@ const KIND_LABEL: Record<string, string> = {
   imaging: "Imagiologia",
   lab_critical: "Lab crítico",
   toxicity: "Toxicidade",
-  hospitalization: "Internamento",
+  hospitalization: "Internação",
   custom: "Outro",
 };
 
@@ -98,7 +98,7 @@ export function PatientTimelinePanel({ patientId, events, onRefresh }: Props) {
           <ClinicalEmptyState
             icon={Calendar}
             title="Sem eventos na linha do tempo"
-            description="Registe marcos clínicos (infusões, imagiologia, internamentos) para narrar a jornada."
+            description="Registe marcos clínicos (infusões, imagiologia, internações) para narrar a jornada."
           />
         ) : (
           <ul className="space-y-4">
@@ -120,3 +120,4 @@ export function PatientTimelinePanel({ patientId, events, onRefresh }: Props) {
     </div>
   );
 }
+

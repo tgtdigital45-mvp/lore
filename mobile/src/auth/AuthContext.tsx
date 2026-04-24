@@ -57,7 +57,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     });
     return () => {
-      sub.subscription.unsubscribe();
+      sub?.subscription?.unsubscribe();
     };
   }, []);
 
@@ -79,9 +79,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       },
       signInWithGoogle: () => signInWithOAuthGoogle(),
       signOut: async () => {
-        await supabase.auth.signOut();
-        queryClient.clear();
-        router.replace("/");
+        try {
+          await supabase.auth.signOut();
+        } catch {
+          try {
+            await supabase.auth.signOut({ scope: "local" });
+          } catch {
+            /* sessão local já pode estar limpa */
+          }
+        } finally {
+          queryClient.clear();
+          router.replace("/");
+        }
       },
       deleteAccount: async () => {
         const { error } = await deleteAuthenticatedAccount();

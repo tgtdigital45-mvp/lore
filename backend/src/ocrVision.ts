@@ -4,7 +4,8 @@ import { runGeminiOcrVision } from "./ocrGemini.js";
 import { openAiOcrSupportsMime, runOpenAiOcrVision } from "./ocrOpenAi.js";
 
 /**
- * Primário: Gemini (foto + PDF). Se falhar (quota, 503, etc.), suporte: OpenAI com foto ou PDF em base64.
+ * Primário: Gemini (foto + PDF). Se falhar (quota, 503, chave inválida/expirada, etc.),
+ * suporte: OpenAI com foto ou PDF em base64.
  */
 export function shouldUseOpenAiOcrFallback(geminiMessage: string): boolean {
   const m = geminiMessage.toLowerCase();
@@ -28,7 +29,17 @@ export function shouldUseOpenAiOcrFallback(geminiMessage: string): boolean {
     m.includes("limit exceeded") ||
     m.includes("payment required") ||
     m.includes("tokens") ||
-    m.includes("credit")
+    m.includes("credit") ||
+    // Chave inválida / revogada / API desativada (respostas típicas da API Google)
+    m.includes("api_key_invalid") ||
+    m.includes("api key not valid") ||
+    m.includes("invalid api key") ||
+    m.includes("permission_denied") ||
+    m.includes("forbidden") ||
+    m.includes("disabled") ||
+    m.includes("not enabled") ||
+    m.includes("key expired") ||
+    m.includes("key has expired")
   );
 }
 

@@ -177,7 +177,7 @@ export default function MedicationReviewScreen() {
     await scheduleMedicationNotifications(full);
     await refresh();
     Alert.alert("Medicamento", "Guardado. Lembretes locais agendados quando aplicável.", [
-      { text: "Concluir", onPress: () => router.replace("/(tabs)/health/medications" as Href) },
+      { text: "Concluir", onPress: () => router.dismissAll() },
     ]);
   }
 
@@ -207,7 +207,7 @@ export default function MedicationReviewScreen() {
         >
           Revise os detalhes
         </Text>
-        <CircleChromeButton accessibilityLabel="Fechar" onPress={() => router.replace("/(tabs)/health/medications" as Href)}>
+        <CircleChromeButton accessibilityLabel="Fechar" onPress={() => router.dismissAll()}>
           <FontAwesome name="times" size={20} color={theme.colors.text.primary} />
         </CircleChromeButton>
       </View>
