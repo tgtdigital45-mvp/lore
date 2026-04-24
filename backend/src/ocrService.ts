@@ -137,7 +137,7 @@ async function runOcrPipelineForPatientId(
     }));
     const { error: bioErr } = await supabase.from("biomarker_logs").insert(rows);
     if (bioErr) {
-      console.error("[ocr] biomarker_logs insert:", bioErr.message, bioErr);
+      throw bioErr;
     }
   }
 

@@ -1,5 +1,8 @@
-import { Suspense, useEffect, useLayoutEffect, useMemo, useState } from "react";
-import { Link, Outlet, NavLink, useLocation } from "react-router-dom";
+"use client";
+
+import { Suspense, useEffect, useLayoutEffect, useMemo, useState, type ReactNode } from "react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 import {
   Activity,
   Armchair,
@@ -28,6 +31,8 @@ import { routeContentTransition } from "@/lib/motionPresets";
 import { getPanelDefaultPath } from "@/lib/panelDefaultPath";
 import { PageSkeleton } from "@/components/PageSkeleton";
 import type { LucideIcon } from "lucide-react";
+import { toast } from "sonner";
+import { sanitizeSupabaseError, userFacingApiError } from "@/lib/errorMessages";
 
 function useMinWidthLg() {
   const [matches, setMatches] = useState(
@@ -91,7 +96,7 @@ function SidebarLink({ to, label, icon: Icon, end, collapsed, pathname, isDeskto
   );
 
   const inner = (
-    <NavLink to={to} end={end} className={linkClass} aria-current={active ? "page" : undefined}>
+    <Link href={to} scroll={false} className={linkClass} aria-current={active ? "page" : undefined}>
       <span
         className={cn(
           "flex size-9 shrink-0 items-center justify-center rounded-full border transition-colors",
@@ -101,7 +106,7 @@ function SidebarLink({ to, label, icon: Icon, end, collapsed, pathname, isDeskto
         <Icon className="size-[18px] shrink-0 opacity-95" strokeWidth={2} />
       </span>
       <span className={cn("min-w-0 truncate", collapsed && isDesktop && "lg:hidden")}>{label}</span>
-    </NavLink>
+    </Link>
   );
 
   if (collapsed && isDesktop) {
@@ -118,12 +123,11 @@ function SidebarLink({ to, label, icon: Icon, end, collapsed, pathname, isDeskto
   return inner;
 }
 
-export function OncoCareLayout() {
+export function OncoCareLayout({ children }: { children: ReactNode }) {
   const { staffProfile, staffAvatarBust, reloadStaffProfile, patientSearch, setPatientSearch, rows, hospitalsMeta } = useOncoCare();
   const panelPath = useMemo(() => getPanelDefaultPath(rows), [rows]);
   const navMain = useMemo(() => buildNavMain(panelPath), [panelPath]);
-  const location = useLocation();
-  const pathname = location.pathname;
+  const pathname = usePathname() || "";
 
   const [settings, setSettings] = useState<DashboardSettings>(loadDashboardSettings);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(loadSidebarCollapsed);
@@ -156,7 +160,12 @@ export function OncoCareLayout() {
   }
 
   async function signOut() {
-    await supabase.auth.signOut();
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) toast.error(sanitizeSupabaseError(error));
+    } catch (e) {
+      toast.error(userFacingApiError(e, "Não foi possível terminar a sessão."));
+    }
   }
   const displayName = staffProfile?.full_name?.trim() || "Profissional";
   const initials = initialsFromName(displayName);
@@ -219,7 +228,7 @@ export function OncoCareLayout() {
   );
 
   const accountInner = (
-    <NavLink to="/conta" className={accountLinkClass} aria-current={accountActive ? "page" : undefined}>
+    <Link href="/conta" scroll={false} className={accountLinkClass} aria-current={accountActive ? "page" : undefined}>
       <span
         className={cn(
           "flex size-9 shrink-0 items-center justify-center rounded-full border transition-colors",
@@ -229,29 +238,19 @@ export function OncoCareLayout() {
         <Settings className="size-[18px] shrink-0 opacity-95" strokeWidth={2} />
       </span>
       <span className={cn("min-w-0 truncate", sidebarCollapsed && isDesktop && "lg:hidden")}>Conta</span>
-    </NavLink>
+    </Link>
   );
 
   return (
     <TooltipProvider delayDuration={200}>
-      <div
-        className="flex min-h-screen w-full flex-col lg:flex-row"
-        style={{
-          background: `
-      radial-gradient(ellipse 100% 85% at 14% 10%, rgba(243,252,203,0.78) 0%, transparent 58%),
-      radial-gradient(ellipse 90% 70% at 96% 94%, rgba(255,236,234,0.55) 0%, transparent 55%),
-      linear-gradient(135deg, #fbfcf7 0%, #f9f8f4 38%, #f8f3f3 72%, #f5f0ee 100%)
-    `,
-        }}
-      >
+      <div className="flex min-h-screen w-full flex-col bg-gradient-to-br from-lime-50/90 via-amber-50/30 to-stone-100 lg:flex-row">
         {/* Sidebar */}
         <aside
           className={cn(
-            "flex w-full shrink-0 flex-col border-b border-slate-200/80 backdrop-blur-sm transition-[width] duration-300 ease-out",
+            "flex w-full shrink-0 flex-col border-b border-slate-200/80 bg-surface-muted/60 backdrop-blur-sm transition-[width] duration-300 ease-out",
             "lg:sticky lg:top-0 lg:h-screen lg:border-b-0 lg:border-r lg:border-r-slate-200/60",
             sidebarCollapsed ? "lg:w-[76px]" : "lg:w-[272px]"
           )}
-          style={{ background: "rgba(251, 252, 247, 0.58)" }}
         >
           {/* Cabeçalho: Menu + recolher (estilo Dynamics) */}
           <div
@@ -286,7 +285,7 @@ export function OncoCareLayout() {
 
           {/* Marca — link para o painel do paciente */}
           <Link
-            to="/paciente"
+            href="/paciente"
             className={cn(
               "flex border-b border-slate-200/60 px-3 py-4 transition-colors hover:bg-black/[0.04] lg:px-4",
               sidebarCollapsed && isDesktop ? "lg:flex-col lg:items-center lg:gap-2" : "items-center gap-3"
@@ -395,7 +394,7 @@ export function OncoCareLayout() {
               sidebarCollapsed && isDesktop && "lg:hidden"
             )}
           >
-            Monitorização oncológica · triagem e recursos
+            Monitoramento oncológico · triagem e recursos
           </p>
         </aside>
 
@@ -468,9 +467,7 @@ export function OncoCareLayout() {
               exit={{ opacity: 0, y: -8 }}
               transition={routeContentTransition}
             >
-              <Suspense fallback={<PageSkeleton />}>
-                <Outlet />
-              </Suspense>
+              <Suspense fallback={<PageSkeleton />}>{children}</Suspense>
             </motion.main>
           </AnimatePresence>
         </div>

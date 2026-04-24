@@ -103,7 +103,7 @@ export function DossierBentoGrid({
               ) : null}
             </div>
           ) : (
-            <p className="text-sm text-slate-500">Sem contacto de emergência registado na ficha.</p>
+            <p className="text-sm text-slate-500">Sem contacto de emergência registrado na ficha.</p>
           )}
           {emergencyContacts.length > 1 ? (
             <p className="mt-3 text-xs text-slate-400">+{emergencyContacts.length - 1} outro(s) na ficha médica</p>
@@ -154,7 +154,7 @@ export function DossierBentoGrid({
                 <div className="rounded-2xl bg-teal-50/80 px-3 py-2 text-xs leading-relaxed text-teal-900">
                   <span className="font-bold">Próximo ciclo: </span>
                   {cycleReadiness.readiness_status === "hold"
-                    ? "Rever com a equipa antes de agendar."
+                    ? "Rever com a equipe antes de agendar."
                     : cycleReadiness.readiness_status === "likely_ok"
                       ? "Provável apto para continuar."
                       : "Avaliar sintomas e exames."}
@@ -240,3 +240,4 @@ export function DossierBentoGrid({
     </div>
   );
 }
+

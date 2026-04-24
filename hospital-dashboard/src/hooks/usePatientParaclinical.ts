@@ -41,7 +41,7 @@ export function usePatientParaclinical(patientId: string | undefined, enabled: b
         supabase
           .from("patient_alert_rules")
           .select(
-            "id, patient_id, name, kind, condition, severity, action_note, enabled, created_at, channels, active_from, active_until, snooze_hours"
+            "id, patient_id, name, kind, condition, severity, action_note, enabled, rule_type, created_at, channels, active_from, active_until, snooze_hours"
           )
           .eq("patient_id", patientId)
           .order("created_at", { ascending: false }),

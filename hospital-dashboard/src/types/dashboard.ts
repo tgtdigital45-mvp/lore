@@ -364,6 +364,7 @@ export type PatientAlertRule = {
   severity: string;
   action_note: string | null;
   enabled: boolean;
+  rule_type: string;
   created_at: string;
   channels?: { push?: boolean; whatsapp?: boolean; sms?: boolean } | null;
   active_from?: string | null;

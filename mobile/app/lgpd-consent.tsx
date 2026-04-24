@@ -8,12 +8,15 @@ import { formatAuthError } from "@/src/auth/authErrors";
 import { ResponsiveScreen } from "@/src/components/ResponsiveScreen";
 import { useAppTheme } from "@/src/hooks/useAppTheme";
 import { supabase } from "@/src/lib/supabase";
+import { useStackBack } from "@/src/hooks/useStackBack";
+import type { Href } from "expo-router";
 
 export default function LgpdConsentScreen() {
   const { session } = useAuth();
   const { theme } = useAppTheme();
   const router = useRouter();
   const qc = useQueryClient();
+  const goBack = useStackBack("/" as Href);
   const [analytics, setAnalytics] = useState(false);
   const [research, setResearch] = useState(false);
   const [shareTeam, setShareTeam] = useState(false);
@@ -66,7 +69,7 @@ export default function LgpdConsentScreen() {
     <ResponsiveScreen>
       <ScrollView contentContainerStyle={{ paddingVertical: theme.spacing.lg, paddingBottom: theme.spacing.xl }}>
         <Pressable
-          onPress={() => router.back()}
+          onPress={goBack}
           style={{ flexDirection: "row", alignItems: "center", marginBottom: theme.spacing.md }}
           accessibilityRole="button"
           accessibilityLabel="Voltar"

@@ -25,7 +25,7 @@ export function usePatientExamesHandlers(
   patientId: string | undefined,
   refreshExames: () => Promise<void>
 ) {
-  const allowOverride = import.meta.env.DEV;
+  const allowOverride = process.env.NODE_ENV === "development";
   const envBackendUrl = readEnvBackendUrl();
   const backendUrl = useMemo(
     () => resolveBackendUrl(allowOverride, allowOverride ? readSessionBackendUrl() : null, envBackendUrl),
@@ -41,7 +41,7 @@ export function usePatientExamesHandlers(
   const staffUploadExam = useCallback(
     async (file: File) => {
       if (!session || !patientId || !hasStaffBackendForFetch(backendUrl)) {
-        setStaffUploadMsg("Indique o URL do onco-backend (variável VITE_BACKEND_URL) e selecione um paciente.");
+        setStaffUploadMsg("Indique o URL do onco-backend (variável NEXT_PUBLIC_BACKEND_URL) e selecione um paciente.");
         return;
       }
       const rawMime = file.type;
@@ -115,7 +115,7 @@ export function usePatientExamesHandlers(
   const openStaffExamView = useCallback(
     async (documentId: string, mode: "open" | "download" = "open") => {
       if (!session || !hasStaffBackendForFetch(backendUrl)) {
-        setDocOpenError("Indique o URL do onco-backend (VITE_BACKEND_URL no .env).");
+        setDocOpenError("Indique o URL do onco-backend (NEXT_PUBLIC_BACKEND_URL no .env).");
         return;
       }
       setDocOpenError(null);

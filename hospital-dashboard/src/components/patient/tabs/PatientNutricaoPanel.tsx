@@ -1,6 +1,7 @@
 import type { NutritionLogRow } from "@/types/dashboard";
 import { formatPtDateTime } from "@/lib/dashboardFormat";
 import { formatNutritionLogDetail } from "@/lib/patientModalHelpers";
+import { LoadingInline } from "@/components/ui/LoadingInline";
 
 type Props = {
   modalLoading: boolean;
@@ -30,10 +31,10 @@ export default function PatientNutricaoPanel({ modalLoading, nutritionLogs }: Pr
       <section className="patient-modal__section" style={{ borderTop: "none", paddingTop: 0 }}>
         <h3 className="patient-modal__section-title">Nutrição (app Aura)</h3>
         <p className="muted mb-4 text-sm">
-          Registos de hidratação, refeições, calorias e apetite sincronizados a partir da aplicação do paciente.
+          Registros de hidratação, refeições, calorias e apetite sincronizados a partir do app do paciente.
         </p>
         {modalLoading ? (
-          <p className="muted patient-modal__loading">A carregar…</p>
+          <div className="py-4"><LoadingInline /></div>
         ) : nutritionLogs.length === 0 ? (
           <p className="muted">Sem registos de nutrição recentes.</p>
         ) : (

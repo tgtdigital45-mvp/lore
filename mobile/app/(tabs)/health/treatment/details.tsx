@@ -222,7 +222,7 @@ export default function TreatmentDetailsWizardScreen() {
     setBusy(false);
 
     Alert.alert("Tratamento", "Ciclo criado com check-ins.", [
-      { text: "Concluir", onPress: () => router.replace(treatmentCycleHref(cycleId)) },
+      { text: "Concluir", onPress: () => router.dismissAll() },
     ]);
   }
 

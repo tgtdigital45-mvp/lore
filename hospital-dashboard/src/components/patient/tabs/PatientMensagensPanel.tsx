@@ -34,14 +34,14 @@ export default function PatientMensagensPanel({
 }: Props) {
   return (
     <div className="patient-modal__tab-panel">
-      <section className="patient-modal__section" style={{ borderTop: "none", paddingTop: 0 }}>
+      <section className="patient-modal__section border-t-0 pt-0">
         <h3 className="patient-modal__section-title">WhatsApp (institucional)</h3>
         <p className="patient-modal__micro-label">
           Envio via backend (Cloud API). Requer opt-in LGPD e telefone E.164 no perfil do paciente.
         </p>
         {!backendUrl ? (
           <p className="patient-modal__empty-hint">
-            Indique o URL do onco-backend no menu <strong>Integração</strong> ou em <code className="patient-modal__code">VITE_BACKEND_URL</code> no .env.
+            Indique o URL do onco-backend no menu <strong>Integração</strong> ou em <code className="patient-modal__code">NEXT_PUBLIC_BACKEND_URL</code> no .env.
           </p>
         ) : modalWaProfile && !modalWaProfile.optIn ? (
           <p className="patient-modal__empty-hint">
@@ -51,9 +51,10 @@ export default function PatientMensagensPanel({
           <p className="patient-modal__empty-hint">Sem telefone E.164 no perfil — cadastre o número para enviar mensagens.</p>
         ) : (
           <>
-            <label className="patient-modal__wa-label">
+            <label htmlFor="patient-modal-wa-compose" className="patient-modal__wa-label">
               Mensagem
               <textarea
+                id="patient-modal-wa-compose"
                 className="patient-modal__wa-text"
                 rows={3}
                 value={waCompose}
@@ -68,21 +69,21 @@ export default function PatientMensagensPanel({
               </button>
             </div>
             {waSendError ? (
-              <p className="error" role="alert" style={{ marginTop: "0.5rem" }}>
+              <p className="error mt-2" role="alert">
                 {waSendError}
               </p>
             ) : null}
             {waSendOk ? (
-              <p className="info" style={{ marginTop: "0.5rem", marginBottom: 0 }}>
+              <p className="info mt-2 mb-0">
                 {waSendOk}
               </p>
             ) : null}
           </>
         )}
-        <div className="patient-modal__table-wrap" style={{ marginTop: "1rem" }}>
+        <div className="patient-modal__table-wrap mt-4">
           <p className="patient-modal__micro-label">Últimos envios</p>
           {modalOutbound.length === 0 ? (
-            <p className="muted" style={{ margin: "0.25rem 0 0" }}>
+            <p className="muted my-1 mt-1">
               Nenhum registro.
             </p>
           ) : (

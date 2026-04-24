@@ -7,7 +7,7 @@ type Props = {
 };
 
 /** Texto + ícone para estados de carregamento em painéis e modais. */
-export function LoadingInline({ children = "A carregar…", className }: Props) {
+export function LoadingInline({ children = "Carregando…", className }: Props) {
   return (
     <span className={cn("inline-flex items-center gap-2 text-muted-foreground", className)}>
       <Loader2 className="size-3.5 shrink-0 animate-spin opacity-90" aria-hidden />

@@ -143,7 +143,7 @@ export default function TreatmentCheckInScreen() {
     if (cErr) {
       setBusy(false);
       Alert.alert("Aviso", cErr.message ?? "Não foi possível atualizar o contador de sessões concluídas.");
-      router.replace(treatmentCycleHref(cycleId));
+      router.back();
       return;
     }
     if (count != null) {
@@ -158,14 +158,14 @@ export default function TreatmentCheckInScreen() {
           "Aviso",
           "Check-in registado, mas o contador do ciclo não foi atualizado: " + (upErr.message ?? "erro desconhecido.")
         );
-        router.replace(treatmentCycleHref(cycleId));
+        router.back();
         return;
       }
     }
 
     setBusy(false);
 
-    router.replace(treatmentCycleHref(cycleId));
+    router.back();
   }
 
   if (!cycleId || !infusionId) {

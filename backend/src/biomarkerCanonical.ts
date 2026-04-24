@@ -17,6 +17,18 @@ const RULES: { re: RegExp; canonical: string }[] = [
   { re: /\b(ferro\s*s[eé]rico|serum\s*iron)\b/i, canonical: "Ferro sérico" },
   { re: /\b(cr[eé]atinina|creatinine)\b/i, canonical: "Creatinina" },
   { re: /\b(ureia|urea|bun)\b/i, canonical: "Ureia" },
+  {
+    re: /\b(tgo|\bast\b|got|sgot|aspartate\s*aminotransferase|transaminase\s*oxalac[eé]tica)\b/i,
+    canonical: "TGO (AST)",
+  },
+  {
+    re: /\b(tgp|\balt\b|gpt|sgpt|alanine\s*aminotransferase|transaminase\s*pir[uú]vica)\b/i,
+    canonical: "TGP (ALT)",
+  },
+  { re: /\b(bilirrubina\s*direta|bili\.?\s*direta|direct\s*bilirubin)\b/i, canonical: "Bilirrubina direta" },
+  { re: /\b(bilirrubina\s*indireta|bili\.?\s*indireta|indirect\s*bilirubin)\b/i, canonical: "Bilirrubina indireta" },
+  { re: /\b(bilirrubina\s*total|bili\.?\s*total|total\s*bilirubin)\b/i, canonical: "Bilirrubina total" },
+  { re: /\b(bilirrubinas?|bilirubin)\b/i, canonical: "Bilirrubina total" },
 ];
 
 export function canonicalBiomarkerName(raw: string): string {

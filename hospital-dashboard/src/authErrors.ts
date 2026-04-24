@@ -21,7 +21,7 @@ export function formatAuthError(err: { message: string; status?: number } | null
     return "Confirme o e-mail antes de entrar.";
   }
   if (lower.includes("user not found")) {
-    return "Utilizador não encontrado.";
+    return "Usuário não encontrado.";
   }
   if (lower.includes("password") && lower.includes("should be at least")) {
     return "A senha deve ter o número mínimo de caracteres exigido.";
@@ -30,13 +30,13 @@ export function formatAuthError(err: { message: string; status?: number } | null
     return "A nova senha não pode ser igual à anterior.";
   }
   if (lower.includes("signup is disabled")) {
-    return "Novos registos estão desativados.";
+    return "Novos registros estão desativados.";
   }
   if (lower.includes("email rate limit exceeded")) {
     return "Limite de envio de e-mails atingido. Aguarde alguns minutos.";
   }
   if (lower.includes("token has expired") || lower.includes("jwt expired")) {
-    return "Sessão expirada. Inicie sessão novamente.";
+    return "Sessão expirada. Entre novamente.";
   }
 
   const t = translateRawSupabaseMessage(msg);

@@ -2,8 +2,12 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ───────────────────────────────────────────────── */
+/* Design Tokens — OncoCare Clinical Design System   */
+/* ───────────────────────────────────────────────── */
 @layer base {
   :root {
+    /* ── Shadcn core tokens ────────────────────── */
     --background: 220 14% 96%;
     --foreground: 0 0% 10%;
     --card: 0 0% 100%;
@@ -24,35 +28,100 @@
     --input: 220 13% 91%;
     --ring: 0 0% 10%;
     --radius: 1rem;
-    /* Corporate flat surfaces */
-    --glass-surface: rgba(255, 255, 255, 1);
-    --glass-surface-strong: rgba(255, 255, 255, 1);
-    --glass-border: rgba(226, 232, 240, 0.9);
-    --glass-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-    --glass-blur: none;
+
+    /* ── OncoCare clinical palette ─────────────── */
+    --onco-brand: 168 72% 35%;           /* teal-700 base */
+    --onco-brand-light: 168 64% 95%;     /* teal-50 subtle bg */
+    --onco-brand-strong: 168 80% 28%;    /* deep teal for emphasis */
+    --onco-surface: 0 0% 100%;
+    --onco-surface-muted: 210 20% 98%;   /* slate-50 */
+    --onco-surface-raised: 220 14% 96%;
+    --onco-text-primary: 222 47% 11%;    /* slate-900 */
+    --onco-text-secondary: 215 16% 40%;  /* muted-foreground */
+
+    /* ── Clinical severity palette ─────────────── */
+    --clinical-green: 160 84% 39%;
+    --clinical-amber: 38 92% 50%;
+    --clinical-red: 0 84% 60%;
+    --clinical-indigo: 239 84% 67%;
+
+    /* ── Glass / surface effects ───────────────── */
+    --glass-surface: rgba(255, 255, 255, 0.72);
+    --glass-surface-strong: rgba(255, 255, 255, 0.88);
+    --glass-border: rgba(226, 232, 240, 0.5);
+    --glass-shadow: 0 4px 24px -4px rgba(15, 23, 42, 0.07),
+                    0 1px 4px -1px rgba(15, 23, 42, 0.04);
+    --glass-blur: 16px;
+
+    /* ── Typography scale ─────────────────────── */
+    --font-heading: var(--font-inter, 'Inter', system-ui, sans-serif);
+    --font-body: var(--font-inter, 'Inter', system-ui, sans-serif);
+    --font-mono: 'JetBrains Mono', 'Fira Code', ui-monospace, monospace;
+    --letter-tight: -0.025em;
+    --letter-display: -0.035em;
+
+    /* ── Spacing rhythm ───────────────────────── */
+    --space-section: 2rem;
+    --space-card: 1.5rem;
+    --space-inline: 0.75rem;
+
+    /* ── Transition presets ────────────────────── */
+    --ease-spring: cubic-bezier(0.22, 1, 0.36, 1);
+    --duration-fast: 150ms;
+    --duration-normal: 250ms;
+    --duration-slow: 400ms;
   }
 }
 
+/* ── Global base styles ──────────────────────────── */
 @layer base {
   * {
     @apply border-border;
   }
   body {
     @apply text-foreground antialiased;
-    font-family: "Inter", system-ui, sans-serif;
-    background-color: #f3f4f6;
+    font-family: var(--font-body);
+    background-color: hsl(var(--onco-surface-raised));
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  /* Improved heading tracking for premium feel */
+  h1, h2, h3 {
+    letter-spacing: var(--letter-tight);
+    font-family: var(--font-heading);
+  }
+  h1 {
+    letter-spacing: var(--letter-display);
   }
 }
 
+/* ── Utility classes ─────────────────────────────── */
 @layer utilities {
+  /* Glass morphism panel */
   .glass {
-    @apply border border-white/40 bg-white/70 backdrop-blur-md;
-    box-shadow: 0 8px 32px rgba(31, 38, 135, 0.08);
+    background: var(--glass-surface);
+    border: 1px solid var(--glass-border);
+    backdrop-filter: blur(var(--glass-blur));
+    -webkit-backdrop-filter: blur(var(--glass-blur));
+    box-shadow: var(--glass-shadow);
   }
+  .glass-strong {
+    background: var(--glass-surface-strong);
+    border: 1px solid var(--glass-border);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    box-shadow: var(--glass-shadow);
+  }
+
+  /* Clinical teal gradient */
   .gradient-teal {
-    background: linear-gradient(90deg, #2dd4bf 0%, #0f766e 100%);
+    background: linear-gradient(135deg, hsl(var(--onco-brand)) 0%, hsl(168 64% 42%) 100%);
   }
-  /** Placeholder com brilho deslocado (usa `animate-shimmer` do Tailwind). */
+  .gradient-clinical {
+    background: linear-gradient(135deg, hsl(var(--onco-brand-light)) 0%, hsl(210 40% 98%) 100%);
+  }
+
+  /* Premium shimmer skeleton */
   .skeleton-shimmer {
     background: linear-gradient(
       105deg,
@@ -63,8 +132,61 @@
     background-size: 220% 100%;
     @apply animate-shimmer;
   }
+
+  /* Dossier card glass effect — used on tab panels */
+  .dossier-glass-card {
+    background: var(--glass-surface-strong);
+    border: 1px solid var(--glass-border);
+    backdrop-filter: blur(var(--glass-blur));
+    -webkit-backdrop-filter: blur(var(--glass-blur));
+    transition: box-shadow var(--duration-normal) var(--ease-spring),
+                transform var(--duration-normal) var(--ease-spring);
+  }
+  .dossier-glass-card:hover {
+    box-shadow: 0 8px 32px -8px rgba(15, 23, 42, 0.1),
+                0 2px 8px -2px rgba(15, 23, 42, 0.05);
+  }
+
+  /* KPI card hover lift */
+  .kpi-card-hover {
+    transition: transform var(--duration-normal) var(--ease-spring),
+                box-shadow var(--duration-normal) var(--ease-spring);
+  }
+  .kpi-card-hover:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 32px -8px rgba(15, 23, 42, 0.1),
+                0 4px 12px -4px rgba(15, 23, 42, 0.06);
+  }
+
+  /* Clinical badge pulse animation */
+  .pulse-clinical {
+    animation: pulse-clinical 2s ease-in-out infinite;
+  }
+
+  /* Smooth page transition wrapper */
+  .page-enter {
+    animation: page-enter var(--duration-slow) var(--ease-spring) forwards;
+  }
 }
 
+/* ── Keyframes ───────────────────────────────────── */
+@keyframes pulse-clinical {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+
+@keyframes page-enter {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ── Accessibility: skip link ────────────────────── */
 .skip-link {
   position: absolute;
   left: 0.75rem;
@@ -72,7 +194,7 @@
   z-index: 100;
   padding: 0.5rem 1rem;
   border-radius: 999px;
-  background: #1a1d26;
+  background: hsl(var(--onco-text-primary));
   color: #fff;
   font-weight: 600;
   font-size: 0.85rem;
@@ -83,6 +205,22 @@
 
 .skip-link:focus {
   transform: translateY(0);
-  outline: 2px solid #007aff;
+  outline: 2px solid hsl(var(--onco-brand));
   outline-offset: 2px;
+}
+
+/* ── Scrollbar styling (Webkit) ──────────────────── */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: hsl(215 16% 75%);
+  border-radius: 999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: hsl(215 16% 60%);
 }

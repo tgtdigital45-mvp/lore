@@ -54,7 +54,7 @@ export default function MedicationColorScreen() {
             </Text>
           ) : null}
         </View>
-        <CircleChromeButton accessibilityLabel="Fechar" onPress={() => router.replace("/(tabs)/health/medications" as Href)}>
+        <CircleChromeButton accessibilityLabel="Fechar" onPress={() => router.dismissAll()}>
           <FontAwesome name="times" size={20} color={theme.colors.text.primary} />
         </CircleChromeButton>
       </View>
@@ -65,7 +65,7 @@ export default function MedicationColorScreen() {
       >
         <MedicationWizardStepBadge step={5} theme={theme} />
         <View style={{ alignItems: "center", marginTop: theme.spacing.sm }}>
-          <PillPreview colorLeft={draft.colorLeft} colorRight={draft.colorRight} colorBg={draft.colorBg} size={140} />
+          <PillPreview shapeId={draft.shapeId} colorLeft={draft.colorLeft} colorRight={draft.colorRight} colorBg={draft.colorBg} size={140} />
         </View>
 
         <Text

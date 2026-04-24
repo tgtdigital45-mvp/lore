@@ -1,7 +1,9 @@
+import tailwindcssAnimate from "tailwindcss-animate";
+
 /** @type {import('tailwindcss').Config} */
 export default {
   darkMode: ["class"],
-  content: ["./index.html", "./src/**/*.{js,ts,jsx,tsx}"],
+  content: ["./src/app/**/*.{js,ts,jsx,tsx}", "./src/**/*.{js,ts,jsx,tsx}"],
   theme: {
     extend: {
       colors: {
@@ -44,6 +46,15 @@ export default {
           critical: "#FF4D4D",
           indigo: "#4F46E5",
         },
+        onco: {
+          brand: "hsl(var(--onco-brand))",
+          "brand-light": "hsl(var(--onco-brand-light))",
+          "brand-strong": "hsl(var(--onco-brand-strong))",
+          surface: "hsl(var(--onco-surface))",
+          "surface-muted": "hsl(var(--onco-surface-muted))",
+          "text-primary": "hsl(var(--onco-text-primary))",
+          "text-secondary": "hsl(var(--onco-text-secondary))",
+        },
         lime: {
           50: "#f7fee7",
           100: "#ecfccb",
@@ -67,8 +78,10 @@ export default {
         },
       },
       boxShadow: {
-        soft: "0 8px 32px -8px rgba(0,0,0,0.06)",
-        card: "0 2px 12px -2px rgba(0,0,0,0.05)",
+        soft: "0 8px 32px -8px rgba(0,0,0,0.08), 0 2px 8px -2px rgba(0,0,0,0.04)",
+        card: "0 4px 16px -4px rgba(0,0,0,0.07), 0 1px 4px -1px rgba(0,0,0,0.04)",
+        modal: "0 24px 56px -16px rgba(15,23,42,0.14), 0 8px 24px -8px rgba(15,23,42,0.08), inset 0 1px 0 rgba(255,255,255,0.9)",
+        "popover-premium": "0 12px 40px -10px rgba(15,23,42,0.12), 0 4px 12px -4px rgba(0,0,0,0.06)",
       },
       borderRadius: {
         lg: "var(--radius)",
@@ -79,7 +92,14 @@ export default {
         "5xl": "2.5rem",
       },
       fontFamily: {
-        sans: ["Inter", "system-ui", "sans-serif"],
+        sans: ["var(--font-inter)", "system-ui", "sans-serif"],
+        mono: ["'JetBrains Mono'", "'Fira Code'", "ui-monospace", "monospace"],
+      },
+      letterSpacing: {
+        display: "var(--letter-display)",
+      },
+      transitionTimingFunction: {
+        spring: "var(--ease-spring)",
       },
       keyframes: {
         "accordion-down": {
@@ -104,8 +124,10 @@ export default {
         "accordion-up": "accordion-up 0.2s ease-out",
         shimmer: "shimmer 1.35s ease-in-out infinite",
         "fade-in": "fade-in 0.35s ease-out forwards",
+        "pulse-clinical": "pulse-clinical 2s ease-in-out infinite",
+        "page-enter": "page-enter 0.4s var(--ease-spring) forwards",
       },
     },
   },
-  plugins: [require("tailwindcss-animate")],
+  plugins: [tailwindcssAnimate],
 };

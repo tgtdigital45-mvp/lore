@@ -31,7 +31,7 @@ export async function ensureStaffIfPending() {
   if (!session?.user) return;
   if (!localStorage.getItem(PENDING_STAFF_ROLE_KEY)) return;
   const { error } = await applyPendingStaffLink();
-  if (error && import.meta.env.DEV) {
+  if (error && process.env.NODE_ENV === "development") {
     console.warn("ensureStaffIfPending:", error);
   }
 }

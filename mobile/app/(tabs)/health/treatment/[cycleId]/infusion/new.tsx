@@ -68,7 +68,7 @@ export default function NewInfusionScreen() {
       Alert.alert("Erro", error.message);
       return;
     }
-    router.replace(treatmentCycleHref(cycleId));
+    router.back();
   }
 
   return (

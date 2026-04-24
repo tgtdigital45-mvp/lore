@@ -18,7 +18,7 @@ export async function refreshSupabaseSessionIfStale(session: Session | null): Pr
 
   const { data, error } = await supabase.auth.refreshSession();
   if (error || !data.session) {
-    if (import.meta.env.DEV) {
+    if (process.env.NODE_ENV === "development") {
       console.warn("Sessão expirada; é necessário voltar a iniciar sessão.", error?.message ?? "");
     }
     await supabase.auth.signOut();

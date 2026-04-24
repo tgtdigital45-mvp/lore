@@ -1,15 +1,20 @@
 import { useCallback, useEffect } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { usePatientCore } from "./usePatientCore";
 import { usePatientClinicalData } from "./usePatientClinicalData";
 import { usePatientParaclinical } from "./usePatientParaclinical";
 import { usePatientClinicalSliceRealtime } from "./usePatientClinicalSliceRealtime";
+import { triageQueryKey } from "./useTriageQuery";
+
+const DOSSIER_AUTO_REFRESH_MS = 60_000;
 
 /**
  * Orquestra dados do dossiê: `usePatientCore`, `usePatientClinicalData`, `usePatientParaclinical`.
  * Ver também `usePatientMedications` / `usePatientExams` (aliases semânticos do paraclínico).
  */
 export function usePatientClinicalBundle(patientId: string | undefined) {
+  const queryClient = useQueryClient();
   const core = usePatientCore(patientId);
   const { triageRules, bumpProfileRefresh, watchProfileId, patchProfilesFromRealtime } = core;
   const enabled = Boolean(patientId && core.ready && !core.error);
@@ -69,6 +74,18 @@ export function usePatientClinicalBundle(patientId: string | undefined) {
   }, [para.refreshParaclinical]);
 
   const refreshAlertRules = refreshParaclinical;
+
+  useEffect(() => {
+    if (!enabled || !patientId) return;
+    const t = setInterval(() => {
+      refreshClinicalBundle();
+      void supabase.auth.getSession().then(({ data: { session: s } }) => {
+        const uid = s?.user?.id;
+        if (uid) void queryClient.invalidateQueries({ queryKey: triageQueryKey(uid) });
+      });
+    }, DOSSIER_AUTO_REFRESH_MS);
+    return () => clearInterval(t);
+  }, [enabled, patientId, queryClient, refreshClinicalBundle]);
 
   return {
     loading,

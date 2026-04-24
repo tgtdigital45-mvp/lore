@@ -67,9 +67,9 @@ export function DashboardKpiStrip({ kpi, loading }: Props) {
       <div
         className="grid gap-3 sm:grid-cols-2 sm:gap-4 xl:grid-cols-4"
         aria-busy="true"
-        aria-label="A carregar indicadores"
+        aria-label="Carregando indicadores"
       >
-        <span className="sr-only">A carregar indicadores…</span>
+        <span className="sr-only">Carregando indicadores…</span>
         {[0, 1, 2, 3].map((i) => (
           <div key={i} className="h-full min-h-[120px]">
             <SkeletonPulse className="h-full min-h-[120px] w-full" rounded="2xl" />

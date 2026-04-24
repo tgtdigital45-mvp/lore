@@ -47,7 +47,7 @@ export function AddPatientByCodeCard({ loadTriage, hospitalId, hospitalOptions }
       return;
     }
     if (!effectiveHospitalId) {
-      setMsg({ kind: "err", text: "Não há hospital associado ao seu utilizador." });
+      setMsg({ kind: "err", text: "Não há hospital associado ao seu usuário." });
       return;
     }
 
@@ -161,7 +161,7 @@ export function AddPatientByCodeCard({ loadTriage, hospitalId, hospitalOptions }
             <h3 className="text-sm font-bold uppercase tracking-wide text-muted-foreground">Adicionar paciente</h3>
           </div>
           <p className="mt-2 max-w-xl text-sm text-muted-foreground">
-            Digite o código público do paciente (Aura). Pode solicitar de novo após recusa ou revogação — cada pedido gera uma nova notificação no telemóvel do paciente (Aura → Autorizações).
+            Digite o código público do paciente (Aura). Pode solicitar de novo após recusa ou revogação — cada pedido gera uma nova notificação no celular do paciente (Aura → Autorizações).
           </p>
           {hospitalOptions.length === 1 ? (
             <p className="mt-2 text-xs text-muted-foreground">

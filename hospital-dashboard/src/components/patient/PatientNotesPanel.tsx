@@ -95,8 +95,8 @@ export function PatientNotesPanel({ patientId, staffId, notes, onRefresh }: Prop
         {notes.length === 0 ? (
           <ClinicalEmptyState
             icon={MessageSquare}
-            title="Sem notas da equipa"
-            description="As notas aparecem aqui com o papel e a hora — visíveis à equipa (respeitando privacidade)."
+            title="Sem notas da equipe"
+            description="As notas aparecem aqui com o papel e a hora — visíveis à equipe (respeitando privacidade)."
           />
         ) : (
           notes.map((n) => (
@@ -119,3 +119,4 @@ export function PatientNotesPanel({ patientId, staffId, notes, onRefresh }: Prop
     </div>
   );
 }
+

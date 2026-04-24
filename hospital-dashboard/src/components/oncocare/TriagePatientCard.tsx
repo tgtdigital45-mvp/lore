@@ -1,6 +1,9 @@
+"use client";
+
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { Link, useNavigate } from "react-router-dom";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Eye, EyeOff, MessageSquare } from "lucide-react";
 import { CANCER_PT } from "@/constants/dashboardLabels";
 import { clinicalTier, TIER_ACCENT, type ClinicalTier } from "@/lib/clinicalTier";
@@ -48,7 +51,7 @@ type Props = {
  * No painel com layout dividido, `isSelected` ativa o conector visual até o painel.
  */
 export function TriagePatientCard({ row, vitals, isSelected }: Props) {
-  const navigate = useNavigate();
+  const router = useRouter();
   const tier = clinicalTier(row);
   const accent = TIER_ACCENT[tier];
   const suspensionScore = row.suspensionRiskScore;
@@ -89,13 +92,13 @@ export function TriagePatientCard({ row, vitals, isSelected }: Props) {
           tabIndex={0}
           onClick={(e) => {
             if ((e.target as HTMLElement).closest("a, button")) return;
-            void navigate(dossierPath);
+            void router.push(dossierPath);
           }}
           onKeyDown={(e) => {
             if ((e.target as HTMLElement).closest("a, button")) return;
             if (e.key === "Enter" || e.key === " ") {
               e.preventDefault();
-              void navigate(dossierPath);
+              void router.push(dossierPath);
             }
           }}
           className={cn(
@@ -198,7 +201,7 @@ export function TriagePatientCard({ row, vitals, isSelected }: Props) {
           {wa.canMessage ? (
             <div className="mt-2 flex justify-end">
               <Link
-                to={messagesPath}
+                href={messagesPath}
                 onClick={(e) => e.stopPropagation()}
                 className="inline-flex items-center gap-1.5 rounded-full border border-teal-200 bg-white px-3 py-1.5 text-[0.72rem] font-bold text-teal-800 shadow-sm transition-colors hover:bg-teal-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500"
               >

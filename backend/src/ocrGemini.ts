@@ -1,5 +1,6 @@
 import { GoogleGenerativeAI, SchemaType } from "@google/generative-ai";
 import type { Env } from "./config.js";
+import { canonicalBiomarkerName } from "./biomarkerCanonical.js";
 
 export const OCR_INSTRUCTION = `Primeiro classifique o conteúdo (campo document_suitability) antes de extrair dados.
 document_suitability:
@@ -19,8 +20,10 @@ Se houver título do exame ou nome do médico no documento, preencha title_pt_br
 Se houver registos de conselhos profissionais (CRM, CRO, COREN, CRF, CRN, CREFITO, etc.), preencha professional_registries_json como array JSON em string: cada item { "kind": sigla (ex. "CRM"), "number": número completo como no documento, "uf": "SP" se o estado estiver visível junto ao registo; omita "uf" se não houver. Não invente números. Se não houver nenhum, use "[]".
 Se houver data de coleta / realização do exame no documento, preencha exam_date_iso como YYYY-MM-DD; se não houver ou não for legível, use string vazia.
 Para hemograma ou painel de sangue, inclua em metrics_json os parâmetros visíveis (ex.: leucócitos, hemoglobina, plaquetas) com name em português claro quando o documento estiver em português.
+Para bioquímica/hepática/renal no mesmo documento, inclua SEMPRE em metrics_json cada linha visível com valor (ex.: ureia, creatinina, TGO/AST, TGP/ALT, bilirrubina total e frações, glicose, eletrólitos) — o resumo textual (summary_pt_br) não substitui a lista estruturada; se o valor estiver legível no PDF/imagem, deve aparecer como objeto em metrics_json.
 Para cada biomarcador em metrics_json use: name, value (texto), unit, is_abnormal (true se fora do intervalo explícito no documento), reference_range (texto do intervalo de referência do documento, ex. "4,0-10,0" ou "12-16 g/dL"; vazio se não houver), reference_alert (somente se is_abnormal: frase em pt-BR que CITA o nome do parâmetro, o valor encontrado, se está acima ou abaixo do limite, e o intervalo de referência — ex.: "Leucócitos: 15.000/µL, acima do limite superior; referência no documento: 4.000-11.000/µL."; senão string vazia).
-O campo metrics_json deve ser um array JSON serializado em string (pode ser []).
+O campo metrics_json é um array JSON serializado em string. Para document_suitability "clinical_exam" com painel laboratorial, tabela de resultados ou múltiplos valores numéricos legíveis, metrics_json NÃO PODE ser "[]": inclua TODAS as linhas com analito+valor (unidade se visível), caso contrário a aplicação não grava biomarcadores. Só use "[]" se o documento clínico realmente não tiver nenhum parâmetro extraível (ex.: laudo puramente descritivo sem tabela) ou for administrativo/seguradora conforme regras acima.
+Preencha markers_json com um objeto JSON (pares analito→valor) como reforço; ainda assim, para laboratório com tabela, metrics_json deve listar cada parâmetro estruturado (não basta só markers_json).
 Campo ui_category (obrigatório): escolha UMA categoria para filtros na aplicação móvel:
 - "exames": resultados laboratoriais (sangue, urina, bioquímica) ou exames de imagem (TC, RM, US, raio-X, PET, mamografia) — maior volume.
 - "laudos": biópsias, anatomopatológico, laudos narrativos médicos detalhados (não painéis numéricos de lab).
@@ -85,6 +88,79 @@ export type OcrVisionOutcome = {
   document_kind: DocKind;
   document_suitability: DocumentSuitability;
 };
+
+/** Gemini por vezes devolve array nativo em `metrics_json` (violando o schema STRING); JSON.parse(string) também falha se vier string duplamente escapada. */
+function metricsArrayFromModelField(raw: unknown): unknown[] {
+  if (raw == null) return [];
+  if (Array.isArray(raw)) return raw;
+  if (typeof raw === "string") {
+    const t = raw.trim();
+    if (!t) return [];
+    try {
+      const parsed = JSON.parse(t) as unknown;
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  }
+  return [];
+}
+
+/**
+ * Se o modelo preencheu `markers_json` mas deixou `metrics_json` vazio, deriva linhas
+ * persistíveis em `biomarker_logs`. Deduplica por nome canônico.
+ */
+export function buildOcrMetricsFromMarkersFallback(markers: Record<string, unknown>): OcrMetric[] {
+  const byCanon = new Map<string, OcrMetric>();
+  for (const [name, val] of Object.entries(markers)) {
+    const trimmed = name.trim();
+    if (!trimmed) continue;
+    let valueStr = "";
+    if (typeof val === "string") valueStr = val.trim();
+    else if (typeof val === "number" && Number.isFinite(val)) valueStr = String(val);
+    else continue;
+    if (!valueStr) continue;
+    const displayName = canonicalBiomarkerName(trimmed);
+    const dedupeKey = displayName.toLowerCase();
+    if (byCanon.has(dedupeKey)) continue;
+    byCanon.set(dedupeKey, {
+      name: displayName,
+      value: valueStr,
+      unit: "",
+      is_abnormal: false,
+      reference_alert: "",
+      reference_range: "",
+    });
+  }
+  return [...byCanon.values()];
+}
+
+function ocrMetricNameFromObject(o: Record<string, unknown>): string {
+  const keys = ["name", "exam", "metric", "parameter", "label", "parametro", "parâmetro", "teste", "analito"] as const;
+  for (const k of keys) {
+    const v = o[k];
+    if (typeof v === "string" && v.trim()) return v.trim();
+  }
+  return "";
+}
+
+function ocrMetricValueFromObject(o: Record<string, unknown>): string {
+  for (const k of ["value", "valor", "result", "resultado"] as const) {
+    const v = o[k];
+    if (typeof v === "string") return v;
+    if (typeof v === "number" && Number.isFinite(v)) return String(v);
+  }
+  const fallback = o.value;
+  return fallback != null && typeof fallback !== "object" ? String(fallback) : "";
+}
+
+function ocrMetricUnitFromObject(o: Record<string, unknown>): string {
+  for (const k of ["unit", "unidade"] as const) {
+    const v = o[k];
+    if (typeof v === "string") return v;
+  }
+  return "";
+}
 
 /** Remove cercas ```json … ``` que alguns modelos acrescentam mesmo com responseMimeType JSON. */
 function stripModelJsonFence(text: string): string {
@@ -237,40 +313,38 @@ export function parseOcrModelJsonText(
   } catch {
     markers = {};
   }
-  let metrics: OcrMetric[] = [];
-  try {
-    const parsed = JSON.parse(raw.metrics_json ?? "[]") as unknown;
-    if (Array.isArray(parsed)) {
-      metrics = parsed
-        .map((m) => {
-          if (!m || typeof m !== "object") return null;
-          const o = m as Record<string, unknown>;
-          const name = typeof o.name === "string" ? o.name : "";
-          const value = typeof o.value === "string" ? o.value : String(o.value ?? "");
-          const unit = typeof o.unit === "string" ? o.unit : "";
-          const isAb = Boolean(o.is_abnormal);
-          const ref =
-            typeof o.reference_alert === "string" ? o.reference_alert : String(o.reference_alert ?? "");
-          const refRange =
-            typeof o.reference_range === "string"
-              ? o.reference_range
-              : typeof o.referenceRange === "string"
-                ? o.referenceRange
-                : "";
-          if (!name) return null;
-          return {
-            name,
-            value,
-            unit,
-            is_abnormal: isAb,
-            reference_alert: ref,
-            reference_range: refRange,
-          };
-        })
-        .filter((x): x is OcrMetric => x !== null);
-    }
-  } catch {
-    metrics = [];
+  const parsedMetrics = metricsArrayFromModelField(raw.metrics_json);
+  let metrics: OcrMetric[] = parsedMetrics
+    .map((m) => {
+      if (!m || typeof m !== "object") return null;
+      const o = m as Record<string, unknown>;
+      const name = ocrMetricNameFromObject(o);
+      const value = ocrMetricValueFromObject(o);
+      const unit = ocrMetricUnitFromObject(o);
+      const isAb = Boolean(o.is_abnormal);
+      const ref =
+        typeof o.reference_alert === "string" ? o.reference_alert : String(o.reference_alert ?? "");
+      const refRange =
+        typeof o.reference_range === "string"
+          ? o.reference_range
+          : typeof o.referenceRange === "string"
+            ? o.referenceRange
+            : typeof o.reference_range_text === "string"
+              ? o.reference_range_text
+              : "";
+      if (!name) return null;
+      return {
+        name,
+        value,
+        unit,
+        is_abnormal: isAb,
+        reference_alert: ref,
+        reference_range: refRange,
+      };
+    })
+    .filter((x): x is OcrMetric => x !== null);
+  if (document_suitability === "clinical_exam" && metrics.length === 0 && Object.keys(markers).length > 0) {
+    metrics = buildOcrMetricsFromMarkersFallback(markers);
   }
   const ui_category = resolveUiCategory(raw.ui_category, document_kind, document_suitability);
   const professional_registries = parseProfessionalRegistriesJson(raw.professional_registries_json);
@@ -332,7 +406,7 @@ async function runGeminiOcrVisionOnce(
           metrics_json: {
             type: SchemaType.STRING,
             description:
-              'Array JSON serializado em string: objetos {name,value,unit,is_abnormal,reference_range,reference_alert}. reference_range = intervalo do documento; reference_alert só se is_abnormal.',
+              'Array JSON em string: objetos {name,value,unit,is_abnormal,reference_range,reference_alert}. Em exame clínico laboratorial com tabela/valores legíveis, array NUNCA vazio. Só "[]" se não houver parâmetros extraíveis ou for administrativo. reference_range = intervalo do documento; reference_alert só se is_abnormal.',
           },
           prescription_items_json: {
             type: SchemaType.STRING,
@@ -375,9 +449,11 @@ async function runGeminiOcrVisionOnce(
   });
 
   const hint = options?.hintDocumentType;
+  const metricsReminder =
+    "Se o documento for exame de laboratório (painel, hemograma, bioquímica) com tabela de resultados legíveis, metrics_json DEVE conter TODAS as linhas (analito, valor, unidade) — não deixe metrics_json como \"[]\" nesse caso.";
   const prompt = hint
-    ? `O sistema já indicou o tipo clínico: ${hint}. Se document_suitability for "clinical_exam", o campo document_kind na resposta JSON deve ser exatamente "${hint}". Caso contrário, siga document_suitability. Extraia valores numéricos e unidades quando visíveis. markers_json como objeto JSON em string; metrics_json como array em string; prescription_items_json como array em string (receitas) ou "[]"; professional_registries_json como array em string (CRM/CRO/COREN/CRF etc. ou []).`
-    : `Defina primeiro document_suitability. Se for "clinical_exam", document_kind deve ser "blood_test" para laboratório/sangue, "biopsy" para anatomopatológico/biópsia/IHQ, "scan" para laudos de imagem (TC, RM, US, etc.). Guias de convênio/autorização sem resultados: "administrative_insurance". Fotos não clínicas: "not_medical". Preencha ui_category conforme as definições do sistema. markers_json como objeto JSON em string; metrics_json como array em string; prescription_items_json como array em string para receituários ou "[]"; professional_registries_json como array em string (CRM/CRO/COREN/CRF etc. ou []).`;
+    ? `O sistema já indicou o tipo clínico: ${hint}. Se document_suitability for "clinical_exam", o campo document_kind na resposta JSON deve ser exatamente "${hint}". Caso contrário, siga document_suitability. ${metricsReminder} Extraia valores numéricos e unidades quando visíveis. markers_json como objeto JSON em string; metrics_json como array em string; prescription_items_json como array em string (receitas) ou "[]"; professional_registries_json como array em string (CRM/CRO/COREN/CRF etc. ou []).`
+    : `Defina primeiro document_suitability. Se for "clinical_exam", document_kind deve ser "blood_test" para laboratório/sangue, "biopsy" para anatomopatológico/biópsia/IHQ, "scan" para laudos de imagem (TC, RM, US, etc.). Guias de convênio/autorização sem resultados: "administrative_insurance". Fotos não clínicas: "not_medical". Preencha ui_category conforme as definições do sistema. ${metricsReminder} markers_json como objeto JSON em string; metrics_json como array em string; prescription_items_json como array em string para receituários ou "[]"; professional_registries_json como array em string (CRM/CRO/COREN/CRF etc. ou []).`;
 
   let result;
   try {

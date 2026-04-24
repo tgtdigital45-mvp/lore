@@ -1,4 +1,6 @@
-import { useCallback, useEffect, useState } from "react";
+"use client";
+
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Pill, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -7,6 +9,7 @@ import { supabase } from "@/lib/supabase";
 import { refreshSupabaseSessionIfStale } from "@/lib/authSession";
 import { staffApiRequestUrl, hasStaffBackendForFetch } from "@/lib/backendUrl";
 import { sanitizeHttpApiMessage } from "@/lib/errorMessages";
+import { toast } from "sonner";
 import { modalOverlayTransition, modalPanelTransition } from "@/lib/motionPresets";
 import type { PrescriptionOcrItem } from "@/types/prescriptionOcr";
 
@@ -46,12 +49,18 @@ type Props = {
 export function PrescriptionMedsConfirmModal({ open, onOpenChange, items, patientId, backendUrl, onConfirmed }: Props) {
   const [rows, setRows] = useState<EditableRow[]>([]);
   const [submitting, setSubmitting] = useState(false);
+  const itemsSignature = useMemo(() => JSON.stringify(items), [items]);
 
   useEffect(() => {
-    if (open && items.length > 0) {
-      setRows(makeRows(items));
+    if (!open) return;
+    try {
+      const parsed = JSON.parse(itemsSignature) as PrescriptionOcrItem[];
+      if (parsed.length === 0) return;
+      setRows(makeRows(parsed));
+    } catch {
+      setRows([]);
     }
-  }, [open, items]);
+  }, [open, itemsSignature]);
 
   useEffect(() => {
     if (!open) return;
@@ -69,18 +78,18 @@ export function PrescriptionMedsConfirmModal({ open, onOpenChange, items, patien
   const submit = useCallback(async () => {
     const selected = rows.filter((r) => r.include);
     if (selected.length === 0) {
-      window.alert("Marque pelo menos um medicamento.");
+      toast.error("Marque pelo menos um medicamento.");
       return;
     }
     if (!hasStaffBackendForFetch(backendUrl)) {
-      window.alert("Backend não configurado (VITE_BACKEND_URL).");
+      toast.error("Backend não configurado (NEXT_PUBLIC_BACKEND_URL).");
       return;
     }
     setSubmitting(true);
     try {
       const token = await getFreshToken();
       if (!token) {
-        window.alert("Sessão expirada. Faça login novamente.");
+        toast.error("Sessão expirada. Faça login novamente.");
         return;
       }
       const anchor = new Date();
@@ -108,13 +117,13 @@ export function PrescriptionMedsConfirmModal({ open, onOpenChange, items, patien
       });
       const j = (await res.json()) as { error?: string; message?: string; inserted?: number };
       if (!res.ok) {
-        window.alert(sanitizeHttpApiMessage((j.message as string | undefined) ?? j.error, `Erro ${res.status}`));
+        toast.error(sanitizeHttpApiMessage((j.message as string | undefined) ?? j.error, `Erro ${res.status}`));
         return;
       }
       onConfirmed();
       onOpenChange(false);
     } catch (e) {
-      window.alert(e instanceof Error ? e.message : "Falha de rede.");
+      toast.error(e instanceof Error ? e.message : "Falha de rede.");
     } finally {
       setSubmitting(false);
     }

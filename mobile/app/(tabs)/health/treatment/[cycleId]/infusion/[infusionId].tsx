@@ -147,7 +147,7 @@ export default function EditInfusionScreen() {
           if (batchErr) {
             setBusy(false);
             Alert.alert("Aviso", batchErr.message ?? "Não foi possível reagendar todas as sessões pendentes.");
-            router.replace(treatmentCycleHref(cycleId));
+            router.back();
             return;
           }
         }
@@ -155,7 +155,7 @@ export default function EditInfusionScreen() {
     }
 
     setBusy(false);
-    router.replace(treatmentCycleHref(cycleId));
+    router.back();
   }
 
   function confirmDelete() {
@@ -171,7 +171,7 @@ export default function EditInfusionScreen() {
             Alert.alert("Erro", error.message);
             return;
           }
-          router.replace(treatmentCycleHref(cycleId));
+          router.back();
         },
       },
     ]);

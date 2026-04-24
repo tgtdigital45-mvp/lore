@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { Loader2 } from "lucide-react";
+import { LoadingInline } from "@/components/ui/LoadingInline";
 import { supabase } from "@/lib/supabase";
 import { sanitizeSupabaseError } from "@/lib/errorMessages";
 import type { AuditLogRow } from "@/types/dashboard";
@@ -45,9 +45,8 @@ export function AuditLogList() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center gap-2 py-12 text-sm text-muted-foreground" role="status">
-        <Loader2 className="size-5 animate-spin" aria-hidden />
-        A carregar trilha de auditoria…
+      <div className="flex items-center justify-center py-12" role="status">
+        <LoadingInline>Carregando trilha de auditoria…</LoadingInline>
       </div>
     );
   }

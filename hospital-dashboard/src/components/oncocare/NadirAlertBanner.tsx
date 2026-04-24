@@ -1,6 +1,8 @@
+"use client";
+
 import { AnimatePresence, motion } from "framer-motion";
 import { AlertTriangle } from "lucide-react";
-import { Link } from "react-router-dom";
+import Link from "next/link";
 import { clinicalTier } from "@/lib/clinicalTier";
 import type { RiskRow } from "@/types/dashboard";
 import { Button } from "@/components/ui/button";
@@ -48,7 +50,7 @@ export function NadirAlertBanner({ rows }: Props) {
                     {emergency.map((r) => (
                       <li key={r.id}>
                         <Link
-                          to={`/paciente/${r.id}`}
+                          href={`/paciente/${r.id}`}
                           className="inline-flex rounded-full bg-white/20 px-2.5 py-0.5 text-[0.7rem] font-semibold underline-offset-2 hover:underline"
                         >
                           {profileName(r)}
@@ -65,7 +67,7 @@ export function NadirAlertBanner({ rows }: Props) {
               className="shrink-0 rounded-full border border-white/30 bg-white/15 font-bold text-white hover:bg-white/25"
               asChild
             >
-              <Link to="/paciente">Abrir fila</Link>
+              <Link href="/paciente">Abrir fila</Link>
             </Button>
           </div>
         </motion.div>

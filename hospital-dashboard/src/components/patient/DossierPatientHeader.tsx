@@ -1,6 +1,8 @@
+"use client";
+
 import { useState } from "react";
-import { Link } from "react-router-dom";
-import { AlertTriangle, Eye, EyeOff, MessageSquare, MoreHorizontal } from "lucide-react";
+import Link from "next/link";
+import { AlertTriangle, Eye, EyeOff, MessageSquare, MoreHorizontal, Volume2 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -21,6 +23,8 @@ export type DossierPatientHeaderProps = {
   /** Relative link to messages tab (e.g. `?tab=mensagens`). Omitted when not shown. */
   messagesTo?: string | null;
   className?: string;
+  /** Alerta sonoro via Realtime quando a temperatura ultrapassa regras de febre. */
+  feverSound?: { enabled: boolean; onChange: (next: boolean) => void } | null;
 };
 
 /**
@@ -37,6 +41,7 @@ export function DossierPatientHeader({
   onOpenReport,
   messagesTo,
   className,
+  feverSound,
 }: DossierPatientHeaderProps) {
   const [patientCodeVisible, setPatientCodeVisible] = useState(true);
   const cancer = CANCER_PT[riskRow.primary_cancer_type] ?? riskRow.primary_cancer_type;
@@ -95,12 +100,27 @@ export function DossierPatientHeader({
         <div className="flex flex-col items-stretch gap-3 sm:flex-row sm:items-center lg:flex-col lg:items-end">
           {messagesTo ? (
             <Link
-              to={messagesTo}
+              href={messagesTo}
               className="inline-flex items-center justify-center gap-2 rounded-full border border-teal-200 bg-white px-4 py-2 text-sm font-semibold text-teal-800 shadow-sm transition-colors hover:bg-teal-50 sm:justify-end"
             >
               <MessageSquare className="size-4 shrink-0" strokeWidth={2} aria-hidden />
               Mensagens
             </Link>
+          ) : null}
+          {feverSound ? (
+            <label className="flex cursor-pointer select-none items-center justify-end gap-2 rounded-2xl border border-amber-100/80 bg-amber-50/50 px-3 py-2 text-left text-sm text-amber-950 sm:justify-end">
+              <input
+                type="checkbox"
+                className="size-4 rounded border-amber-300 text-amber-600 focus:ring-amber-500"
+                checked={feverSound.enabled}
+                onChange={() => feverSound.onChange(!feverSound.enabled)}
+                aria-label="Ativar som quando febre atingir o limiar das regras"
+              />
+              <Volume2 className="size-4 shrink-0 text-amber-800" strokeWidth={2} aria-hidden />
+              <span className="max-w-[11rem] font-medium leading-tight sm:text-right">
+                Som de alerta (febre)
+              </span>
+            </label>
           ) : null}
           <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-right text-xs sm:text-sm">
             <div>
@@ -113,7 +133,7 @@ export function DossierPatientHeader({
             </div>
             <div className="col-span-2">
               <p className="font-medium uppercase tracking-wide text-slate-400">OncoCare</p>
-              <p className="font-semibold text-teal-700">Equipa hospitalar</p>
+              <p className="font-semibold text-teal-700">Equipe hospitalar</p>
             </div>
           </div>
           <Button

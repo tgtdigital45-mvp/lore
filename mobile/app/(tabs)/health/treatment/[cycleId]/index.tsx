@@ -130,7 +130,7 @@ export default function TreatmentCycleDetailScreen() {
             return;
           }
           await refreshCycles();
-          router.replace(TREATMENT_HREF.index);
+          router.dismissAll();
         },
       },
     ]);

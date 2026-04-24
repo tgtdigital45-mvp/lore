@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useId, useState } from "react";
-import { History, X } from "lucide-react";
+import { History, Loader2, X } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -129,7 +129,14 @@ export function LinkAccessHistoryPanel({ hospitalIds, hospitalNameById, classNam
               </div>
               <div className="flex shrink-0 items-center gap-2">
                 <Button type="button" variant="outline" size="sm" className="rounded-xl" disabled={loading} onClick={() => void load()}>
-                  {loading ? "A carregar…" : "Atualizar"}
+                  {loading ? (
+                    <>
+                      <Loader2 className="size-3.5 animate-spin" aria-hidden />
+                      Atualizando…
+                    </>
+                  ) : (
+                    "Atualizar"
+                  )}
                 </Button>
                 <Button
                   type="button"
@@ -147,7 +154,7 @@ export function LinkAccessHistoryPanel({ hospitalIds, hospitalNameById, classNam
             <div className="min-h-0 flex-1 overflow-y-auto px-5 pb-5 pt-4">
               {loading && rows.length === 0 && !err ? (
                 <div className="flex justify-center py-10">
-                  <LoadingInline>A carregar eventos…</LoadingInline>
+                  <LoadingInline>Carregando eventos…</LoadingInline>
                 </div>
               ) : null}
 
@@ -158,7 +165,7 @@ export function LinkAccessHistoryPanel({ hospitalIds, hospitalNameById, classNam
               ) : null}
 
               {!err && !loading && rows.length === 0 ? (
-                <p className="text-sm text-muted-foreground">Ainda não há eventos registados.</p>
+                <p className="text-sm text-muted-foreground">Ainda não há eventos registrados.</p>
               ) : null}
 
               {rows.length > 0 ? (

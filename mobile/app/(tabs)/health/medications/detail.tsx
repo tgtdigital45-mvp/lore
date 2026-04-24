@@ -145,7 +145,7 @@ export default function MedicationDetailScreen() {
             return;
           }
           await refresh();
-          router.replace("/(tabs)/health/medications" as Href);
+          router.dismissAll();
         },
       },
     ]);
@@ -167,7 +167,7 @@ export default function MedicationDetailScreen() {
             return;
           }
           await refresh();
-          router.replace("/(tabs)/health/medications" as Href);
+          router.dismissAll();
         },
       },
     ]);

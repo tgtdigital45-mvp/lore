@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import NetInfo from "@react-native-community/netinfo";
-import { Alert, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { Alert, BackHandler, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { showAppToast } from "@/src/lib/appToast";
 import { EmergencyModal } from "@/components/EmergencyModal";
 import { SelfCareModal } from "@/components/SelfCareModal";
@@ -84,6 +84,24 @@ export function SymptomQuickLog({
     returnToDetailKeyRef.current = null;
     setWizard({ screen: "list" });
   }, []);
+
+  useEffect(() => {
+    const onBackPress = () => {
+      if (wizard.screen !== "list") {
+        if (wizard.screen === "symptom_detail") {
+          resetToList();
+        } else if (wizard.screen === "legacy_verbal" || wizard.screen === "fever_temp") {
+          const k = diaryChromeDetailKey(wizard);
+          if (k) setWizard({ screen: "symptom_detail", key: k });
+          else resetToList();
+        }
+        return true; // prevent default behavior
+      }
+      return false; // allow default back
+    };
+    const sub = BackHandler.addEventListener("hardwareBackPress", onBackPress);
+    return () => sub.remove();
+  }, [wizard, resetToList]);
 
   const finishLogAndNavigate = useCallback(
     async (insertedRow?: SymptomLogRow | null) => {

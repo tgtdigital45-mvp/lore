@@ -198,7 +198,7 @@ export default function MedicationScheduleScreen() {
             </Text>
           ) : null}
         </View>
-        <CircleChromeButton accessibilityLabel="Fechar" onPress={() => router.replace("/(tabs)/health/medications" as Href)}>
+        <CircleChromeButton accessibilityLabel="Fechar" onPress={() => router.dismissAll()}>
           <FontAwesome name="times" size={20} color={theme.colors.text.primary} />
         </CircleChromeButton>
       </View>
