@@ -7,7 +7,7 @@
       "headers": [
         {
           "key": "Content-Security-Policy",
-          "value": "default-src 'self'; script-src 'self' https://vercel.live https://*.vercel.live https://va.vercel-scripts.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: blob: https:; font-src 'self' data: https://fonts.gstatic.com; connect-src 'self' https://*.supabase.co wss://*.supabase.co https:; frame-ancestors 'none'; base-uri 'self'"
+          "value": "default-src 'self'; script-src 'self' 'unsafe-inline' https://vercel.live https://*.vercel.live https://va.vercel-scripts.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: blob: https:; font-src 'self' data: https://fonts.gstatic.com; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://vercel.live https://*.vercel.live wss://vercel.live wss://*.vercel.live https://va.vercel-scripts.com https://*.vercel.com https: wss:; frame-src 'self' https://vercel.live https://*.vercel.live; worker-src 'self' blob:; frame-ancestors 'none'; base-uri 'self'"
         },
         { "key": "X-Content-Type-Options", "value": "nosniff" },
         { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" },

@@ -22,6 +22,10 @@ const nextConfig = {
       "@radix-ui/react-tooltip",
     ],
   },
+  /** Browsers ainda pedem /favicon.ico; servimos o SVG existente em public/. */
+  async redirects() {
+    return [{ source: "/favicon.ico", destination: "/favicon.svg", permanent: true }];
+  },
   /**
    * Next.js rewrites: encaminha `/api/*` ao onco-backend (URL via env em produção).
    */

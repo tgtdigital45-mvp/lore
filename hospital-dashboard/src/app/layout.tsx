@@ -23,6 +23,10 @@ const inter = Inter({
 export const metadata: Metadata = {
   title: "OncoCare — Hospital",
   description: "Triagem e prontuário oncológico (Aura)",
+  icons: {
+    icon: "/favicon.svg",
+    apple: "/favicon.svg",
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
