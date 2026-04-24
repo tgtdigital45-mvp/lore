@@ -6,10 +6,48 @@ const __dirname = path.dirname(__filename);
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 
+/**
+ * CSP e headers de segurança vivem aqui (e não só em vercel.json) para qualquer
+ * deploy do Next servir a mesma política — evita o painel/deploy ignorar vercel.json
+ * se o Root Directory estiver errado. Remova regras duplicadas de CSP no projeto Vercel.
+ */
+const CONTENT_SECURITY_POLICY = [
+  "default-src 'self'",
+  "script-src 'self' 'unsafe-inline' https://vercel.live https://*.vercel.live https://va.vercel-scripts.com",
+  "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+  "img-src 'self' data: blob: https:",
+  "font-src 'self' data: https://fonts.gstatic.com",
+  [
+    "connect-src 'self' https://*.supabase.co wss://*.supabase.co",
+    "https://vercel.live https://*.vercel.live wss://vercel.live wss://*.vercel.live",
+    "https://va.vercel-scripts.com https://*.vercel.com https: wss:",
+  ].join(" "),
+  "frame-src 'self' https://vercel.live https://*.vercel.live",
+  "worker-src 'self' blob:",
+  "frame-ancestors 'none'",
+  "base-uri 'self'",
+].join("; ");
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
   outputFileTracingRoot: path.join(__dirname),
+  async headers() {
+    return [
+      {
+        source: "/:path*",
+        headers: [
+          { key: "Content-Security-Policy", value: CONTENT_SECURITY_POLICY },
+          { key: "X-Content-Type-Options", value: "nosniff" },
+          { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+          {
+            key: "Permissions-Policy",
+            value: "camera=(), microphone=(), geolocation=()",
+          },
+        ],
+      },
+    ];
+  },
   experimental: {
     optimizePackageImports: [
       "lucide-react",
