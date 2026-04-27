@@ -1,16 +1,25 @@
-import { BookHeart } from "lucide-react";
+import { BookHeart, Trash2 } from "lucide-react";
 import type { SymptomLogDetail } from "../../../types/dashboard";
 import { formatPtDateTime } from "../../../lib/dashboardFormat";
 import { symptomCategoryLabel, symptomSeverityLabel, symptomSeverityPillClass } from "../../../lib/patientModalHelpers";
 import { ClinicalEmptyState } from "@/components/patient/ClinicalEmptyState";
 import { LoadingInline } from "@/components/ui/LoadingInline";
+import { Button } from "@/components/ui/button";
 
 type Props = {
   modalLoading: boolean;
   modalSymptoms: SymptomLogDetail[];
+  onDelete?: (id: string) => Promise<void>;
 };
 
-export default function PatientDiarioPanel({ modalLoading, modalSymptoms }: Props) {
+export default function PatientDiarioPanel({ modalLoading, modalSymptoms, onDelete }: Props) {
+  const handleDelete = (id: string) => {
+    if (!onDelete) return;
+    if (confirm("Tem certeza que deseja excluir este registro de sintoma?")) {
+      void onDelete(id);
+    }
+  };
+
   return (
     <div className="patient-modal__tab-panel">
       <section className="patient-modal__section" style={{ borderTop: "none", paddingTop: 0 }}>
@@ -34,6 +43,7 @@ export default function PatientDiarioPanel({ modalLoading, modalSymptoms }: Prop
                   <th>Gravidade / PRD</th>
                   <th>Temp.</th>
                   <th>Triagem</th>
+                  <th className="w-10"></th>
                 </tr>
               </thead>
               <tbody>
@@ -53,6 +63,18 @@ export default function PatientDiarioPanel({ modalLoading, modalSymptoms }: Prop
                     </td>
                     <td>{s.body_temperature != null ? `${s.body_temperature} °C` : "—"}</td>
                     <td>{s.requires_action ? <span className="alert-badge">Prioridade</span> : "—"}</td>
+                    <td>
+                      {onDelete ? (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-slate-400 hover:text-destructive"
+                          onClick={() => handleDelete(s.id)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      ) : null}
+                    </td>
                   </tr>
                 ))}
               </tbody>

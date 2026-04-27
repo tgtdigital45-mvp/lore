@@ -1,6 +1,6 @@
 import crypto from "node:crypto";
 import { describe, expect, it } from "vitest";
-import { verifyMetaXHubSignature256 } from "./metaWebhookSignature.js";
+import { verifyMetaXHubSignature256 } from "./lib/metaWebhookSignature.js";
 
 describe("verifyMetaXHubSignature256", () => {
   it("aceita assinatura válida", () => {

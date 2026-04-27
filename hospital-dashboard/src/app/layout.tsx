@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { Inter, Lora } from "next/font/google";
 
 /** Toda a UI depende de cliente Supabase + auth; evita SSG a falhar sem env em CI. */
 export const dynamic = "force-dynamic";
@@ -20,6 +20,15 @@ const inter = Inter({
   fallback: ["system-ui", "sans-serif"],
 });
 
+const lora = Lora({
+  subsets: ["latin"],
+  weight: ["400", "700"],
+  style: ["normal", "italic"],
+  variable: "--font-lora",
+  display: "swap",
+  preload: false,
+});
+
 export const metadata: Metadata = {
   title: "OncoCare — Hospital",
   description: "Triagem e prontuário oncológico (Aura)",
@@ -31,7 +40,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="pt-BR" className={inter.variable} suppressHydrationWarning>
+    <html lang="pt-BR" className={`${inter.variable} ${lora.variable}`} suppressHydrationWarning>
       <body className="min-h-screen font-sans antialiased">
         <Providers>{children}</Providers>
       </body>

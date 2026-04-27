@@ -10,10 +10,12 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+import { Trash2 } from "lucide-react";
 import type { VitalLogRow } from "@/types/dashboard";
 import { VITAL_TYPE_PT } from "@/constants/dashboardLabels";
 import { cn } from "@/lib/utils";
 import { formatPtDateTime, formatPtShort } from "@/lib/dashboardFormat";
+import { Button } from "@/components/ui/button";
 
 export type VitalExplorerKind = "temperature" | "heart_rate" | "blood_pressure" | "spo2" | "weight" | "glucose";
 
@@ -160,9 +162,10 @@ function orderedVitalTypeKeys(grouped: Map<string, VitalLogRow[]>): string[] {
 type Props = {
   vitals: VitalLogRow[];
   className?: string;
+  onDelete?: (id: string) => Promise<void>;
 };
 
-export function VitalsExplorerPanel({ vitals, className }: Props) {
+export function VitalsExplorerPanel({ vitals, className, onDelete }: Props) {
   const [kind, setKind] = useState<VitalExplorerKind>("temperature");
   const [range, setRange] = useState<VitalTimeRange>("week");
 
@@ -221,6 +224,13 @@ export function VitalsExplorerPanel({ vitals, className }: Props) {
   const typeKeysOrdered = useMemo(() => orderedVitalTypeKeys(groupedAll), [groupedAll]);
 
   const chartMargin = { top: 32, right: 10, left: 2, bottom: 6 };
+
+  const handleDelete = (id: string) => {
+    if (!onDelete) return;
+    if (confirm("Tem certeza que deseja excluir este registro de sinal vital?")) {
+      void onDelete(id);
+    }
+  };
 
   return (
     <div className={cn("space-y-4", className)}>
@@ -420,6 +430,7 @@ export function VitalsExplorerPanel({ vitals, className }: Props) {
                             <th className="px-3 py-2">Valor</th>
                             <th className="px-3 py-2">Unidade</th>
                             <th className="hidden px-3 py-2 sm:table-cell">Notas</th>
+                            <th className="w-10 px-3 py-2"></th>
                           </tr>
                         </thead>
                         <tbody>
@@ -432,6 +443,18 @@ export function VitalsExplorerPanel({ vitals, className }: Props) {
                               <td className="px-3 py-2 text-muted-foreground">{row.unit ?? "—"}</td>
                               <td className="hidden max-w-[12rem] truncate px-3 py-2 text-muted-foreground sm:table-cell" title={row.notes ?? undefined}>
                                 {row.notes?.trim() ? row.notes : "—"}
+                              </td>
+                              <td className="px-3 py-2">
+                                {onDelete ? (
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-7 w-7 text-slate-400 hover:text-destructive"
+                                    onClick={() => handleDelete(row.id)}
+                                  >
+                                    <Trash2 className="h-3.5 w-3.5" />
+                                  </Button>
+                                ) : null}
                               </td>
                             </tr>
                           ))}

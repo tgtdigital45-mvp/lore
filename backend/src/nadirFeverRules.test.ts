@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { evaluateNadirFeverEmergency, extractTemperature } from "./nadirFeverRules.js";
+import { evaluateNadirFeverEmergency, extractTemperature } from "./modules/alerts/nadirFeverRules.js";
 
 describe("extractTemperature", () => {
   it("parses decimal Celsius with comma", () => {

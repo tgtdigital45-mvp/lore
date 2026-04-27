@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Dimensions, Pressable, Text, View } from "react-native";
+import { Alert, Dimensions, Pressable, StyleSheet, Text, View } from "react-native";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { LineChart } from "react-native-gifted-charts";
 import { OncoCard } from "@/components/OncoCard";
@@ -14,7 +14,6 @@ import {
 } from "@/src/diary/symptomLogValue";
 import { labelForCtcaeGrade } from "@/src/diary/verbalSeverity";
 import type { AppTheme } from "@/src/theme/theme";
-import { StyleSheet } from "react-native";
 import { CircleChromeButton } from "@/src/health/components/MedicationChromeButtons";
 
 const TIMEFRAMES: { key: TimeframeKey; label: string }[] = [
@@ -81,6 +80,7 @@ type Props = {
   logs: SymptomLogRow[];
   onBack: () => void;
   onAdd: () => void;
+  onDelete?: (id: string) => Promise<void>;
 };
 
 function shortDayLabel(iso: string): string {
@@ -88,7 +88,7 @@ function shortDayLabel(iso: string): string {
   return `${d.getDate()}/${d.getMonth() + 1}`;
 }
 
-export function SymptomDetailView({ theme, symptomKey, logs, onBack, onAdd }: Props) {
+export function SymptomDetailView({ theme, symptomKey, logs, onBack, onAdd, onDelete }: Props) {
   const [tf, setTf] = useState<TimeframeKey>("S");
   const title = symptomLabel(symptomKey);
   const accent = chartColor(theme, symptomKey);
@@ -110,6 +110,20 @@ export function SymptomDetailView({ theme, symptomKey, logs, onBack, onAdd }: Pr
   }, [series, isFever]);
 
   const hasChart = lineData.length > 0;
+
+  const handleDelete = (id: string) => {
+    if (!onDelete) return;
+    Alert.alert("Excluir registro", "Deseja realmente excluir este registro de sintoma?", [
+      { text: "Cancelar", style: "cancel" },
+      {
+        text: "Excluir",
+        style: "destructive",
+        onPress: () => {
+          void onDelete(id);
+        },
+      },
+    ]);
+  };
 
   return (
     <View style={{ marginBottom: theme.spacing.lg }}>
@@ -302,6 +316,15 @@ export function SymptomDetailView({ theme, symptomKey, logs, onBack, onAdd }: Pr
                       {new Date(l.logged_at).toLocaleString("pt-BR", { dateStyle: "medium", timeStyle: "short" })}
                     </Text>
                   </View>
+                  {onDelete ? (
+                    <Pressable
+                      onPress={() => handleDelete(l.id)}
+                      hitSlop={12}
+                      style={{ padding: 4 }}
+                    >
+                      <FontAwesome name="trash-o" size={18} color={theme.colors.text.tertiary} />
+                    </Pressable>
+                  ) : null}
                 </View>
                 {noteLine ? (
                   <Text style={[theme.typography.caption1, { color: theme.colors.text.tertiary, marginTop: 4 }]} numberOfLines={2}>

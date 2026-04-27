@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { extractEvolutionInboundMessages, shouldProcessEvolutionWebhook } from "./evolutionWebhook.js";
+import { extractEvolutionInboundMessages, shouldProcessEvolutionWebhook } from "./modules/notifications/evolutionWebhook.js";
 
 /** Formato alinhado ao webhook Evolution v2 (ex.: payload recebido por integrações tipo n8n). */
 const messagesUpsertPayload = {

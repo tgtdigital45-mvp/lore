@@ -64,9 +64,16 @@ function isNavActive(pathname: string, to: string, end?: boolean): boolean {
   if (to === "/operacao-infusao" && pathname.startsWith("/operacao-infusao")) return true;
   if (to === "/agenda" && pathname.startsWith("/agenda")) return true;
   if (to === "/equipe-clinica" && pathname.startsWith("/equipe-clinica")) return true;
-  /** Painel: link pode ser `/paciente` ou `/paciente/:id` (último dossiê / demo). */
+  /** Painel: `to` = panelPath exato. Índice `/paciente` (fila) destaca "Pacientes", não este item. */
   if (to === "/paciente" || to.startsWith("/paciente/")) {
-    return pathname === "/paciente" || pathname.startsWith("/paciente/");
+    if (to === "/paciente" && pathname === "/paciente") return false;
+    return pathname === to;
+  }
+  /** Pacientes: lista, subrotas e fila de triagem em `/paciente`. */
+  if (to === "/pacientes") {
+    return (
+      pathname === "/pacientes" || pathname.startsWith("/pacientes/") || pathname === "/paciente"
+    );
   }
   if (end) return pathname === to;
   return pathname === to || pathname.startsWith(`${to}/`);

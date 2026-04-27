@@ -53,6 +53,7 @@ type Props = {
   patientId: string;
   logs: SymptomLogRow[];
   onLogged: (opts?: { insertedRow?: SymptomLogRow }) => Promise<void> | void;
+  onDeleteSymptom?: (id: string) => Promise<void>;
   onSymptomDetailFocusChange?: (key: SymptomDetailKey | null) => void;
   primaryCancerType?: string | null;
   activeTreatmentKind?: TreatmentKind | null;
@@ -63,6 +64,7 @@ export function SymptomQuickLog({
   patientId,
   logs,
   onLogged,
+  onDeleteSymptom,
   onSymptomDetailFocusChange,
   primaryCancerType,
   activeTreatmentKind,
@@ -165,6 +167,7 @@ export function SymptomQuickLog({
           attachment_storage_path: attachmentPath,
           logged_by_profile_id: actor ?? null,
         };
+
         if (!args.attachmentUri) {
           const net = await NetInfo.fetch();
           if (!net.isConnected) {
@@ -175,14 +178,37 @@ export function SymptomQuickLog({
             return;
           }
         }
-        const { data, error } = await supabase.from("symptom_logs").insert(row).select(SYMPTOM_LOG_INSERT_SELECT).single();
-        if (error) {
-          showAppToast("error", "Sintomas", error.message);
-          Alert.alert("Erro ao registrar", error.message);
+
+        const { data: symptomData, error: symptomError } = await supabase
+          .from("symptom_logs")
+          .insert(row)
+          .select(SYMPTOM_LOG_INSERT_SELECT)
+          .single();
+
+        if (symptomError) {
+          showAppToast("error", "Sintomas", symptomError.message);
+          Alert.alert("Erro ao registrar", symptomError.message);
           return;
         }
+
+        const inserted = symptomData as SymptomLogRow | null;
+
+        // Se for febre com temperatura, registar também em vital_logs para unificação
+        if (symptom_category === "fever" && args.body_temperature != null && inserted?.id) {
+          const { error: vitalError } = await supabase.from("vital_logs").insert({
+            patient_id: patientId,
+            vital_type: "temperature",
+            value_numeric: args.body_temperature,
+            unit: "°C",
+            logged_at: args.logged_at,
+            metadata: { symptom_log_id: inserted.id },
+          });
+          if (vitalError) {
+            console.warn("[SymptomQuickLog] Failed to sync fever to vital_logs:", vitalError.message);
+          }
+        }
+
         setTemperature("");
-        const inserted = data as SymptomLogRow | null;
         showAppToast("success", "Sintomas", "Registo guardado.");
         runTriageUi(inserted?.triage_semaphore ?? null);
         await finishLogAndNavigate(inserted);
@@ -209,6 +235,7 @@ export function SymptomQuickLog({
           returnToDetailKeyRef.current = wizard.key;
           setWizard(destinationToWizard(dest));
         }}
+        onDelete={onDeleteSymptom}
       />
     );
   }

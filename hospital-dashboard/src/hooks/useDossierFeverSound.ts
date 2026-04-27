@@ -162,6 +162,18 @@ export function useDossierFeverSound(
     }
   }, []);
 
+  /**
+   * Stable ref so the subscription effect doesn't re-run every time
+   * feverSoundEnabled changes (which would rebuild tryHandleNewFever through
+   * the chain: feverSoundEnabled → playBeepIfOn → notifyFever → tryHandleNewFever).
+   * Re-subscribing with the same channel name after subscribe() is already called
+   * throws "cannot add postgres_changes callbacks after subscribe()".
+   */
+  const tryHandleNewFeverRef = useRef(tryHandleNewFever);
+  useEffect(() => {
+    tryHandleNewFeverRef.current = tryHandleNewFever;
+  }, [tryHandleNewFever]);
+
   useEffect(() => {
     if (!patientId) return;
     if (!feverCelsiusMins.length) return;
@@ -183,14 +195,17 @@ export function useDossierFeverSound(
         },
         (payload) => {
           const row = payload.new as { id?: string; body_temperature?: string | number | null };
-          tryHandleNewFever(row.id, row.body_temperature);
+          tryHandleNewFeverRef.current(row.id, row.body_temperature);
         }
       )
       .subscribe();
     return () => {
       void supabase.removeChannel(ch);
     };
-  }, [patientId, feverCelsiusMins, tryHandleNewFever]);
+    // Only re-subscribe when the channel identity changes (patient or thresholds).
+    // tryHandleNewFever is kept current via tryHandleNewFeverRef above.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [patientId, feverCelsiusMins]);
 
   return { feverSoundEnabled, setFeverSoundEnabled, hasFeverRules: true as const };
 }

@@ -17,6 +17,7 @@ import { useStackBack } from "@/src/hooks/useStackBack";
 import { usePinnedCategoryShortcut } from "@/src/hooks/usePinnedCategoryShortcut";
 import { useTreatmentCycles } from "@/src/hooks/useTreatmentCycles";
 import { supabase } from "@/src/lib/supabase";
+import { showAppToast } from "@/src/lib/appToast";
 
 export default function DiaryScreen() {
   const { theme } = useAppTheme();
@@ -65,6 +66,32 @@ export default function DiaryScreen() {
       }
       await loadLogs();
       await refresh();
+    },
+    [loadLogs, refresh]
+  );
+
+  const onDeleteSymptom = useCallback(
+    async (id: string) => {
+      try {
+        // Primeiro, tentar remover de vital_logs se houver link na metadata
+        // Nota: as políticas RLS garantem que só o dono apaga.
+        // Como o Supabase não suporta delete join/subquery direto via postgrest de forma simples para metadata,
+        // faremos a limpeza aqui se soubermos que é febre, ou deixaremos a lógica de integridade.
+        // Para ser robusto, tentamos apagar de vital_logs onde metadata->>'symptom_log_id' = id
+        await supabase.from("vital_logs").delete().filter("metadata->>symptom_log_id", "eq", id);
+
+        const { error } = await supabase.from("symptom_logs").delete().eq("id", id);
+        if (error) {
+          showAppToast("error", "Sintomas", error.message);
+        } else {
+          showAppToast("success", "Sintomas", "Registo removido.");
+          await loadLogs();
+          await refresh();
+        }
+      } catch (e) {
+        console.error("[onDeleteSymptom]", e);
+        showAppToast("error", "Sintomas", "Erro ao remover registo.");
+      }
     },
     [loadLogs, refresh]
   );
@@ -148,6 +175,7 @@ export default function DiaryScreen() {
             patientId={patient.id}
             logs={logs}
             onLogged={onLogged}
+            onDeleteSymptom={onDeleteSymptom}
             onSymptomDetailFocusChange={setSymptomDetailFocus}
             primaryCancerType={patient.primary_cancer_type}
             activeTreatmentKind={cycles.find((c) => c.status === "active")?.treatment_kind ?? null}

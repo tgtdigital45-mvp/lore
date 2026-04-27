@@ -93,6 +93,7 @@ export default {
       },
       fontFamily: {
         sans: ["var(--font-inter)", "system-ui", "sans-serif"],
+        serif: ["var(--font-lora)", "Georgia", "serif"],
         mono: ["'JetBrains Mono'", "'Fira Code'", "ui-monospace", "monospace"],
       },
       letterSpacing: {

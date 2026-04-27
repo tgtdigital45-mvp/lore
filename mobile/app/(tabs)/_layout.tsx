@@ -49,7 +49,7 @@ export default function TabLayout() {
         tabBar={(props) => <FloatingPillTabBar {...props} />}
         screenOptions={{
           swipeEnabled: true,
-          animationEnabled: true,
+          animationEnabled: false,
           sceneStyle: { backgroundColor: FLOATING_TAB_BAR_SURFACE_TRANSPARENT },
           tabBarIndicatorStyle: { height: 0 },
           tabBarStyle: {
@@ -59,7 +59,11 @@ export default function TabLayout() {
             shadowOpacity: 0,
           },
         }}
-      />
+      >
+        <MaterialTopTabsLayout.Screen name="index" options={{ title: "Resumo" }} />
+        <MaterialTopTabsLayout.Screen name="exams" options={{ title: "Exames" }} />
+        <MaterialTopTabsLayout.Screen name="health" options={{ title: "Buscar" }} />
+      </MaterialTopTabsLayout>
     </TabBarInsetContext.Provider>
   );
 }

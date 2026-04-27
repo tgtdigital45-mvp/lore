@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import React, { useEffect, useRef, useState } from "react";
 import Link from "next/link";
@@ -204,6 +204,36 @@ export function PatientDossierPage() {
     });
     return () => sub.subscription.unsubscribe();
   }, []);
+
+  const handleSymptomDelete = async (id: string) => {
+    try {
+      // Sync delete vital if linked
+      await supabase.from("vital_logs").delete().filter("metadata->>symptom_log_id", "eq", id);
+      const { error } = await supabase.from("symptom_logs").delete().eq("id", id);
+      if (error) {
+        toast.error("Erro ao remover sintoma: " + error.message);
+      } else {
+        toast.success("Sintoma removido com sucesso.");
+        void refreshClinical();
+      }
+    } catch (e) {
+      toast.error("Erro inesperado ao remover sintoma.");
+    }
+  };
+
+  const handleVitalDelete = async (id: string) => {
+    try {
+      const { error } = await supabase.from("vital_logs").delete().eq("id", id);
+      if (error) {
+        toast.error("Erro ao remover sinal vital: " + error.message);
+      } else {
+        toast.success("Sinal vital removido.");
+        void refreshClinical();
+      }
+    } catch (e) {
+      toast.error("Erro inesperado ao remover sinal vital.");
+    }
+  };
 
   useEffect(() => {
     if (!patientId || !riskRow) return;
@@ -804,7 +834,7 @@ export function PatientDossierPage() {
           exit="exit"
         >
         <Card className="dossier-glass-card rounded-3xl border-0 p-6 shadow-none transition-all duration-200 hover:shadow-lg">
-          <PatientDiarioPanel modalLoading={loading} modalSymptoms={symptoms} />
+          <PatientDiarioPanel modalLoading={loading} modalSymptoms={symptoms} onDelete={handleSymptomDelete} />
         </Card>
         </motion.div>
       ) : null}
@@ -934,7 +964,7 @@ export function PatientDossierPage() {
             <HeartPulse className="size-5 text-teal-700" />
             Sinais vitais
           </h2>
-          <VitalsExplorerPanel vitals={vitals} />
+          <VitalsExplorerPanel vitals={vitals} onDelete={handleVitalDelete} />
           <div className="mt-6 rounded-2xl border border-slate-100 bg-slate-50/80 px-3 py-2 text-center text-sm text-slate-600">
             <span className="font-semibold text-slate-800">VFC (wearable, último): </span>
             {(() => {

@@ -10,6 +10,6 @@ export function getApiBaseUrl(): string {
   const fromExtra = typeof extra?.apiUrl === "string" ? extra.apiUrl.trim() : "";
   const fromEnv =
     typeof process.env.EXPO_PUBLIC_API_URL === "string" ? process.env.EXPO_PUBLIC_API_URL.trim() : "";
-  const base = fromExtra || fromEnv || "http://localhost:3000";
+  const base = fromExtra || fromEnv || "http://localhost:3001";
   return base.replace(/\/$/, "");
 }

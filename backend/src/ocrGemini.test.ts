@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildOcrMetricsFromMarkersFallback, parseOcrModelJsonText } from "./ocrGemini.js";
+import { buildOcrMetricsFromMarkersFallback, parseOcrModelJsonText } from "./lib/ocrGemini.js";
 
 describe("buildOcrMetricsFromMarkersFallback", () => {
   it("produces entries from string values", () => {
