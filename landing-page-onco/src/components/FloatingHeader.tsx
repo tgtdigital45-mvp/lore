@@ -1,47 +1,46 @@
 import { Link } from 'react-router-dom'
 
 const navLinkClass =
-  'rounded-full px-3 py-2 text-sm font-medium text-[#3A3A3C] transition hover:bg-black/5 hover:text-[#1C1C1E] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#007AFF]'
+  'px-4 py-2 text-sm font-medium text-slate-600 transition hover:text-slate-900 focus-visible:outline-none'
 
 export function FloatingHeader() {
   return (
-    <header className="pointer-events-none fixed left-0 right-0 top-4 z-50 bg-transparent px-3 sm:px-4">
-      <div
-        className="pointer-events-auto relative mx-auto flex max-w-5xl items-center justify-between gap-3 rounded-full border border-white/50 bg-white/65 py-2.5 pl-4 pr-2.5 shadow-[0_8px_32px_rgba(0,0,0,0.08)] ring-1 ring-black/5 backdrop-blur-xl backdrop-saturate-150 sm:pl-5 sm:pr-3"
-        role="banner"
-      >
-        <Link
-          to="/"
-          className="relative z-10 shrink-0 text-lg font-bold tracking-tight text-[#007AFF] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#007AFF] sm:text-xl"
-        >
-          Aura Onco
+    <header className="fixed left-0 right-0 top-0 z-50 bg-white/70 backdrop-blur-xl border-b border-slate-100">
+      <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
+        <Link to="/" className="flex items-center gap-2 focus-visible:outline-none">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-600 text-white font-black text-xl">
+            A
+          </div>
+          <span className="text-xl font-bold tracking-tight text-slate-900">
+            Aura Onco
+          </span>
         </Link>
 
-        <nav
-          className="absolute left-1/2 top-1/2 hidden -translate-x-1/2 -translate-y-1/2 items-center gap-0.5 md:flex"
-          aria-label="Principal"
-        >
-          <Link to="/funcionalidades" className={navLinkClass}>
-            Funcionalidades
-          </Link>
-          <Link to="/hospitais" className={navLinkClass}>
-            Hospitais
-          </Link>
-          <Link to="/cuidadores" className={navLinkClass}>
-            Cuidadores
-          </Link>
-          <Link to="/sobre" className={navLinkClass}>
-            Sobre
-          </Link>
+        <nav className="hidden items-center gap-2 md:flex">
+          <Link to="/" className={navLinkClass}>Início</Link>
+          <Link to="/sobre" className={navLinkClass}>Sobre nós</Link>
+          <Link to="/funcionalidades" className={navLinkClass}>Funcionalidades</Link>
+          <Link to="/hospitais" className={navLinkClass}>Para Clínicas</Link>
         </nav>
 
-        <a
-          href="/#download"
-          className="relative z-10 inline-flex min-h-[40px] shrink-0 items-center justify-center rounded-full bg-[#007AFF] px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-[#0066DD] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#007AFF] sm:px-5"
-        >
-          Baixar grátis
-        </a>
+        <div className="flex items-center gap-4">
+          <Link
+            to="/contato"
+            className="hidden text-sm font-medium text-slate-600 hover:text-slate-900 md:block"
+          >
+            Entrar
+          </Link>
+          <button
+            className="rounded-full bg-slate-900 px-6 py-2.5 text-sm font-bold text-white shadow-lg transition hover:bg-black active:scale-95"
+          >
+            Começar agora
+          </button>
+        </div>
       </div>
     </header>
   )
+}
+
+function cn(...classes: any[]) {
+  return classes.filter(Boolean).join(' ')
 }

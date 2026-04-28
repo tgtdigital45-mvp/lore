@@ -1,6 +1,6 @@
 # OncoCare — Plataforma de acompanhamento oncológico
 
-**Um dia de cada vez** · HealthTech / orientação **SaMD** · Monorepo com app **Expo**, **dashboard hospitalar**, **API Node**, **Supabase** e **IA** (Gemini / OpenAI).
+**Um dia de cada vez** · HealthTech / orientação **SaMD** · Monorepo com app **Expo**, **dashboard hospitalar (Next.js)**, **API Node**, **Supabase** e **IA** (Gemini / OpenAI).
 
 Este repositório está documentado para **onboarding de engenharia**, **revisão de arquitetura** e **contexto de contratação**: abaixo tens visão de produto, stack, fluxos, índice completo de `docs/` e arranque local.
 
@@ -11,7 +11,7 @@ Este repositório está documentado para **onboarding de engenharia**, **revisã
 | [`backend/`](backend/) | [`backend/README.md`](backend/README.md) | API Express: OCR, IA, R2, WhatsApp **Meta** e **Evolution**, webhooks assinados. |
 | [`supabase/`](supabase/) | [`supabase/README.md`](supabase/README.md) | Migrações Postgres/RLS/Realtime e visão do stack de dados. |
 | [`supabase/functions/`](supabase/functions/) | [`supabase/functions/README.md`](supabase/functions/README.md) | Edge Functions: cron, alertas, relatório de evolução, questionário PRO. |
-| [`hospital-dashboard/`](hospital-dashboard/) | [`hospital-dashboard/README.md`](hospital-dashboard/README.md) | SPA triagem + dossiê + agenda + mensagens; variáveis `VITE_*`. |
+| [`hospital-dashboard/`](hospital-dashboard/) | [`hospital-dashboard/README.md`](hospital-dashboard/README.md) | Next.js App Router: triagem + dossiê + agenda + mensagens; variáveis `NEXT_PUBLIC_*`. |
 | [`mobile/`](mobile/) | [`mobile/README.md`](mobile/README.md) | App Expo paciente; EAS e variáveis `EXPO_PUBLIC_*`. |
 | [`.maestro/`](.maestro/) | [`.maestro/README.md`](.maestro/README.md) | Suite E2E Maestro (caminho crítico móvel). |
 
@@ -51,7 +51,7 @@ Este repositório está documentado para **onboarding de engenharia**, **revisã
 flowchart TB
   subgraph clients [Clientes]
     Mobile[App Expo iOS/Android]
-    Dash[Dashboard Vite Web]
+    Dash[Dashboard Next.js Web]
     Land[Landing Vite Web]
   end
   subgraph supa [Supabase]
@@ -89,7 +89,7 @@ flowchart TB
   EF --> ExpoPush
 ```
 
-A **landing** (`landing-page-onco`) é uma SPA estática de marketing — não aparece ligada a Supabase nem ao Express neste diagrama.
+A **landing** (`landing-page-onco`) é uma SPA estática de marketing (Vite) — não aparece ligada a Supabase nem ao Express neste diagrama.
 
 - **Fonte de verdade dos dados:** PostgreSQL no Supabase, com **Row Level Security** por utilizador e por vínculo hospitalar.
 - **Backend Express:** rotas que precisam de segredos de servidor (OCR, LLM, R2, WhatsApp **Meta Cloud** e/ou **Evolution API**), sempre com **Bearer JWT** do Supabase nas rotas autenticadas. O fornecedor ativo pode ser selecionado com `MESSAGING_PROVIDER` — ver [`backend/README.md`](backend/README.md) e [`backend/.env.example`](backend/.env.example).
@@ -99,7 +99,7 @@ A **landing** (`landing-page-onco`) é uma SPA estática de marketing — não a
 
 | Camada | Responsabilidade |
 |--------|------------------|
-| **Apresentação** | Expo (paciente), Vite+React (dashboard, landing). |
+| **Apresentação** | Expo (paciente), Next.js (dashboard), Vite (landing). |
 | **API aplicacional** | Express: validação (Zod), rate limit, orquestração IA, storage R2. |
 | **Dados** | Supabase Postgres + RLS; RPCs e triggers para regras e auditoria. |
 | **Integrações** | Gemini/OpenAI, Meta WhatsApp, Expo Push, webhooks assinados (alertas). |
@@ -168,8 +168,8 @@ flowchart TB
 | Pasta | Descrição | README local |
 |-------|-----------|--------------|
 | [`mobile/`](mobile/) | App **Expo Router** — paciente | [`mobile/README.md`](mobile/README.md) |
-| [`hospital-dashboard/`](hospital-dashboard/) | **SPA** equipa clínica + Realtime | [`hospital-dashboard/README.md`](hospital-dashboard/README.md) |
-| [`landing-page-onco/`](landing-page-onco/) | Site marketing | [`landing-page-onco/README.md`](landing-page-onco/README.md) |
+| [`hospital-dashboard/`](hospital-dashboard/) | **Next.js 15** equipa clínica + Realtime | [`hospital-dashboard/README.md`](hospital-dashboard/README.md) |
+| [`landing-page-onco/`](landing-page-onco/) | **SPA Vite** site marketing | [`landing-page-onco/README.md`](landing-page-onco/README.md) |
 | [`backend/`](backend/) | **Express**: agente, OCR, exames, WhatsApp (Meta + Evolution), suporte | [`backend/README.md`](backend/README.md) + [`backend/.env.example`](backend/.env.example) |
 | [`supabase/migrations/`](supabase/migrations/) | Schema evolutivo, RLS, funções | [`supabase/README.md`](supabase/README.md) — aplicar em ordem ao projeto |
 | [`supabase/functions/`](supabase/functions/) | Edge Functions (lembretes, notify, relatórios) | [`supabase/functions/README.md`](supabase/functions/README.md) |
@@ -185,7 +185,7 @@ Não existe `package.json` na **raiz**; cada app é um projeto Node independente
 | Área | Tecnologias |
 |------|-------------|
 | Mobile | Expo ~54, expo-router, React, TypeScript, TanStack Query, Supabase JS |
-| Dashboard / Landing | Vite, React 19, React Router 7; landing com Tailwind v4 |
+| Dashboard / Landing | Next.js 15 (dashboard), Vite (landing); landing com Tailwind v4 |
 | Backend | Node, Express, Helmet, CORS, express-rate-limit, Zod, Gemini & OpenAI SDKs, AWS SDK (R2) |
 | Dados & auth | Supabase (PostgreSQL, Auth, Storage, Realtime), RLS |
 | IA | Google Gemini (triagem JSON), OpenAI (suporte, fallback OCR) |
@@ -252,11 +252,8 @@ npx expo start
 - `EXPO_PUBLIC_API_URL` deve apontar para o backend (ex.: `http://localhost:3001` ou IP da LAN / `10.0.2.2` no emulador Android).
 - Detalhes: [`mobile/README.md`](mobile/README.md).
 
-### 7.4 Hospital dashboard
-
-```bash
 cd hospital-dashboard
-# .env: VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY, VITE_BACKEND_URL
+# .env: NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY, NEXT_PUBLIC_API_URL
 npm install
 npm run dev
 ```

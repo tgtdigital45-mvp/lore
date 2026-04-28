@@ -1,104 +1,150 @@
-# OncoCare — Dashboard hospitalar (Vite + React)
+# OncoCare — Dashboard Hospitalar (Next.js 15)
 
-**Sumário executivo:** o **dashboard hospitalar** é a aplicação web utilizada por **equipas clínicas e administrativas** para triagem, prontuário longitudinal do paciente, agenda de recursos, mensagens (incl. integração WhatsApp via backend), operações de infusão e definições do hospital. Consome **Supabase** (Auth, Postgres, **Realtime**) com políticas RLS adequadas ao contexto staff, e o **backend Express** para OCR, ficheiros, envio de mensagens e relatórios que exigem segredos de servidor.
+**Sumário executivo:** O **OncoCare Dashboard** é o centro de comando clínico e administrativo para hospitais oncológicos. Desenvolvido em **Next.js 15 (App Router)**, permite triagem em tempo real, gestão longitudinal de dossiês de pacientes, agendamentos sincronizados e comunicação integrada (WhatsApp). Consome **Supabase** para dados/autenticação e um **Backend Express** para operações críticas (OCR, IA, R2).
 
 ---
 
-## 1. Valor de negócio (o que entregamos)
+## 📑 Índice
+
+1. [Visão do Produto](#1-visão-do-produto)
+2. [Arquitetura do Sistema](#2-arquitetura-do-sistema)
+3. [Camadas Lógicas](#3-camadas-lógicas)
+4. [Fluxos Principais](#4-fluxos-principais)
+5. [Estrutura do Projeto](#5-estrutura-do-projeto)
+6. [Stack Tecnológica](#6-stack-tecnológica)
+7. [Bibliotecas e Dependências](#7-bibliotecas-e-dependências)
+8. [Arranque e Configuração (Setup)](#8-arranque-e-configuração-setup)
+9. [Segurança e Compliance](#9-segurança-e-compliance)
+10. [Roadmap](#10-roadmap)
+11. [Licença](#11-licença)
+
+---
+
+## 🎯 1. Visão do Produto
+
+O dashboard resolve o "gap" de informação entre o paciente (mobile) e a equipa clínica, oferecendo uma visão 360º do paciente sem necessidade de múltiplos sistemas manuais.
 
 | Capacidade | Descrição |
 |------------|-----------|
-| **Triagem e dossiê** | Área `paciente/` com lista contextual e **dossiê por paciente** (abas: resumo, linha do tempo, métricas, ficha, tratamento, toxicidade, resposta tumoral, QoL, risco, tarefas, exames, medicamentos, diário, nutrição, atividades, agendamentos, mensagens). |
-| **Operação** | Agenda de recursos, página de **operação de infusão**, workspace de **mensagens**. |
-| **Governança** | Configurações do hospital, conta staff, export FHIR onde aplicável, histórico de vínculos e pedidos pendentes. |
-| **Experiência** | Layout responsivo, componentes de skeleton, integração com **painel por defeito** após login (memória de última visita). |
+| **Workspace de Início** | Localizado em `/inicio`, apresenta a fila de triagem dinâmica com alertas de risco (Nadir, Febre). |
+| **Dossiê Clínico** | Acesso via `/inicio/:patientId`. Painel denso com visão 3D anatómica, métricas de toxicidade (CTCAE), linha do tempo e exames. |
+| **Gestão de Agenda** | Sincronização de recursos hospitalares e infusões. |
+| **Central de Mensagens** | Workspace para chat direto com pacientes, integrando histórico de mensagens e anexos. |
 
 ---
 
-## 2. Stack técnica
+## 🏗️ 2. Arquitetura do Sistema
 
-| Camada | Tecnologia |
-|--------|------------|
-| Build | **Vite 6**, **React 19**, **React Router 7** |
-| Linguagem | **TypeScript** |
-| Dados | **@supabase/supabase-js** (sessão staff, queries, **Realtime**) |
-| Estilo | **Tailwind CSS** (ver `tailwind.config.js`) |
-| Modelo | **SPA** — shell de rotas em `src/App.tsx` |
+O dashboard opera como um cliente de alta fidelidade que se comunica com dois serviços principais:
+
+- **Supabase**: Fonte da verdade para dados clínicos (via RLS), autenticação de staff e atualizações em tempo real (fila de triagem).
+- **Backend Node/Express**: Orquestrador de tarefas "pesadas" (OCR de exames, IA generativa, armazenamento Cloudflare R2).
 
 ---
 
-## 3. Rotas principais (`src/App.tsx`)
+## 🧱 3. Camadas Lógicas
 
-| Rota | Módulo |
-|------|--------|
-| `/` | Redireciona para o painel por defeito (ex.: triagem ou lista de pacientes). |
-| `/paciente` | Workspace de triagem (placeholder ou lista). |
-| `/paciente/:patientId` | **Dossiê do paciente** (lazy `PatientDossierRoute`). |
-| `/pacientes` | Lista e gestão de pacientes. |
-| `/agenda` | Agenda; `/agenda/recurso/:resourceId` detalhe de recurso. |
-| `/mensagens` | Workspace de mensagens. |
-| `/configuracoes` | Definições do hospital. |
-| `/operacao-infusao` | Dashboard operacional de infusão. |
-| `/conta` | Definições da conta staff. |
-
-### Fluxo canónico staff: triagem → dossiê
-
-1. **`TriageWorkspaceLayout`** (`/paciente`): coluna central com a fila (`TriagePatientCard`); à direita, `<Outlet />` para o detalhe.
-2. **Abrir dossiê:** clique no cartão ou no link do paciente navega para **`/paciente/:patientId`** (ver `TriagePatientCard.tsx`).
-3. **`PatientDossierRoute`:** só monta `PatientDossierPage` se o `patientId` existir na fila atual (`useOncoCare().rows`); caso contrário redireciona para `/paciente`.
-4. **Conteúdo clínico:** o dossiê completo (abas, gráficos, exames, diário, etc.) vive em **`PatientDossierPage`** — não há modal legado de prontuário; **`AddPatientModal`** em `/pacientes` é só para inclusão de paciente.
+| Camada | Tecnologia / Padrão |
+|--------|----------------------|
+| **Roteamento** | Next.js App Router (File-based) |
+| **Estado Global** | Context API (`OncoCareContext`) + TanStack Query |
+| **Componentes UI** | Tailwind CSS + Radix UI + Lucide Icons |
+| **Realtime** | Supabase Postgres Changes (Realtime) para a fila |
+| **Lazy Loading** | `next/dynamic` para abas pesadas do dossiê |
 
 ---
 
-## 4. Variáveis de ambiente
+## 🔄 4. Fluxos Principais
 
-Criar `hospital-dashboard/.env`:
+### Fluxo de Triagem (Workspace)
+1. O staff entra em `/inicio`.
+2. O `TriageWorkspaceLayout` subscreve à tabela `patient_hospital_links` via Supabase Realtime.
+3. Alertas de "Febre" ou "Nadir" fazem os cartões de paciente pulsarem na fila.
+4. Ao selecionar um paciente, a URL muda para `/inicio/[patientId]`, abrindo o `PatientDossierPage`.
 
-| Variável | Obrigatório | Descrição |
-|----------|-------------|-----------|
-| `VITE_SUPABASE_URL` | Sim | URL do projeto Supabase |
-| `VITE_SUPABASE_ANON_KEY` | Sim | Chave **anon** (pública) do Supabase |
-| `VITE_BACKEND_URL` | Recomendado em produção | URL do backend **sem** barra final (OCR, WhatsApp, relatórios, exames) |
-
-**Desenvolvimento:** com `npm run dev`, o Vite pode reencaminhar `/api/*` para `http://127.0.0.1:3001` — ver `vite.config.ts`. Em **produção**, defina sempre `VITE_BACKEND_URL` em HTTPS e alinhe **`CORS_ORIGINS`** no backend.
+### Otimização 1366x768 (Solo Mode)
+Para resoluções menores, o sistema entra em **Modo Solo**: ao abrir um dossiê, a fila lateral é ocultada para priorizar a área clínica, com um botão "Voltar para a fila" visível no topo.
 
 ---
 
-## 5. Comandos
+## 📂 5. Estrutura do Projeto
 
+```text
+src/
+├── app/                  # Rotas Next.js (App Router)
+│   ├── (shell)/          # Layouts com sidebar/header
+│   │   ├── inicio/       # Workspace de triagem e dossiê (Antigo /paciente)
+│   │   └── pacientes/    # Listagem geral e gestão
+├── components/           # Componentes atómicos e moleculares
+│   ├── oncocare/         # UI específica do domínio hospitalar
+│   ├── patient/          # Componentes do dossiê e abas
+│   └── ui/               # Primitivas shadcn/ui
+├── context/              # Contextos React (Auth, OncoCare)
+├── lib/                  # Utilitários, formatação, config supabase
+├── types/                # Definições TypeScript
+└── views/                # Layouts de página de alto nível
+```
+
+---
+
+## 🛠️ 6. Stack Tecnológica
+
+- **Framework**: Next.js 15.1.x
+- **Linguagem**: TypeScript
+- **Estilo**: Tailwind CSS (Mobile-First + Fluid Design via `clamp()`)
+- **Base de Dados/Auth**: Supabase
+- **Animações**: Framer Motion / CSS Transitions
+
+---
+
+## 📚 7. Bibliotecas e Dependências
+
+- `lucide-react`: Iconografia.
+- `recharts`: Gráficos de evolução de métricas.
+- `framer-motion`: Transições suaves entre abas.
+- `sonner`: Sistema de toasts e notificações.
+- `date-fns`: Manipulação robusta de datas em PT-PT/BR.
+
+---
+
+## 🚀 8. Arranque e Configuração (Setup)
+
+### Variáveis de Ambiente (`.env`)
 ```bash
-cd hospital-dashboard
+NEXT_PUBLIC_SUPABASE_URL=https://xyz.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJ...
+NEXT_PUBLIC_API_URL=http://localhost:3001 # Backend API
+```
+
+### Instalação
+```bash
 npm install
 npm run dev
 ```
 
-```bash
-npm run build
-npm run preview
-npm run lint
-```
+---
+
+## 🔒 9. Segurança e Compliance
+
+- **RLS (Row Level Security)**: O dashboard só exibe pacientes cujos vínculos com o hospital logado estão aprovados.
+- **Auditoria**: Todas as alterações via RPC no Supabase são registradas com o ID do staff.
+- **SaMD (Software as a Medical Device)**: Interface segue princípios de segurança clínica, sem realizar diagnósticos autónomos.
 
 ---
 
-## 6. Integrações com o monorepo
+## 🗺️ 10. Roadmap
 
-| Sistema | README |
-|---------|--------|
-| Backend API | [`../backend/README.md`](../backend/README.md) |
-| Supabase (migrações, funções) | [`../supabase/README.md`](../supabase/README.md), [`../supabase/functions/README.md`](../supabase/functions/README.md) |
-| App paciente | [`../mobile/README.md`](../mobile/README.md) |
-| Visão global | [`../README.md`](../README.md) |
-
-Contratos e sprints históricos: [`../docs/data-contract-dashboard.md`](../docs/data-contract-dashboard.md), [`../docs/hospital-dashboard-sprint.md`](../docs/hospital-dashboard-sprint.md).
+- [x] Migração para Next.js 15.
+- [x] Otimização para monitores 1366x768 (Vertical Responsiveness).
+- [x] Renomeação da rota operacional para `/inicio`.
+- [ ] Exportação de relatórios em padrão FHIR.
+- [ ] Visualizador DICOM integrado.
 
 ---
 
-## 7. Notas de compliance e operações
+## 📄 11. Licença
 
-- **Não** commitar `.env` com chaves reais.
-- Deploy (ex.: Vercel): configurar `VITE_*` no painel; validar cookies/sessão e domínios permitidos no Supabase Auth.
-- A superfície de dados depende das **políticas RLS** — qualquer alteração de schema deve ser acompanhada de testes de autorização.
+Propriedade privada e confidencial de **OncoCare / Aura Onco**. Todos os direitos reservados.
 
 ---
-
-*Documentação de pasta: onboarding de engenharia frontend, handover para equipa de produto e suporte a auditorias técnicas.*
+*Este README foi atualizado para refletir a nova arquitetura Next.js e as otimizações de fluxo operacional.*
