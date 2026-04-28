@@ -49,16 +49,16 @@ export function DossierPatientHeader({
     riskRow.risk >= 3 ? "Quente" : riskRow.risk >= 2 ? "Morno" : "Frio";
 
   return (
-    <div className={cn("border-b border-slate-100 bg-white px-4 py-6 md:px-6", className)}>
-      <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
+    <div className={cn("border-b border-slate-100 bg-white px-[clamp(12px,2vw,32px)] py-[clamp(12px,2vw,24px)]", className)}>
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div className="flex min-w-0 gap-4">
-          <Avatar className="size-14 shrink-0 rounded-full border-2 border-white shadow-card ring-2 ring-teal-100 md:size-16">
+          <Avatar className="size-[clamp(48px,5vw,64px)] shrink-0 rounded-full border-2 border-white shadow-card ring-2 ring-teal-100">
             {avatarUrl ? <AvatarImage src={avatarUrl} alt="" referrerPolicy="no-referrer" className="object-cover" /> : null}
             <AvatarFallback className="bg-gradient-to-br from-teal-400 to-teal-700 text-lg font-black text-white">{initials}</AvatarFallback>
           </Avatar>
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
-              <h1 className="text-2xl font-black tracking-tight text-slate-900 md:text-3xl">{name}</h1>
+              <h1 className="text-[clamp(20px,2.5vw,32px)] font-black tracking-tight text-slate-900 leading-tight">{name}</h1>
               {riskRow.current_stage ? (
                 <Badge className="rounded-full border-0 bg-lime-200 px-3 py-1 text-xs font-bold text-lime-900">
                   {riskRow.current_stage}
@@ -74,8 +74,8 @@ export function DossierPatientHeader({
                 </Badge>
               ) : null}
             </div>
-            <p className="mt-2 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-sm text-slate-500">
-              <span>
+            <p className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[clamp(12px,0.8vw,14px)] text-slate-500">
+              <span className="font-medium">
                 {age ?? "—"} anos
               </span>
               <span aria-hidden>·</span>
@@ -93,7 +93,7 @@ export function DossierPatientHeader({
                 {patientCodeVisible ? <EyeOff className="size-3.5" aria-hidden /> : <Eye className="size-3.5" aria-hidden />}
               </button>
             </p>
-            <p className="mt-1 text-sm font-semibold text-slate-800">{cancer}</p>
+            <p className="mt-1 text-[clamp(12px,0.8vw,14px)] font-semibold text-slate-800">{cancer}</p>
           </div>
         </div>
 
@@ -122,7 +122,7 @@ export function DossierPatientHeader({
               </span>
             </label>
           ) : null}
-          <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-right text-xs sm:text-sm">
+          <div className="grid grid-cols-2 gap-x-[clamp(16px,2vw,32px)] gap-y-2 text-right text-[clamp(11px,0.7vw,13px)]">
             <div>
               <p className="font-medium uppercase tracking-wide text-slate-400">Prioridade</p>
               <p className="font-semibold text-slate-800">{rating}</p>

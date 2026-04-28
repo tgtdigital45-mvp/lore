@@ -8,7 +8,7 @@ import { SkeletonPulse } from "@/components/ui/SkeletonPulse";
 import { Button } from "@/components/ui/button";
 
 /**
- * Só renderiza o dossiê se o id estiver na fila atual (vínculos aprovados). Caso contrário redireciona para `/paciente`.
+ * Só renderiza o dossiê se o id estiver na fila atual (vínculos aprovados). Caso contrário redireciona para `/inicio`.
  */
 export function PatientDossierRoute() {
   const params = useParams();
@@ -27,7 +27,7 @@ export function PatientDossierRoute() {
     if (loadError) return;
     if (busy) return;
     if (patientId && !allowed.has(patientId)) {
-      router.replace("/paciente");
+      router.replace("/inicio");
     }
   }, [loadError, busy, patientId, allowed, router]);
 

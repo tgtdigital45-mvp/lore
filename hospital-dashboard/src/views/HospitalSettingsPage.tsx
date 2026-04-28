@@ -164,7 +164,7 @@ export function HospitalSettingsPage() {
       variants={listContainerVariants}
       initial="hidden"
       animate="visible"
-      className="mx-auto max-w-4xl space-y-8 px-4 py-8"
+      className="mx-auto min-h-0 w-full min-w-0 max-w-4xl space-y-8 px-4 py-8"
     >
       <motion.div variants={listItemVariants}>
         <h1 className="text-2xl font-black tracking-tight">Configurações da empresa</h1>

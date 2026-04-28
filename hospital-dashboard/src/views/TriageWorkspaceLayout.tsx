@@ -2,7 +2,9 @@
 
 import { useMemo, useState, type ReactNode } from "react";
 import { motion } from "framer-motion";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
+import Link from "next/link";
+import { ArrowLeft } from "lucide-react";
 import { TriageWorkspaceProvider } from "@/context/TriageWorkspaceContext";
 import { useOncoCare } from "@/context/OncoCareContext";
 import { PendingStaffLinksPanel } from "@/components/oncocare/PendingStaffLinksPanel";
@@ -83,7 +85,7 @@ export function TriageWorkspaceLayout({ children }: { children: ReactNode }) {
   return (
     <div
       className={cn(
-        "flex w-full min-w-0 flex-1 min-h-0 flex-col pb-4 lg:pb-6",
+        "flex min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden pb-4 lg:pb-6",
         selectedPatientId ? "gap-2 lg:gap-3" : "gap-5 lg:gap-6"
       )}
     >
@@ -108,16 +110,16 @@ export function TriageWorkspaceLayout({ children }: { children: ReactNode }) {
 
       <div
         className={cn(
-          "grid flex-1 min-h-0 gap-4 sm:gap-5 xl:items-stretch xl:gap-4 2xl:gap-5",
+          "grid flex-1 min-h-0 w-full min-w-0 overflow-hidden",
           selectedPatientId
-            ? "grid-cols-1 max-xl:min-h-[min(88dvh,900px)] lg:min-h-[calc(100dvh-9rem)] xl:min-h-0 xl:h-[calc(100dvh-7.5rem)] xl:max-h-[calc(100dvh-7.5rem)] xl:grid-cols-[minmax(260px,min(36vw,420px))_minmax(0,1fr)] 2xl:grid-cols-[minmax(300px,400px)_minmax(0,1fr)]"
-            : "grid-cols-1"
+            ? "grid-cols-1 2xl:grid-cols-[300px_minmax(0,1fr)] gap-[clamp(12px,1.5vw,24px)]"
+            : "grid-cols-1 gap-6"
         )}
       >
         <section
           className={cn(
-            "flex min-h-0 w-full min-w-0 max-w-full flex-col overflow-hidden rounded-3xl bg-white/65 p-4 shadow-card ring-1 ring-slate-200/60 backdrop-blur-sm xl:h-full",
-            !selectedPatientId && "hidden"
+            "flex min-h-0 w-full min-w-0 max-w-full flex-col overflow-hidden rounded-3xl bg-white/65 p-4 shadow-card ring-1 ring-slate-200/60 backdrop-blur-sm 2xl:col-start-1 2xl:h-full",
+            selectedPatientId ? "hidden 2xl:flex" : "flex"
           )}
           aria-labelledby="triage-queue-heading"
         >
@@ -210,9 +212,9 @@ export function TriageWorkspaceLayout({ children }: { children: ReactNode }) {
 
         <section
           className={cn(
-            "relative flex min-h-[min(520px,70vh)] flex-col overflow-hidden rounded-3xl shadow-soft ring-1 ring-slate-200/60 backdrop-blur-sm xl:h-full xl:min-h-0 xl:max-h-full",
+            "relative flex min-h-[min(520px,70vh)] flex-col overflow-hidden rounded-3xl shadow-soft ring-1 ring-slate-200/60 backdrop-blur-sm 2xl:col-start-2 2xl:h-full 2xl:min-h-0 2xl:max-h-full",
             selectedPatientId
-              ? "border border-white/65 xl:border-l-4 xl:border-lime-400 xl:shadow-[inset_12px_0_24px_-12px_rgba(163,230,53,0.15)]"
+              ? "border border-white/65 2xl:border-l-4 2xl:border-lime-400 2xl:shadow-[inset_12px_0_24px_-12px_rgba(163,230,53,0.15)]"
                 + " bg-gradient-to-br from-[rgba(251,252,247,0.72)] via-white/60 to-[rgba(248,240,240,0.60)]"
               : "border border-slate-100/80"
                 + " bg-gradient-to-br from-[rgba(243,252,203,0.22)] via-[rgba(251,252,247,0.68)] to-[rgba(255,236,234,0.20)]"
@@ -220,6 +222,17 @@ export function TriageWorkspaceLayout({ children }: { children: ReactNode }) {
           aria-label="Detalhe do paciente"
         >
           <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain bg-transparent [scrollbar-gutter:stable]">
+            {selectedPatientId && (
+              <div className="border-b border-slate-100/50 bg-white/30 p-3 2xl:hidden">
+                <Link
+                  href="/inicio"
+                  className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-teal-700 transition-colors hover:text-teal-900"
+                >
+                  <ArrowLeft className="size-4" />
+                  Voltar para a fila
+                </Link>
+              </div>
+            )}
             <TriageWorkspaceProvider>{children}</TriageWorkspaceProvider>
           </div>
         </section>

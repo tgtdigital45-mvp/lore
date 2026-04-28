@@ -64,15 +64,15 @@ function isNavActive(pathname: string, to: string, end?: boolean): boolean {
   if (to === "/operacao-infusao" && pathname.startsWith("/operacao-infusao")) return true;
   if (to === "/agenda" && pathname.startsWith("/agenda")) return true;
   if (to === "/equipe-clinica" && pathname.startsWith("/equipe-clinica")) return true;
-  /** Painel: `to` = panelPath exato. Índice `/paciente` (fila) destaca "Pacientes", não este item. */
-  if (to === "/paciente" || to.startsWith("/paciente/")) {
-    if (to === "/paciente" && pathname === "/paciente") return false;
+  /** Painel: `to` = panelPath exato. Índice `/inicio` (fila) destaca "Pacientes", não este item. */
+  if (to === "/inicio" || to.startsWith("/inicio/")) {
+    if (to === "/inicio" && pathname === "/inicio") return false;
     return pathname === to;
   }
-  /** Pacientes: lista, subrotas e fila de triagem em `/paciente`. */
+  /** Pacientes: lista, subrotas e fila de triagem em `/inicio`. */
   if (to === "/pacientes") {
     return (
-      pathname === "/pacientes" || pathname.startsWith("/pacientes/") || pathname === "/paciente"
+      pathname === "/pacientes" || pathname.startsWith("/pacientes/") || pathname === "/inicio"
     );
   }
   if (end) return pathname === to;
@@ -217,9 +217,9 @@ export function OncoCareLayout({ children }: { children: ReactNode }) {
 
   const accountActive = pathname === "/conta" || pathname.startsWith("/conta/");
 
-  /** Troca só o conteúdo do Outlet na área triagem + dossiê; evita remount de toda a página ao abrir `/paciente/:id`. */
+  /** Troca só o conteúdo do Outlet na área triagem + dossiê; evita remount de toda a página ao abrir `/inicio/:id`. */
   const mainMotionKey =
-    pathname === "/paciente" || pathname.startsWith("/paciente/")
+    pathname === "/inicio" || pathname.startsWith("/inicio/")
       ? "workspace-triage"
       : pathname === "/mensagens" || pathname.startsWith("/mensagens/")
         ? "workspace-mensagens"
@@ -250,15 +250,19 @@ export function OncoCareLayout({ children }: { children: ReactNode }) {
 
   return (
     <TooltipProvider delayDuration={200}>
-      <div className="flex min-h-screen w-full flex-col bg-gradient-to-br from-lime-50/90 via-amber-50/30 to-stone-100 lg:flex-row">
-        {/* Sidebar */}
-        <aside
-          className={cn(
-            "flex w-full shrink-0 flex-col border-b border-slate-200/80 bg-surface-muted/60 backdrop-blur-sm transition-[width] duration-300 ease-out",
-            "lg:sticky lg:top-0 lg:h-screen lg:border-b-0 lg:border-r lg:border-r-slate-200/60",
-            sidebarCollapsed ? "lg:w-[76px]" : "lg:w-[272px]"
-          )}
-        >
+    <div className={cn(
+      "grid h-full min-h-0 w-full overflow-hidden bg-gradient-to-br from-lime-50/90 via-amber-50/30 to-stone-100 transition-all duration-300",
+      "grid-cols-1 lg:grid-cols-[auto_1fr]"
+    )}>
+      {/* Sidebar */}
+      <aside
+        className={cn(
+          "flex min-h-0 w-full shrink-0 flex-col overflow-hidden border-b border-slate-200/80 bg-surface-muted/60 backdrop-blur-sm transition-all duration-300 ease-out",
+          "lg:sticky lg:top-0 lg:h-screen lg:border-b-0 lg:border-r lg:border-r-slate-200/60",
+          sidebarCollapsed ? "lg:w-[72px]" : "lg:w-[260px]",
+          "md:w-full lg:max-h-screen"
+        )}
+      >
           {/* Cabeçalho: Menu + recolher (estilo Dynamics) */}
           <div
             className={cn(
@@ -292,7 +296,7 @@ export function OncoCareLayout({ children }: { children: ReactNode }) {
 
           {/* Marca — link para o painel do paciente */}
           <Link
-            href="/paciente"
+            href="/inicio"
             className={cn(
               "flex border-b border-slate-200/60 px-3 py-4 transition-colors hover:bg-black/[0.04] lg:px-4",
               sidebarCollapsed && isDesktop ? "lg:flex-col lg:items-center lg:gap-2" : "items-center gap-3"
@@ -405,9 +409,9 @@ export function OncoCareLayout({ children }: { children: ReactNode }) {
           </p>
         </aside>
 
-        {/* Conteúdo */}
-        <div className="flex min-h-0 min-w-0 flex-1 flex-col self-stretch bg-transparent">
-          <header className="sticky top-0 z-40 flex flex-wrap items-center gap-3 border-b border-slate-100 bg-white/60 px-3 py-3 shadow-card backdrop-blur-md sm:px-4 md:px-5 lg:px-6">
+      {/* Conteúdo */}
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col self-stretch overflow-hidden bg-transparent">
+          <header className="sticky top-0 z-40 flex flex-wrap items-center gap-3 border-b border-slate-100 bg-white/60 px-3 py-3 shadow-card backdrop-blur-md transition-all sm:px-4 md:px-5 lg:px-[clamp(12px,2vw,24px)]">
             <div className="relative min-w-[200px] flex-1 max-w-2xl">
               <Search className="pointer-events-none absolute left-4 top-1/2 size-5 -translate-y-1/2 text-slate-400" />
               <Input
@@ -462,12 +466,12 @@ export function OncoCareLayout({ children }: { children: ReactNode }) {
             <motion.main
               key={mainMotionKey}
               className={cn(
-                "flex w-full min-h-0 flex-1 flex-col justify-start overflow-x-hidden px-3 sm:px-4 md:px-5 lg:px-6",
+                "flex w-full min-h-0 min-w-0 flex-1 flex-col justify-start overflow-x-hidden overflow-y-auto overscroll-contain px-3 sm:px-4 md:px-5 lg:px-[clamp(12px,2.5vw,32px)]",
                 pathname === "/pacientes"
                   ? "pb-6 pt-2 sm:pt-3"
-                  : pathname === "/paciente" || pathname.startsWith("/paciente/")
+                  : pathname === "/inicio" || pathname.startsWith("/inicio/")
                     ? "pb-5 pt-4 sm:pt-5"
-                    : "py-5"
+                    : "py-[clamp(16px,2vw,24px)]"
               )}
               initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}

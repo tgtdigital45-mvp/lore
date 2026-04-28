@@ -14,6 +14,6 @@ const DashboardWorkspacePlaceholder = dynamic(
   }
 );
 
-export default function PacienteIndexPage() {
+export default function InicioIndexPage() {
   return <DashboardWorkspacePlaceholder />;
 }

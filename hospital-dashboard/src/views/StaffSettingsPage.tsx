@@ -459,7 +459,7 @@ export function StaffSettingsPage() {
       <aside className="w-full shrink-0 lg:w-52">
         <div className="flex items-start gap-3 lg:hidden">
           <Button type="button" variant="outline" size="icon" className="mt-0.5 shrink-0 rounded-2xl border-[3px]" asChild>
-            <Link href="/paciente" aria-label="Voltar ao painel">
+            <Link href="/inicio" aria-label="Voltar ao painel">
               <ArrowLeft className="size-5" />
             </Link>
           </Button>
@@ -486,7 +486,7 @@ export function StaffSettingsPage() {
         <nav className="mt-4 hidden flex-col gap-1 lg:flex" aria-label="Secções de configuração">
           <div className="mb-4 flex items-start gap-3">
             <Button type="button" variant="outline" size="icon" className="mt-0.5 shrink-0 rounded-2xl border-[3px]" asChild>
-              <Link href="/paciente" aria-label="Voltar ao painel">
+              <Link href="/inicio" aria-label="Voltar ao painel">
                 <ArrowLeft className="size-5" />
               </Link>
             </Button>

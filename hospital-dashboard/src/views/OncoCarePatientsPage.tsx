@@ -75,7 +75,7 @@ function PatientRow({ row }: { row: RiskRow }) {
   const code = formatPatientCodeDisplay(row.patient_code) ?? `PR-${row.id.slice(0, 8).toUpperCase()}`;
   const faceUrl = profileAvatarUrl(row.profiles);
   const faceInitials = initialsFromName(name);
-  const dossierPath = `/paciente/${row.id}`;
+  const dossierPath = `/inicio/${row.id}`;
 
   return (
     <div className="group relative overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-card transition hover:border-slate-200 hover:shadow-soft">
@@ -238,7 +238,7 @@ export function OncoCarePatientsPage() {
   const staffHospitalIds = useMemo(() => hospitalsMeta.map((h) => h.id), [hospitalsMeta]);
 
   return (
-    <div className="mx-auto flex w-full max-w-6xl shrink-0 flex-col self-start pb-8">
+    <div className="mx-auto flex min-h-0 w-full min-w-0 max-w-6xl flex-col pb-8">
       <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35 }} className="space-y-6">
         {/* Page header */}
         <div className="flex flex-col gap-4 border-b border-slate-200/80 pb-6 sm:flex-row sm:items-end sm:justify-between">

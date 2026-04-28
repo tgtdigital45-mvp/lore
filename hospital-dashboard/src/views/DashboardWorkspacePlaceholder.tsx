@@ -143,7 +143,7 @@ function documentTypeLabel(t: string): string {
   return "Documento";
 }
 
-/** Painel à direita quando nenhum paciente está selecionado na rota `/paciente` — centro de comando de riscos. */
+/** Painel à direita quando nenhum paciente está selecionado na rota `/inicio` — centro de comando de riscos. */
 export function DashboardWorkspacePlaceholder() {
   const {
     rows,
@@ -450,7 +450,7 @@ export function DashboardWorkspacePlaceholder() {
   }, []);
 
   return (
-    <div className="flex w-full min-w-0 flex-col gap-6 isolate">
+    <div className="flex min-h-0 w-full min-w-0 flex-col gap-6 isolate">
       {loadError ? (
         <p className="rounded-2xl border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive" role="alert">
           {loadError}

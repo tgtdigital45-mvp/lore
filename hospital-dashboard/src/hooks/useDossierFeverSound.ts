@@ -166,8 +166,8 @@ export function useDossierFeverSound(
    * Stable ref so the subscription effect doesn't re-run every time
    * feverSoundEnabled changes (which would rebuild tryHandleNewFever through
    * the chain: feverSoundEnabled → playBeepIfOn → notifyFever → tryHandleNewFever).
-   * Re-subscribing with the same channel name after subscribe() is already called
-   * throws "cannot add postgres_changes callbacks after subscribe()".
+   * Channel name includes a per-mount instance id; cleanup calls unsubscribe + removeChannel
+   * so we never chain .on() onto a channel that is already subscribed (Supabase reuses by topic).
    */
   const tryHandleNewFeverRef = useRef(tryHandleNewFever);
   useEffect(() => {
@@ -178,13 +178,20 @@ export function useDossierFeverSound(
     if (!patientId) return;
     if (!feverCelsiusMins.length) return;
 
+    // Unique suffix per mount: Supabase reuses channels by topic name; React Strict Mode /
+    // overlapping teardown can leave the old channel subscribed and cause
+    // "cannot add postgres_changes callbacks ... after subscribe()" when rebuilding.
+    const instance =
+      typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+        ? crypto.randomUUID()
+        : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    const thresholdsKey = [...feverCelsiusMins]
+      .sort((a, b) => a - b)
+      .map((n) => n.toFixed(2))
+      .join("_");
+
     const ch = supabase
-      .channel(
-        `dossier_fever_realtime_${patientId}_${[...feverCelsiusMins]
-          .sort((a, b) => a - b)
-          .map((n) => n.toFixed(2))
-          .join("_")}`
-      )
+      .channel(`dossier_fever_realtime_${patientId}_${thresholdsKey}_${instance}`)
       .on(
         "postgres_changes",
         {
@@ -200,6 +207,7 @@ export function useDossierFeverSound(
       )
       .subscribe();
     return () => {
+      void ch.unsubscribe();
       void supabase.removeChannel(ch);
     };
     // Only re-subscribe when the channel identity changes (patient or thresholds).

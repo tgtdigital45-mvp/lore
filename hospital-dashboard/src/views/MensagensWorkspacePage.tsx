@@ -32,7 +32,7 @@ export function MensagensWorkspacePage() {
   }, [rows, q, onlyReady]);
 
   return (
-    <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 p-4 pb-12">
+    <div className="mx-auto flex min-h-0 w-full min-w-0 max-w-3xl flex-col gap-6 p-4 pb-12">
       <div>
         <h1 className="text-xl font-black tracking-tight text-slate-900">Mensagens</h1>
         <p className="mt-1 text-sm text-slate-600">
@@ -83,7 +83,7 @@ export function MensagensWorkspacePage() {
           const name = profileName(row.profiles);
           const code = formatPatientCodeDisplay(row.patient_code) ?? `PR-${row.id.slice(0, 8).toUpperCase()}`;
           const { canMessage, optIn } = patientWhatsappContact(row);
-          const dossier = `/paciente/${row.id}`;
+          const dossier = `/inicio/${row.id}`;
           const chatUrl = `${dossier}?tab=mensagens`;
 
           return (

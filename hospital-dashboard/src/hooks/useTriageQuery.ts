@@ -162,16 +162,27 @@ export async function fetchTriageBundle(_session: Session): Promise<TriageBundle
   const realtimeHospitalKey = hospitalIds.slice().sort().join(",");
   const hospitalsMeta = [...metaMap.values()];
 
-  const { data: pendingRaw, error: pendErr } = await supabase
-    .from("patient_hospital_links")
-    .select(
-      `id, patient_id, hospital_id, requested_at,
+  // Busca pedidos pendentes e links aprovados em paralelo — ambos dependem
+  // apenas de hospitalIds (já disponível), então podem rodar simultaneamente.
+  const [{ data: pendingRaw, error: pendErr }, { data: approvedLinks, error: linkErr }] =
+    await Promise.all([
+      supabase
+        .from("patient_hospital_links")
+        .select(
+          `id, patient_id, hospital_id, requested_at,
         patients ( patient_code, profiles!patients_profile_id_fkey ( full_name ) )`
-    )
-    .in("hospital_id", hospitalIds)
-    .eq("status", "pending")
-    .not("requested_by", "is", null)
-    .order("requested_at", { ascending: false });
+        )
+        .in("hospital_id", hospitalIds)
+        .eq("status", "pending")
+        .not("requested_by", "is", null)
+        .order("requested_at", { ascending: false }),
+      supabase
+        .from("patient_hospital_links")
+        .select("patient_id")
+        .in("hospital_id", hospitalIds)
+        .eq("status", "approved")
+        .not("requested_by", "is", null),
+    ]);
 
   if (pendErr) {
     return {
@@ -209,13 +220,6 @@ export async function fetchTriageBundle(_session: Session): Promise<TriageBundle
       patient_name: (prof0?.full_name ?? "").trim(),
     };
   });
-
-  const { data: approvedLinks, error: linkErr } = await supabase
-    .from("patient_hospital_links")
-    .select("patient_id")
-    .in("hospital_id", hospitalIds)
-    .eq("status", "approved")
-    .not("requested_by", "is", null);
 
   if (linkErr) {
     return {

@@ -1,10 +1,56 @@
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import nextEnv from "@next/env";
+
+const { loadEnvConfig } = nextEnv;
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+/** Ensure `.env*` are applied before reading NEXT_PUBLIC_* (same folder as this file — robust when cwd differs). */
+loadEnvConfig(__dirname, process.env.NODE_ENV !== "production");
+
+const supabaseUrl =
+  process.env.NEXT_PUBLIC_SUPABASE_URL ?? process.env.SUPABASE_URL ?? "";
+
+/**
+ * Deprecated `domains` still participates in `hasRemoteMatch` via exact hostname equality —
+ * fixes next/image when avatar URLs use the Supabase project host and wildcard matching fails to apply.
+ */
+function supabaseImageDomains() {
+  if (!supabaseUrl) return [];
+  try {
+    const host = new URL(supabaseUrl).hostname;
+    return host ? [host] : [];
+  } catch {
+    return [];
+  }
+}
+
+/** Allow next/image for Supabase Storage — `*` matches project.supabase.co; pathname `/storage/**` covers public & signed paths. */
+function supabaseImageRemotePatterns() {
+  const patterns = [
+    {
+      protocol: "https",
+      hostname: "*.supabase.co",
+      pathname: "/storage/**",
+    },
+  ];
+  if (!supabaseUrl) return patterns;
+  try {
+    const host = new URL(supabaseUrl).hostname;
+    if (host && !patterns.some((p) => "hostname" in p && p.hostname === host)) {
+      patterns.push({
+        protocol: "https",
+        hostname: host,
+        pathname: "/storage/**",
+      });
+    }
+  } catch {
+    /* invalid Supabase URL */
+  }
+  return patterns;
+}
 
 /**
  * CSP e headers de segurança vivem aqui (e não só em vercel.json) para qualquer
@@ -40,6 +86,10 @@ const CONTENT_SECURITY_POLICY = [
 const nextConfig = {
   reactStrictMode: true,
   outputFileTracingRoot: path.join(__dirname),
+  images: {
+    domains: supabaseImageDomains(),
+    remotePatterns: supabaseImageRemotePatterns(),
+  },
   async headers() {
     return [
       {

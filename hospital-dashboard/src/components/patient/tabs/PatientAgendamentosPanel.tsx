@@ -1,4 +1,4 @@
-﻿import { useState } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
 import type { PatientAppointmentRow } from "@/types/dashboard";
 import { formatPtDateTime } from "@/lib/dashboardFormat";
@@ -74,8 +74,8 @@ export default function PatientAgendamentosPanel({ modalLoading, appointments, o
                   <div>
                     <p className="font-semibold text-slate-900">{a.title}</p>
                     <p className="text-xs text-muted-foreground">
-                      {formatPtDateTime(a.starts_at)} · {kindLabel(a.kind)}
-                      {a.pinned ? " · fixado" : ""}
+                      {formatPtDateTime(a.starts_at)} • {kindLabel(a.kind)}
+                      {a.pinned ? " • fixado" : ""}
                     </p>
                     {a.notes ? <p className="mt-2 text-sm text-slate-700 whitespace-pre-wrap">{a.notes}</p> : null}
                   </div>

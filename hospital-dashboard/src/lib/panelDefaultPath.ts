@@ -14,19 +14,19 @@ export function rememberPatientVisit(patientId: string): void {
 }
 
 /**
- * Destino do item "Painel": último dossiê visitado (se ainda estiver na fila), senão primeiro da triagem, senão índice `/paciente` sem dossiê demo.
+ * Destino do item "Painel": último dossiê visitado (se ainda estiver na fila), senão primeiro da triagem, senão índice `/inicio` sem dossiê demo.
  */
 export function getPanelDefaultPath(rows?: readonly { id: string }[] | null): string {
   const allowed = new Set((rows ?? []).map((r) => r.id));
   try {
     const stored = sessionStorage.getItem(STORAGE_KEY);
     if (stored && isUuidLike(stored) && allowed.has(stored)) {
-      return `/paciente/${stored}`;
+      return `/inicio/${stored}`;
     }
   } catch {
     /* ignore */
   }
   const first = rows?.[0]?.id;
-  if (first && isUuidLike(first)) return `/paciente/${first}`;
-  return "/paciente";
+  if (first && isUuidLike(first)) return `/inicio/${first}`;
+  return "/inicio";
 }

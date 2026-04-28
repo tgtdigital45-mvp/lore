@@ -39,7 +39,7 @@ export function InfusionOpsDashboardPage() {
   const initialLoading = loading && !hospitalId;
 
   return (
-    <div className="relative min-h-full overflow-hidden pb-12">
+    <div className="relative min-h-0 w-full min-w-0 overflow-hidden pb-12">
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_100%_55%_at_50%_-30%,rgba(20,184,166,0.16),transparent)]" />
       <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-teal-400/40 to-transparent" />
 

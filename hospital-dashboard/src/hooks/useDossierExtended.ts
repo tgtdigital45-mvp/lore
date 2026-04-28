@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { sanitizeSupabaseError } from "@/lib/errorMessages";
 import type { ClinicalTaskRow } from "@/types/dashboard";
@@ -26,13 +26,15 @@ export type ClinicalNoteFeedRow = {
   author_role: string | null;
 };
 
+// Tipos mantidos para compatibilidade com componentes existentes.
+// As queries correspondentes foram removidas do hook por não serem consumidas
+// em nenhuma aba do dossier atualmente.
 export type TumorEvaluationRow = {
   id: string;
   patient_id: string;
   cycle_id: string | null;
   evaluation_date: string;
   modality: string;
-  /** Soma alvo (mm) — baseline implícito = primeira avaliação quando % não preenchido. */
   sum_lesions_mm: number | null;
   response_category: string | null;
   percent_change_from_baseline: number | null;
@@ -59,113 +61,163 @@ export type RiskScoreRow = {
   computed_at?: string;
 };
 
+/**
+ * Seções disponíveis para carregamento sob demanda.
+ *
+ * - "notes"    — notas clínicas (tab "resumo", carregada automaticamente no mount)
+ * - "timeline" — linha do tempo (tab "linha_tempo")
+ * - "tasks"    — tarefas (tab "tarefas")
+ * - "ctcae"    — matriz CTCAE (tab "toxicidade")
+ *
+ * As seções são carregadas apenas uma vez por patientId.
+ * Não carregar dados que nenhuma aba consome (tumor_evals, pro, risk_scores
+ * eram buscados mas nunca renderizados — removidos para reduzir requests).
+ */
+export type DossierSection = "notes" | "timeline" | "tasks" | "ctcae";
+
 export function useDossierExtended(patientId: string | undefined, enabled: boolean) {
+  // Rastreia quais seções já foram carregadas para este patientId
+  const loadedRef = useRef<Set<DossierSection>>(new Set());
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [timeline, setTimeline] = useState<TimelineEventRow[]>([]);
   const [notes, setNotes] = useState<ClinicalNoteFeedRow[]>([]);
-  const [tumorEvals, setTumorEvals] = useState<TumorEvaluationRow[]>([]);
-  const [proResponses, setProResponses] = useState<ProQuestionnaireRow[]>([]);
-  const [riskScores, setRiskScores] = useState<RiskScoreRow[]>([]);
   const [tasks, setTasks] = useState<ClinicalTaskRow[]>([]);
   const [ctcaeMatrix, setCtcaeMatrix] = useState<unknown[]>([]);
 
-  const load = useCallback(async () => {
-    if (!patientId) return;
-    setLoading(true);
-    setError(null);
-    try {
-      const [
-        tl,
-        nRes,
-        te,
-        pro,
-        rs,
-        tk,
-        rpcCtcae,
-      ] = await Promise.all([
-        supabase
-          .from("clinical_timeline_events")
-          .select("*")
-          .eq("patient_id", patientId)
-          .order("event_at", { ascending: false })
-          .limit(80),
-        supabase.rpc("get_clinical_notes", { p_patient_id: patientId, p_limit: 40 }),
-        supabase.from("tumor_evaluations").select("*").eq("patient_id", patientId).order("evaluation_date", { ascending: true }),
-        supabase.from("pro_questionnaire_responses").select("*").eq("patient_id", patientId).order("filled_at", { ascending: false }).limit(20),
-        supabase.from("risk_scores").select("*").eq("patient_id", patientId).order("computed_at", { ascending: false }).limit(30),
-        supabase
-          .from("clinical_tasks")
-          .select("id, hospital_id, patient_id, symptom_log_id, task_type, triage_semaphore, title, description, status, assigned_to, due_at, created_at, updated_at")
-          .eq("patient_id", patientId)
-          .order("created_at", { ascending: false })
-          .limit(40),
-        supabase.rpc("get_ctcae_matrix", { p_patient_id: patientId }),
-      ]);
-
-      if (tl.error) throw tl.error;
-      setTimeline((tl.data as TimelineEventRow[]) ?? []);
-
-      if (nRes.error) throw nRes.error;
-      setNotes((nRes.data as ClinicalNoteFeedRow[]) ?? []);
-
-      if (te.error) throw te.error;
-      setTumorEvals((te.data as TumorEvaluationRow[]) ?? []);
-
-      if (pro.error) throw pro.error;
-      setProResponses((pro.data as ProQuestionnaireRow[]) ?? []);
-
-      if (rs.error) throw rs.error;
-      setRiskScores((rs.data as RiskScoreRow[]) ?? []);
-
-      if (tk.error) throw tk.error;
-      setTasks((tk.data as ClinicalTaskRow[]) ?? []);
-
-      if (!rpcCtcae.error && rpcCtcae.data != null) {
-        const raw = rpcCtcae.data as unknown;
-        if (Array.isArray(raw)) setCtcaeMatrix(raw);
-        else if (typeof raw === "string") {
-          try {
-            const p = JSON.parse(raw) as unknown;
-            setCtcaeMatrix(Array.isArray(p) ? p : []);
-          } catch {
+  const fetchSection = useCallback(
+    async (section: DossierSection): Promise<void> => {
+      if (!patientId) return;
+      switch (section) {
+        case "notes": {
+          const res = await supabase.rpc("get_clinical_notes", {
+            p_patient_id: patientId,
+            p_limit: 40,
+          });
+          if (res.error) throw res.error;
+          setNotes((res.data as ClinicalNoteFeedRow[]) ?? []);
+          break;
+        }
+        case "timeline": {
+          const res = await supabase
+            .from("clinical_timeline_events")
+            .select("*")
+            .eq("patient_id", patientId)
+            .order("event_at", { ascending: false })
+            .limit(80);
+          if (res.error) throw res.error;
+          setTimeline((res.data as TimelineEventRow[]) ?? []);
+          break;
+        }
+        case "tasks": {
+          const res = await supabase
+            .from("clinical_tasks")
+            .select(
+              "id, hospital_id, patient_id, symptom_log_id, task_type, triage_semaphore, title, description, status, assigned_to, due_at, created_at, updated_at"
+            )
+            .eq("patient_id", patientId)
+            .order("created_at", { ascending: false })
+            .limit(40);
+          if (res.error) throw res.error;
+          setTasks((res.data as ClinicalTaskRow[]) ?? []);
+          break;
+        }
+        case "ctcae": {
+          const res = await supabase.rpc("get_ctcae_matrix", {
+            p_patient_id: patientId,
+          });
+          if (res.error || res.data == null) {
+            setCtcaeMatrix([]);
+            break;
+          }
+          const raw = res.data as unknown;
+          if (Array.isArray(raw)) {
+            setCtcaeMatrix(raw);
+          } else if (typeof raw === "string") {
+            try {
+              const parsed = JSON.parse(raw) as unknown;
+              setCtcaeMatrix(Array.isArray(parsed) ? parsed : []);
+            } catch {
+              setCtcaeMatrix([]);
+            }
+          } else {
             setCtcaeMatrix([]);
           }
-        } else setCtcaeMatrix([]);
-      } else {
-        setCtcaeMatrix([]);
+          break;
+        }
       }
+    },
+    [patientId]
+  );
+
+  /**
+   * Carrega uma seção sob demanda. Idempotente: chamadas repetidas para a mesma
+   * seção são ignoradas (a seção já foi carregada).
+   */
+  const loadSection = useCallback(
+    async (section: DossierSection): Promise<void> => {
+      if (!patientId || !enabled) return;
+      if (loadedRef.current.has(section)) return;
+      loadedRef.current.add(section);
+      setLoading(true);
+      try {
+        await fetchSection(section);
+      } catch (e) {
+        loadedRef.current.delete(section); // permite retry
+        setError(sanitizeSupabaseError(e instanceof Error ? e : { message: String(e) }));
+      } finally {
+        setLoading(false);
+      }
+    },
+    [patientId, enabled, fetchSection]
+  );
+
+  // Limpa estado e carrega apenas as notas ao montar/trocar paciente.
+  // As demais seções são carregadas por tab via loadSection().
+  useEffect(() => {
+    if (!patientId || !enabled) {
+      loadedRef.current.clear();
+      setTimeline([]);
+      setNotes([]);
+      setTasks([]);
+      setCtcaeMatrix([]);
+      setError(null);
+      return;
+    }
+    void loadSection("notes");
+  }, [patientId, enabled, loadSection]);
+
+  /**
+   * Re-carrega todas as seções que já foram abertas pelo usuário.
+   */
+  const reload = useCallback(async (): Promise<void> => {
+    if (!patientId) return;
+    const sections = [...loadedRef.current] as DossierSection[];
+    loadedRef.current.clear();
+    setLoading(true);
+    try {
+      await Promise.all(
+        sections.map((s) => {
+          loadedRef.current.add(s);
+          return fetchSection(s);
+        })
+      );
     } catch (e) {
       setError(sanitizeSupabaseError(e instanceof Error ? e : { message: String(e) }));
     } finally {
       setLoading(false);
     }
-  }, [patientId]);
-
-  useEffect(() => {
-    if (!patientId || !enabled) {
-      setTimeline([]);
-      setNotes([]);
-      setTumorEvals([]);
-      setProResponses([]);
-      setRiskScores([]);
-      setTasks([]);
-      setCtcaeMatrix([]);
-      return;
-    }
-    void load();
-  }, [patientId, enabled, load]);
+  }, [patientId, fetchSection]);
 
   return {
     loading,
     error,
     timeline,
     notes,
-    tumorEvals,
-    proResponses,
-    riskScores,
     tasks,
     ctcaeMatrix,
-    reload: load,
+    reload,
+    loadSection,
   };
 }

@@ -17,7 +17,7 @@ import { OncoCareProvider } from "@/context/OncoCareContext";
 function AuthSessionSplash() {
   return (
     <div
-      className="flex min-h-screen flex-col items-center justify-center gap-4 bg-slate-950 px-4"
+      className="flex min-h-full w-full flex-col items-center justify-center gap-4 overflow-y-auto bg-slate-950 px-4"
       role="status"
       aria-live="polite"
       aria-busy="true"
@@ -226,7 +226,7 @@ function OncoCareAuthScreen() {
         .auth-btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
       `}</style>
 
-      <div className="flex min-h-screen bg-white">
+      <div className="flex min-h-full w-full overflow-y-auto bg-white">
         {/* ══════════════ LEFT — fluid art panel ══════════════ */}
         <div className="relative hidden w-1/2 flex-col justify-between overflow-hidden lg:flex">
           <FluidArt />

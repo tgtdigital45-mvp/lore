@@ -14,6 +14,6 @@ const TriageWorkspaceLayout = dynamic(
   }
 );
 
-export default function PacienteLayout({ children }: { children: React.ReactNode }) {
+export default function InicioLayout({ children }: { children: React.ReactNode }) {
   return <TriageWorkspaceLayout>{children}</TriageWorkspaceLayout>;
 }

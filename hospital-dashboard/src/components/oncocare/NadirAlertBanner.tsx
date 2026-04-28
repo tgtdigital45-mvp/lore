@@ -50,7 +50,7 @@ export function NadirAlertBanner({ rows }: Props) {
                     {emergency.map((r) => (
                       <li key={r.id}>
                         <Link
-                          href={`/paciente/${r.id}`}
+                          href={`/inicio/${r.id}`}
                           className="inline-flex rounded-full bg-white/20 px-2.5 py-0.5 text-[0.7rem] font-semibold underline-offset-2 hover:underline"
                         >
                           {profileName(r)}
@@ -67,7 +67,7 @@ export function NadirAlertBanner({ rows }: Props) {
               className="shrink-0 rounded-full border border-white/30 bg-white/15 font-bold text-white hover:bg-white/25"
               asChild
             >
-              <Link href="/paciente">Abrir fila</Link>
+              <Link href="/inicio">Abrir fila</Link>
             </Button>
           </div>
         </motion.div>

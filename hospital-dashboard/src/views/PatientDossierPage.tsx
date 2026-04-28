@@ -42,7 +42,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import type { CtcaeMatrixRow } from "@/components/patient/CtcaeSwimmerPlot";
-import { DossierBentoGrid } from "@/components/patient/DossierBentoGrid";
+import { ModernPatientDossier } from "@/components/patient/ModernPatientDossier";
 import { DossierPatientHeader } from "@/components/patient/DossierPatientHeader";
 import { TreatmentJourneyBar } from "@/components/patient/TreatmentJourneyBar";
 import { DossierReportModal } from "@/components/patient/DossierReportModal";
@@ -190,6 +190,15 @@ export function PatientDossierPage() {
 
   const dossierExt = useDossierExtended(patientId, Boolean(patientId && riskRow));
 
+  // Carrega seções do dossier sob demanda ao abrir a aba correspondente.
+  // Só "notes" é carregado no mount (tab "resumo"). As demais seções
+  // são lazy e só disparam quando a aba é aberta pela primeira vez.
+  useEffect(() => {
+    if (!patientId || !riskRow) return;
+    if (tab === "linha_tempo") void dossierExt.loadSection("timeline");
+    if (tab === "tarefas") void dossierExt.loadSection("tasks");
+    if (tab === "toxicidade") void dossierExt.loadSection("ctcae");
+  }, [tab, patientId, riskRow, dossierExt]);
 
   const examesHandlers = usePatientExamesHandlers(session, patientId, refreshExames);
 
@@ -346,8 +355,8 @@ export function PatientDossierPage() {
     <div
       className={cn(
         inWorkspace
-          ? "flex min-h-full min-h-0 w-full min-w-0 flex-col px-1 pb-8 pt-3 sm:px-3 sm:pt-4 md:px-4"
-          : "mx-auto max-w-7xl pb-12"
+          ? "flex min-h-full w-full min-w-0 flex-col px-1 pb-4 pt-2 sm:px-2 sm:pt-3 md:px-3"
+          : "mx-auto max-w-[1800px] pb-12 px-[clamp(12px,2vw,32px)]"
       )}
     >
       {!inWorkspace ? (
@@ -377,34 +386,34 @@ export function PatientDossierPage() {
             feverSound={hasFeverRules ? { enabled: feverSoundEnabled, onChange: setFeverSoundEnabled } : null}
           />
         </div>
-        <div className="space-y-4 px-4 pb-4 pt-2 md:px-6">
+        <div className="space-y-3 px-3 pb-3 pt-1.5 md:px-4 md:pt-2">
           <TreatmentJourneyBar cycles={cycles} />
         </div>
           <motion.div
             variants={listContainerVariants}
             initial="hidden"
             animate="visible"
-            className="grid w-full grid-cols-2 gap-x-4 gap-y-3 rounded-3xl border border-white/55 bg-white/45 px-4 py-4 shadow-sm backdrop-blur-sm sm:grid-cols-3 lg:grid-cols-5"
+            className="grid w-full grid-cols-2 gap-[clamp(8px,1vw,16px)] rounded-3xl border border-white/55 bg-white/45 p-[clamp(12px,1.5vw,20px)] shadow-sm backdrop-blur-sm sm:grid-cols-3 xl:grid-cols-5"
           >
             <motion.div variants={listItemVariants}>
-              <p className="text-[0.65rem] font-medium uppercase tracking-wider text-slate-400">Ciclo atual</p>
-              <p className="text-2xl font-black text-teal-700">{cycleLabel}</p>
+              <p className="text-[clamp(10px,0.7vw,12px)] font-medium uppercase tracking-wider text-slate-400">Ciclo atual</p>
+              <p className="text-[clamp(18px,1.5vw,28px)] font-black text-teal-700">{cycleLabel}</p>
             </motion.div>
             <motion.div variants={listItemVariants}>
-              <p className="text-[0.65rem] font-medium uppercase tracking-wider text-slate-400">1ª infusão (ciclo)</p>
-              <p className="text-sm font-bold text-slate-800">{firstInfusionLabel}</p>
+              <p className="text-[clamp(10px,0.7vw,12px)] font-medium uppercase tracking-wider text-slate-400">1ª infusão (ciclo)</p>
+              <p className="text-[clamp(12px,0.8vw,15px)] font-bold text-slate-800">{firstInfusionLabel}</p>
             </motion.div>
             <motion.div variants={listItemVariants}>
-              <p className="text-[0.65rem] font-medium uppercase tracking-wider text-slate-400">Última infusão</p>
-              <p className="text-sm font-bold text-slate-800">{lastInfusionLabel}</p>
+              <p className="text-[clamp(10px,0.7vw,12px)] font-medium uppercase tracking-wider text-slate-400">Última infusão</p>
+              <p className="text-[clamp(12px,0.8vw,15px)] font-bold text-slate-800">{lastInfusionLabel}</p>
             </motion.div>
             <motion.div variants={listItemVariants}>
-              <p className="text-[0.65rem] font-medium uppercase tracking-wider text-slate-400">Próxima infusão (estim.)</p>
-              <p className="text-sm font-bold text-teal-700">{nadir.predictedNextInfusionLabel}</p>
+              <p className="text-[clamp(10px,0.7vw,12px)] font-medium uppercase tracking-wider text-slate-400">Próxima infusão (estim.)</p>
+              <p className="text-[clamp(12px,0.8vw,15px)] font-bold text-teal-700">{nadir.predictedNextInfusionLabel}</p>
             </motion.div>
             <motion.div variants={listItemVariants} className="col-span-2 sm:col-span-1">
-              <p className="text-[0.65rem] font-medium uppercase tracking-wider text-slate-400">Janela de nadir (7–14 d)</p>
-              <p className="flex items-start gap-2 text-sm font-bold leading-snug text-rose-600">
+              <p className="text-[clamp(10px,0.7vw,12px)] font-medium uppercase tracking-wider text-slate-400">Janela de nadir (7–14 d)</p>
+              <p className="flex items-start gap-2 text-[clamp(12px,0.8vw,15px)] font-bold leading-snug text-rose-600">
                 <Calendar className="mt-0.5 size-4 shrink-0" />
                 <span>{nadir.estimatedNadirWindowLabel}</span>
               </p>
@@ -412,14 +421,14 @@ export function PatientDossierPage() {
           </motion.div>
         </div>
 
-      {/* ── Tabs + Content: sidebar left (xl) / horizontal top (mobile) ── */}
+      {/* ── Tabs + Content: sidebar left (lg+) / horizontal scroll (md) / wrap (sm) ── */}
       <section 
-        className="relative flex flex-col xl:flex-row xl:gap-0 xl:overflow-hidden xl:rounded-3xl xl:border xl:border-white/65 xl:bg-white/40 xl:backdrop-blur-sm xl:shadow-sm"
+        className="relative flex min-h-0 min-w-0 flex-col xl:flex-row xl:gap-0 xl:overflow-hidden xl:rounded-3xl xl:border xl:border-white/65 xl:bg-white/40 xl:backdrop-blur-sm xl:shadow-sm"
         aria-label="Detalhe do paciente"
       >
-        {/* ── Tab sidebar (vertical on xl, horizontal scroll on smaller) ── */}
+        {/* ── Tab sidebar (vertical on lg+, scrollable row on md, wrap on sm) ── */}
         <div
-          className="mx-3 mb-4 flex flex-wrap gap-2 rounded-[1.25rem] border border-white/55 bg-white/45 p-2 shadow-sm backdrop-blur-md md:mx-5 xl:mx-0 xl:mb-0 xl:w-52 xl:shrink-0 xl:flex-col xl:flex-nowrap xl:gap-1 xl:self-start xl:sticky xl:top-4 xl:rounded-none xl:border-0 xl:border-r xl:border-white/40 xl:bg-transparent xl:p-4 xl:shadow-none"
+          className="mx-3 mb-4 flex flex-nowrap gap-2 overflow-x-auto rounded-[1.25rem] border border-white/55 bg-white/45 p-2 shadow-sm backdrop-blur-md scrollbar-none md:mx-5 lg:mx-0 xl:mb-0 xl:w-[min(20vw,240px)] xl:shrink-0 xl:flex-col xl:flex-nowrap xl:gap-1 xl:self-start xl:sticky xl:top-4 xl:rounded-none xl:border-0 xl:border-r xl:border-white/40 xl:bg-transparent xl:p-[clamp(12px,1.5vw,20px)] xl:shadow-none xl:overflow-x-visible"
           role="tablist"
           aria-label="Seções do prontuário"
         >
@@ -432,7 +441,7 @@ export function PatientDossierPage() {
               aria-selected={tab === id}
               aria-controls={`dossier-panel-${id}`}
               className={cn(
-                "inline-flex items-center gap-1.5 rounded-2xl px-3.5 py-2 text-sm font-semibold transition-all duration-200 xl:w-full xl:justify-start xl:rounded-xl xl:px-3 xl:py-2.5",
+                "inline-flex shrink-0 items-center gap-1.5 rounded-2xl px-3.5 py-2 text-sm font-semibold transition-all duration-200 xl:w-full xl:shrink xl:justify-start xl:rounded-xl xl:px-3 xl:py-2.5",
                 tab === id
                   ? "bg-foreground text-background shadow-md"
                   : "text-slate-700 hover:bg-white/70 hover:text-slate-900"
@@ -446,7 +455,7 @@ export function PatientDossierPage() {
         </div>
 
         {/* ── Tab content panel ── */}
-        <div className="min-w-0 flex-1 border-t border-white/35 px-3 pb-8 pt-4 md:px-5 xl:border-0 xl:border-t-0">
+        <div className="min-h-0 min-w-0 flex-1 border-t border-white/35 px-3 pb-8 pt-4 md:px-5 xl:border-0 xl:border-t-0">
       <AnimatePresence mode="wait">
       {tab === "resumo" ? (
         <motion.div
@@ -458,24 +467,19 @@ export function PatientDossierPage() {
           initial="hidden"
           animate="visible"
           exit="exit"
-          className="space-y-8"
+          className="space-y-[clamp(12px,3vh,24px)]"
         >
-          <DossierBentoGrid
+          <ModernPatientDossier
             patientId={patientId}
-            emergencyContacts={emergencyContacts}
-            cycleReadiness={cycleReadiness}
             nadir={{
-              predictedNextInfusionLabel: nadir.predictedNextInfusionLabel,
-              estimatedNadirWindowLabel: nadir.estimatedNadirWindowLabel,
               cycleLabel,
+              estimatedNadirWindowLabel: nadir.estimatedNadirWindowLabel,
             }}
-            medications={medications}
-            alertRules={alertRules}
-            symptomsTimeline={symptoms}
-            suspensionRisk={riskRow?.suspensionRiskScore}
-            onRefreshRules={refreshParaclinical}
-            onOpenSuspensionModal={() => setSuspensionFactorsOpen(true)}
-            onGoTratamento={() => setTab("tratamento")}
+            symptoms={symptoms}
+            appointments={appointments}
+            medicalDocs={medicalDocs}
+            staffProfile={staffProfile}
+            riskRow={riskRow}
           />
 
           <PatientNotesPanel
@@ -485,9 +489,9 @@ export function PatientDossierPage() {
             onRefresh={() => void dossierExt.reload()}
           />
 
-          <div className="grid gap-6 lg:grid-cols-5">
-          <div className="space-y-6 lg:col-span-3">
-            <Card className="dossier-glass-card rounded-3xl border-0 p-5 shadow-none transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg">
+          <div className="grid gap-[clamp(16px,2vw,32px)] xl:grid-cols-5">
+          <div className="space-y-[clamp(16px,2vw,32px)] xl:col-span-3">
+            <Card className="dossier-glass-card w-full min-w-0 overflow-hidden rounded-3xl border-0 p-[clamp(16px,1.5vw,24px)] shadow-none transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg">
               <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
                 <h2 className="flex items-center gap-2 text-lg font-bold">
                   <Activity className="size-5 text-clinical-critical" />
@@ -518,7 +522,7 @@ export function PatientDossierPage() {
               </div>
             </Card>
 
-            <Card className="dossier-glass-card rounded-3xl border-0 p-5 shadow-none transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg">
+            <Card className="dossier-glass-card w-full min-w-0 overflow-hidden rounded-3xl border-0 p-[clamp(16px,1.5vw,24px)] shadow-none transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg">
               <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
                 <h2 className="flex items-center gap-2 text-lg font-bold">Toxicidade (CTCAE)</h2>
                 <Button type="button" variant="outline" size="sm" className="rounded-2xl" onClick={() => setTab("toxicidade")}>
@@ -535,9 +539,9 @@ export function PatientDossierPage() {
 
           </div>
 
-          <aside className="space-y-6 lg:col-span-2">
+          <aside className="space-y-[clamp(16px,2vw,32px)] xl:col-span-2">
             {cycleReadiness ? (
-              <Card className="dossier-glass-card rounded-3xl border-0 p-5 shadow-none transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg">
+              <Card className="dossier-glass-card w-full min-w-0 overflow-hidden rounded-3xl border-0 p-[clamp(16px,1.5vw,24px)] shadow-none transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg">
                 <h2 className="mb-2 flex items-center gap-2 text-lg font-bold">
                   <Stethoscope className="size-5 text-clinical-indigo" />
                   Próximo ciclo (heurística)
@@ -567,7 +571,7 @@ export function PatientDossierPage() {
                 ) : null}
               </Card>
             ) : null}
-            <Card className="dossier-glass-card rounded-3xl border-0 p-5 shadow-none transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg">
+            <Card className="dossier-glass-card w-full min-w-0 overflow-hidden rounded-3xl border-0 p-[clamp(16px,1.5vw,24px)] shadow-none transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg">
               <h2 className="mb-4 flex items-center gap-2 text-lg font-bold">
                 <Zap className="size-5 text-clinical-attention" />
                 Risco de suspensão (IA)

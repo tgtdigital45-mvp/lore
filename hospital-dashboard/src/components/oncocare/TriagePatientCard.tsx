@@ -47,7 +47,7 @@ type Props = {
 };
 
 /**
- * Cartão da fila de triagem: clique abre o dossiê à direita (rota `/paciente/:id`).
+ * Cartão da fila de triagem: clique abre o dossiê à direita (rota `/inicio/:id`).
  * No painel com layout dividido, `isSelected` ativa o conector visual até o painel.
  */
 export function TriagePatientCard({ row, vitals, isSelected }: Props) {
@@ -69,7 +69,7 @@ export function TriagePatientCard({ row, vitals, isSelected }: Props) {
   const statusTag =
     tier === "critical" ? "Crítico" : tier === "attention" ? "Atenção" : tier === "stable" ? "Estável" : "—";
 
-  const dossierPath = `/paciente/${row.id}`;
+  const dossierPath = `/inicio/${row.id}`;
   const messagesPath = `${dossierPath}?tab=mensagens`;
   const wa = patientWhatsappContact(row);
   const [patientCodeVisible, setPatientCodeVisible] = useState(true);

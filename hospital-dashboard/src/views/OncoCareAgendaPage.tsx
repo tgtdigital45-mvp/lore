@@ -183,7 +183,7 @@ export function OncoCareAgendaPage() {
   }
 
   return (
-    <div className="mx-auto flex w-full max-w-7xl flex-col gap-8 pb-12 sm:pb-16">
+    <div className="mx-auto flex min-h-0 w-full min-w-0 max-w-7xl flex-col gap-8 pb-12 sm:pb-16">
       <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35 }} className="space-y-6">
         {/* Page header */}
         <div className="flex flex-col gap-6 border-b border-slate-200/80 pb-6 lg:flex-row lg:items-start lg:justify-between">
